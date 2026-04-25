@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+
+import { resolveBindings } from "@/features/editor/binding/binding-engine";
+import { buildCanonicalRenderTree } from "@/features/editor/layout-engine/layout-engine";
+import type { TemplateSchema } from "@/features/editor/schema/template-schema";
+
+describe("editor render pipeline foundation", () => {
+  it("builds a canonical render tree from the bound template document", () => {
+    const template: TemplateSchema = {
+      id: "template-1",
+      name: "Resume template",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Page 1",
+          width: 794,
+          height: 1123,
+          margin: {
+            top: 40,
+            right: 40,
+            bottom: 40,
+            left: 40,
+          },
+        },
+      ],
+      elements: [
+        {
+          id: "element-1",
+          pageId: "page-1",
+          type: "text",
+          frame: {
+            x: 80,
+            y: 96,
+            width: 320,
+            height: 48,
+          },
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          bindingId: "candidate.name",
+        },
+      ],
+    };
+
+    const boundDocument = resolveBindings({
+      template,
+      data: {
+        "candidate.name": "Ada Lovelace",
+      },
+    });
+    const renderTree = buildCanonicalRenderTree(boundDocument);
+
+    expect(renderTree.templateId).toBe("template-1");
+    expect(renderTree.pages).toHaveLength(1);
+    expect(renderTree.pages[0]?.children).toHaveLength(1);
+    expect(renderTree.pages[0]?.children[0]?.props.bindingId).toBe("candidate.name");
+  });
+});
