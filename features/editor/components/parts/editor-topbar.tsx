@@ -34,46 +34,48 @@ export function EditorTopbar() {
         <p className="ef-brand-title">Studio Templates</p>
       </div>
 
-      <div className="ef-topbar-main">
-        {documentActions.map((action) => (
-          <ActionButton key={action.label} label={action.label} icon={action.icon} />
-        ))}
+      <div className="ef-topbar-module">
+        <div className="ef-topbar-main">
+          {documentActions.map((action) => (
+            <ActionButton key={action.label} label={action.label} icon={action.icon} />
+          ))}
 
-        <div className="ef-topbar-tools">
-          <IconButton label="Annuler" icon={Undo2} />
-          <IconButton label="Rétablir" icon={Redo2} muted />
+          <div className="ef-topbar-tools">
+            <IconButton label="Annuler" icon={Undo2} />
+            <IconButton label="Rétablir" icon={Redo2} muted />
+          </div>
+
+          <ZoomControl value={`${Math.round(zoom * 100)}%`} />
+
+          <div className="ef-topbar-tools">
+            <IconButton label="Grille" icon={Grid2X2} />
+            <IconButton label="Guides" icon={PanelTop} />
+            <IconButton label="Colonnes" icon={Columns3} />
+            <button className="ef-topbar-dropdown" title="Options affichage">
+              <ChevronDown size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+            </button>
+            <IconButton label="Desktop" icon={Monitor} active />
+            <IconButton label="Tablet" icon={Tablet} />
+            <IconButton label="Mobile" icon={Smartphone} />
+          </div>
         </div>
 
-        <ZoomControl value={`${Math.round(zoom * 100)}%`} />
+        <div className="ef-topbar-actions">
+          <label className="ef-topbar-search">
+            <Search size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+            <span className="ef-truncate">Rechercher (⌘K)</span>
+            <ChevronDown className="ml-auto" size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+          </label>
 
-        <div className="ef-topbar-tools">
-          <IconButton label="Grille" icon={Grid2X2} />
-          <IconButton label="Guides" icon={PanelTop} />
-          <IconButton label="Colonnes" icon={Columns3} />
-          <button className="ef-topbar-dropdown" title="Options affichage">
+          <button className="ef-share-button">
+            <span>Partager / Publier</span>
+            <span className="h-5 w-px bg-white/20" />
             <ChevronDown size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
           </button>
-          <IconButton label="Desktop" icon={Monitor} active />
-          <IconButton label="Tablet" icon={Tablet} />
-          <IconButton label="Mobile" icon={Smartphone} />
+
+          <IconButton label="Aide" icon={CircleHelp} />
+          <IconButton label="Notifications" icon={Bell} />
         </div>
-      </div>
-
-      <div className="ef-topbar-actions">
-        <label className="ef-topbar-search">
-          <Search size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-          <span className="ef-truncate">Rechercher (⌘K)</span>
-          <ChevronDown className="ml-auto" size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-        </label>
-
-        <button className="ef-share-button">
-          <span>Partager / Publier</span>
-          <span className="h-5 w-px bg-white/20" />
-          <ChevronDown size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
-        </button>
-
-        <IconButton label="Aide" icon={CircleHelp} />
-        <IconButton label="Notifications" icon={Bell} />
       </div>
     </header>
   );

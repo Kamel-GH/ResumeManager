@@ -1,84 +1,73 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Diamond, Eye, Folder, Image, Minus, Search, SlidersHorizontal, Type } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Search, Settings } from "lucide-react";
 
-type LayerRow = {
-  label: string;
-  icon: LucideIcon;
-  depth: 0 | 1 | 2;
-  selected?: boolean;
-  expanded?: boolean;
-  collapsed?: boolean;
-  visible?: boolean;
-};
+import { layers } from "@/src/data/editorMockData";
+import { useEditorStore } from "@/features/editor/stores/editor-store";
 
-const layerRows: LayerRow[] = [
-  { label: "Header", icon: Folder, depth: 0, expanded: true, visible: true },
-  { label: "Nom & Prénom", icon: Type, depth: 1, selected: true, visible: true },
-  { label: "Poste", icon: Type, depth: 1, visible: true },
-  { label: "Accroche", icon: Type, depth: 1, visible: true },
-  { label: "Sidebar", icon: Folder, depth: 0, expanded: true, visible: true },
-  { label: "Photo Profil", icon: Image, depth: 1, visible: true },
-  { label: "Contact", icon: Folder, depth: 1, collapsed: true, visible: true },
-  { label: "Compétences", icon: Folder, depth: 1, collapsed: true, visible: true },
-  { label: "Titre", icon: Type, depth: 2 },
-  { label: "Barres", icon: SlidersHorizontal, depth: 2 },
-  { label: "Langues", icon: Folder, depth: 1, collapsed: true, visible: true },
-  { label: "Contenu", icon: Folder, depth: 0, expanded: true, visible: true },
-  { label: "Expérience List", icon: Diamond, depth: 1, visible: true },
-  { label: "Item", icon: Folder, depth: 1, visible: true },
-  { label: "Période", icon: Type, depth: 2 },
-  { label: "Poste", icon: Type, depth: 2 },
-  { label: "Entreprise", icon: Type, depth: 2 },
-  { label: "Description", icon: Type, depth: 2 },
-  { label: "Formation", icon: Folder, depth: 0, visible: true },
-  { label: "Footer", icon: Folder, depth: 0, expanded: true, visible: true },
-  { label: "Ligne", icon: Minus, depth: 1 },
-  { label: "Icônes réseaux", icon: Diamond, depth: 1 },
-];
+export function LayersPanel({ embedded = false }: { embedded?: boolean }) {
+  const filter = useEditorStore((state) => state.panelPreferences.filters.layers ?? "");
+  const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
+  const rows = layers.filter((layer) => {
+    if (!filter.trim()) return true;
+    const query = filter.toLowerCase();
+    return [layer.name, String(layer.page), String(layer.number)].some((value) => value.toLowerCase().includes(query));
+  });
 
-export function LayersPanel() {
   return (
-    <aside className="ef-layers">
-      <div className="ef-layers-head">
-        <h2 className="ef-layers-title">Calques</h2>
-        <ChevronDown size={12} aria-hidden="true" />
+    <aside className={["ef-layers", embedded ? "is-embedded" : ""].join(" ")}>
+      <div className="ef-left-panel-toolbar">
+        <span />
+        <button className="ef-square-button ef-icon-28" type="button" title="Paramètres" aria-label="Paramètres">
+          <Settings size={18} aria-hidden="true" />
+        </button>
       </div>
 
-      <label className="ef-layer-search">
-        <Search size={13} aria-hidden="true" />
-        Rechercher un calque...
-      </label>
+      <div className="ef-search-line">
+        <label className="ef-search-box ef-left-search">
+          <Search size={18} aria-hidden="true" />
+          <input type="search" value={filter} placeholder="Filtrer calques..." aria-label="Filtrer calques" onChange={(event) => setPanelFilter("layers", event.target.value)} />
+        </label>
+        <button className="ef-filter-select" type="button">LISTE</button>
+      </div>
 
-      <div className="ef-layer-list">
-        {layerRows.map((row, index) => (
-          <LayerItem key={`${row.label}-${index}`} row={row} />
+      <div className="ef-layer-table">
+        <div className="ef-layer-table-row ef-list-head">
+          <span>N°</span>
+          <span>Nom</span>
+          <span>Pg</span>
+          <span>Œil</span>
+          <span>Ver.</span>
+        </div>
+        {rows.map((layer) => (
+          <button
+            key={layer.id}
+            className={["ef-layer-table-row", layer.active ? "is-active-layer" : ""].join(" ")}
+            type="button"
+            title={layer.active ? `${layer.name} - calque actif` : layer.name}
+            draggable
+            onDragStart={(event) => {
+              event.dataTransfer.setData("application/x-resume-editor-item", JSON.stringify({ type: "layer", payload: layer }));
+              event.dataTransfer.effectAllowed = "move";
+            }}
+          >
+            <span>{layer.number}</span>
+            <strong>{layer.name}</strong>
+            <span>{layer.page}</span>
+            <span>{layer.visible ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}</span>
+            <span>{layer.locked ? <Lock size={18} aria-hidden="true" /> : <LockOpen size={18} aria-hidden="true" />}</span>
+          </button>
+        ))}
+        {rows.length === 0 ? <div className="ef-no-result">Aucun résultat</div> : null}
+      </div>
+
+      <div className="ef-left-panel-footer">
+        {["Ajouter", "Modifier", "Supprimer", "Fusionner", "Réordonner"].map((action) => (
+          <button key={action} className="ef-footer-icon-action" type="button" title={action} aria-label={action}>
+            {action.slice(0, 1)}
+          </button>
         ))}
       </div>
     </aside>
-  );
-}
-
-function LayerItem({ row }: { row: LayerRow }) {
-  const Icon = row.icon;
-  const Chevron = row.expanded ? ChevronDown : row.collapsed ? ChevronRight : null;
-
-  return (
-    <button
-      className={[
-        "ef-layer-row",
-        `ef-layer-depth-${row.depth}`,
-        row.selected ? "is-selected" : "",
-      ].join(" ")}
-      title={row.label}
-    >
-      <span className="ef-layer-visibility">{row.visible ? <Eye size={13} aria-hidden="true" /> : null}</span>
-      <span className="ef-layer-icon">{Chevron ? <Chevron size={11} aria-hidden="true" /> : <Icon size={13} aria-hidden="true" />}</span>
-      <span className="ef-layer-label">
-        {Chevron ? <Icon size={13} aria-hidden="true" /> : null}
-        <span className="ef-truncate">{row.label}</span>
-      </span>
-    </button>
   );
 }

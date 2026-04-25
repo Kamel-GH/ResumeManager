@@ -2,106 +2,113 @@
 
 import { GripVertical, Search, Settings } from "lucide-react";
 
-import { presets, variables } from "@/features/editor/components/editor-mock-data";
+import { presets, variables } from "@/src/data/editorMockData";
+import { useEditorStore } from "@/features/editor/stores/editor-store";
+import type { EditorPresetMock, EditorVariableMock } from "@/src/data/editorMockData";
 
-export function EditorDataPanel() {
+export function EditorDataPanel({ activeSubTab = "variables" }: { activeSubTab?: "variables" | "presets" }) {
+  const filter = useEditorStore((state) => state.panelPreferences.filters[activeSubTab] ?? "");
+  const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
+
   return (
-    <aside className="ef-data-panel">
-      <h2 className="ef-panel-heading">Données</h2>
-
-      <div className="ef-two-tabs">
-        <button className="ef-tab-button is-active">Variables</button>
-        <button className="ef-tab-button">Presets</button>
-      </div>
-
-      <div className="ef-search-row">
-        <label className="ef-search-box">
-          <Search size={14} aria-hidden="true" />
-          Filtrer les variables...
-        </label>
-        <button className="ef-square-button">
-          <Settings size={14} aria-hidden="true" />
+    <div className="ef-data-panel ef-left-panel-body">
+      <div className="ef-left-panel-toolbar">
+        <span />
+        <button className="ef-square-button ef-icon-28" type="button" title="Paramètres" aria-label="Paramètres">
+          <Settings size={18} aria-hidden="true" />
         </button>
       </div>
-
-      <div className="ef-data-table">
-        <div className="ef-data-table-row ef-data-table-head">
-          <span />
-          <span>Variable</span>
-          <span>Type</span>
-        </div>
-        {variables.map((variable) => (
-          <div key={variable.token} className="ef-data-table-row">
-            <GripVertical size={12} className="ef-muted-icon" aria-hidden="true" />
-            <span className="ef-token">{variable.token}</span>
-            <span className="ef-type-pill">
-              <span className="ef-dot" style={{ backgroundColor: variable.color }} />
-              {variable.type}
-            </span>
-          </div>
-        ))}
+      <div className="ef-search-row">
+        <label className="ef-search-box">
+          <Search size={18} aria-hidden="true" />
+          <input
+            type="search"
+            value={filter}
+            placeholder={activeSubTab === "variables" ? "Filtrer variables..." : "Filtrer presets..."}
+            aria-label="Filtrer"
+            onChange={(event) => setPanelFilter(activeSubTab, event.target.value)}
+          />
+        </label>
+        <button className="ef-filter-select" type="button">TYPE</button>
       </div>
 
-      <div className="ef-section-header">
-        <h3 className="ef-panel-subheading">Presets</h3>
-        <button className="ef-panel-link">Voir tout</button>
+      <div className="ef-left-panel-scroll">
+        {activeSubTab === "variables" ? <VariablesList filter={filter} /> : <PresetList filter={filter} />}
       </div>
-
-      <div className="ef-preset-grid">
-        {presets.map((preset, index) => (
-          <button key={preset.title} className="ef-preset-card">
-            <PresetThumb index={index} />
-            <span className="ef-preset-title">{preset.title}</span>
-          </button>
-        ))}
-      </div>
-    </aside>
+    </div>
   );
 }
 
-function PresetThumb({ index }: { index: number }) {
-  if (index === 0) {
-    return (
-      <span className="ef-preset-thumb is-classic">
-        <span className="ef-preset-shape ef-classic-page" />
-        <span className="ef-preset-shape ef-classic-panel" />
-        <span className="ef-preset-shape ef-classic-line-strong" />
-        <span className="ef-preset-shape ef-classic-line" />
-      </span>
-    );
-  }
-
-  if (index === 1) {
-    return (
-      <span className="ef-preset-thumb is-creative">
-        <span className="ef-preset-shape ef-creative-sidebar" />
-        <span className="ef-preset-shape ef-creative-line-strong" />
-        <span className="ef-preset-shape ef-creative-line" />
-        <span className="ef-preset-shape ef-creative-dot" />
-      </span>
-    );
-  }
-
-  if (index === 2) {
-    return (
-      <span className="ef-preset-thumb is-flyer">
-        <span className="ef-preset-shape ef-flyer-title">
-          Flyer
-          <br />
-          Event
-        </span>
-        <span className="ef-preset-shape ef-flyer-block" />
-        <span className="ef-preset-shape ef-flyer-dot" />
-      </span>
-    );
-  }
+function VariablesList({ filter }: { filter: string }) {
+  const rows = variables.filter((variable) => matchesFilter(variable, filter, [variable.label, variable.token, variable.type, variable.mappedPath]));
 
   return (
-    <span className="ef-preset-thumb is-brochure">
-      <span className="ef-preset-shape ef-brochure-sidebar" />
-      <span className="ef-preset-shape ef-brochure-page" />
-      <span className="ef-preset-shape ef-brochure-line-strong" />
-      <span className="ef-preset-shape ef-brochure-line" />
-    </span>
+    <div className="ef-data-table">
+      <div className="ef-data-table-row ef-data-table-head">
+        <span />
+        <span>Variable</span>
+        <span>Type</span>
+      </div>
+      {rows.map((variable) => (
+        <div
+          key={variable.id}
+          className="ef-data-table-row"
+          title={`${variable.token} → ${variable.mappedPath}`}
+          draggable
+          onDragStart={(event) => setDragPayload(event, "variable", variable)}
+        >
+          <GripVertical size={12} className="ef-muted-icon" aria-hidden="true" />
+          <span className="ef-token">{variable.token}</span>
+          <Badge value={variable.type} />
+        </div>
+      ))}
+      {rows.length === 0 ? <NoResult /> : null}
+    </div>
   );
+}
+
+function PresetList({ filter }: { filter: string }) {
+  const rows = presets.filter((preset) => matchesFilter(preset, filter, [preset.label, preset.token, preset.type, preset.mappedPath, preset.description]));
+
+  return (
+    <div className="ef-preset-list">
+      <div className="ef-preset-list-head">PRESET ↑</div>
+      {rows.map((preset) => (
+        <button
+          key={preset.id}
+          className="ef-preset-list-row"
+          type="button"
+          title={`${preset.token} - ${preset.description}`}
+          draggable
+          onDragStart={(event) => setDragPayload(event, "preset", preset)}
+        >
+          <span className="ef-token">{preset.token}</span>
+          <Badge value={preset.type} />
+        </button>
+      ))}
+      {rows.length === 0 ? <NoResult /> : null}
+    </div>
+  );
+}
+
+function Badge({ value }: { value: EditorVariableMock["type"] | EditorPresetMock["type"] }) {
+  return <span className={`ef-real-badge is-${value.toLowerCase()}`}>{value}</span>;
+}
+
+function NoResult() {
+  return <div className="ef-no-result">Aucun résultat</div>;
+}
+
+function matchesFilter(item: { id: string }, filter: string, values: string[]): boolean {
+  if (!filter.trim()) {
+    return true;
+  }
+
+  const query = filter.trim().toLowerCase();
+  return [item.id, ...values].some((value) => value.toLowerCase().includes(query));
+}
+
+function setDragPayload(event: React.DragEvent<HTMLElement>, type: string, payload: unknown) {
+  event.dataTransfer.setData("application/x-resume-editor-item", JSON.stringify({ type, payload }));
+  event.dataTransfer.effectAllowed = "copy";
 }
