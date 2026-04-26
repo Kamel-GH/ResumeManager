@@ -325,11 +325,67 @@ const iconNames = [
   "linkedin", "website", "language", "skills", "chart", "image", "document", "tag", "filter", "grid",
 ];
 
-function iconSvg(name: string, index: number): string {
-  const color = index % 2 === 0 ? "#f2ad37" : "#67e8f9";
-  const dark = "#181b22";
-  const stroke = index % 3 === 0 ? dark : color;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><rect x="6" y="6" width="52" height="52" rx="12" fill="#eef0f4"/><path d="M20 36h24M32 20v24" stroke="${stroke}" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="32" r="${8 + (index % 5) * 2}" stroke="${stroke}" stroke-width="4" opacity=".55"/></svg>`;
+function iconSvg(name: string, index: number, variant: "mono" | "color"): string {
+  const accent = index % 2 === 0 ? "#f2ad37" : "#67e8f9";
+  const secondary = index % 3 === 0 ? "#111827" : accent;
+  const stroke = variant === "mono" ? "#111827" : secondary;
+  const fill = variant === "mono" ? "#eef0f4" : "#f3f4f6";
+  const line = (d: string, width = 5) => `<path d="${d}" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+  const bodies: Record<string, string> = {
+    home: `${line("M16 32l16-14 16 14")}${line("M20 30v18h24V30")}${line("M28 48V38h8v10")}`,
+    search: `${line("M27 42c8 0 15-7 15-15s-7-15-15-15-15 7-15 15 7 15 15 15Z", 4)}${line("M39 39 50 50")}`,
+    settings: `${line("M32 18v6")}${line("M32 40v6")}${line("M18 32h6")}${line("M40 32h6")}${line("M23 23l4 4")}${line("M37 37l4 4")}${line("M41 23l-4 4")}${line("M27 37l-4 4")}${`<circle cx="32" cy="32" r="8" stroke="${stroke}" stroke-width="4" fill="${fill}"/>`}`,
+    favorite: `<path d="M32 48 18 34c-4-4-5-10-2-15 4-6 12-7 16-2 4-5 12-4 16 2 3 5 2 11-2 15L32 48Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    star: `<path d="m32 14 5.8 11.8 13 .9-10 8.4 3.2 12.6L32 40l-12 7.7 3.2-12.6-10-8.4 13-.9L32 14Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    bookmark: `<path d="M22 14h20a2 2 0 0 1 2 2v34l-12-8-12 8V16a2 2 0 0 1 2-2Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    share: `${line("M40 18 24 28")}${line("M40 46 24 36")}${line("M24 28a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm16-10a4 4 0 1 1 0 8 4 4 0 0 1 0-8Zm0 28a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z", 4)}`,
+    download: `${line("M32 14v20")}${line("M24 28 32 36 40 28")}${line("M18 44h28")}`,
+    upload: `${line("M32 42V22")}${line("M24 30 32 22 40 30")}${line("M18 44h28")}`,
+    edit: `${line("M18 42h12")}${line("M24 36 42 18l4 4-18 18-6 2 2-6Z")}`,
+    delete: `${line("M20 22h24")}${line("M26 22v-4h12v4")}${line("M22 22l2 24h16l2-24")}${line("M28 28v10")}${line("M36 28v10")}`,
+    add: `${line("M32 18v28")}${line("M18 32h28")}`,
+    minus: `${line("M18 32h28")}`,
+    check: `${line("M18 33 27 42 46 22")}`,
+    close: `${line("M20 20 44 44")}${line("M44 20 20 44")}`,
+    menu: `${line("M18 22h28")}${line("M18 32h28")}${line("M18 42h28")}`,
+    more: `<circle cx="32" cy="20" r="3.5" fill="${stroke}"/><circle cx="32" cy="32" r="3.5" fill="${stroke}"/><circle cx="32" cy="44" r="3.5" fill="${stroke}"/>`,
+    info: `${line("M32 22v4")}${line("M32 30v14")}${`<circle cx="32" cy="32" r="16" stroke="${stroke}" stroke-width="4" fill="none"/>`}`,
+    warning: `<path d="M32 16 50 46H14L32 16Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>${line("M32 26v10")}${line("M32 40v2", 4)}`,
+    error: `${line("M20 20 44 44")}${line("M44 20 20 44")}${`<circle cx="32" cy="32" r="16" stroke="${stroke}" stroke-width="4" fill="none"/>`}`,
+    mail: `<path d="M18 22h28a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H18a2 2 0 0 1-2-2V24a2 2 0 0 1 2-2Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="m18 24 14 12 14-12" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    phone: `${line("M20 18c4 12 14 22 26 26l4-6-8-8-6 4c-6-4-10-8-14-14l4-6-8-8-6 4Z", 4)}`,
+    location: `<path d="M32 50s14-12 14-24a14 14 0 1 0-28 0c0 12 14 24 14 24Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><circle cx="32" cy="26" r="5" fill="${stroke}"/>`,
+    calendar: `<rect x="16" y="18" width="32" height="28" rx="4" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M16 28h32M24 14v8M40 14v8" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    clock: `<circle cx="32" cy="32" r="16" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M32 22v12l8 5" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    briefcase: `<path d="M20 24h24a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H20a2 2 0 0 1-2-2V26a2 2 0 0 1 2-2Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M26 24v-4h12v4M18 32h28" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    graduation: `<path d="m14 28 18-10 18 10-18 10-18-10Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M20 31v8c0 4 5 7 12 7s12-3 12-7v-8" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    user: `<circle cx="32" cy="24" r="8" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M18 48c2-8 8-12 14-12s12 4 14 12" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    group: `<circle cx="24" cy="26" r="6" fill="none" stroke="${stroke}" stroke-width="4"/><circle cx="40" cy="26" r="6" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M14 46c2-6 6-9 10-9s8 3 10 9M30 46c2-6 6-9 10-9s8 3 10 9" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    lock: `<rect x="20" y="28" width="24" height="22" rx="4" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M24 28v-4a8 8 0 0 1 16 0v4" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    chef: `<path d="M20 30c0-6 5-10 12-10s12 4 12 10c0 3-1 5-3 7v11H23V37c-2-2-3-4-3-7Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M23 42h18" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    cake: `<path d="M18 36h28v10H18z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M24 36V26c0-3 2-6 8-6s8 3 8 6v10" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    coffee: `<path d="M18 26h22v12c0 6-4 10-11 10S18 44 18 38V26Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M40 28h4a6 6 0 0 1 0 12h-4" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/><path d="M24 20c0 2-2 3-2 5s2 3 2 5M30 18c0 2-2 3-2 5s2 3 2 5" fill="none" stroke="${stroke}" stroke-width="3" stroke-linecap="round"/>`,
+    wine: `<path d="M22 18h20v8c0 6-4 10-10 10s-10-4-10-10v-8Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M32 36v10M24 46h16" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    cocktail: `<path d="M18 18h28L32 34 18 18Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M32 34v12M26 46h12" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    hotel: `<rect x="18" y="18" width="28" height="28" rx="4" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M26 46v-8h12v8M22 26h4M30 26h4M38 26h4M22 32h4M30 32h4M38 32h4" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    bed: `<path d="M18 38h28v10H18z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M18 30h8a6 6 0 0 1 6 6v2H18v-8Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M18 48v-10M46 48v-10" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    restaurant: `<path d="M20 18v14M24 18v14M20 26h4M30 18v28M38 20c4 0 8 3 8 8v18" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    "menu-card": `<rect x="16" y="18" width="32" height="28" rx="4" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M22 26h20M22 32h20M22 38h14" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    award: `<path d="M24 18h16v10a8 8 0 0 1-16 0V18Z" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M28 38v8l4-3 4 3v-8" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    linkedin: `<rect x="16" y="16" width="32" height="32" rx="6" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M26 28v12M26 24v.1M32 28v12M32 32c0-2 2-4 5-4s5 2 5 6v6" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    website: `<circle cx="32" cy="32" r="16" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M16 32h32M32 16c4 4 6 10 6 16s-2 12-6 16c-4-4-6-10-6-16s2-12 6-16Z" fill="none" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`,
+    language: `<circle cx="32" cy="32" r="16" fill="none" stroke="${stroke}" stroke-width="4"/><path d="M18 32h28M32 16c4 4 6 10 6 16s-2 12-6 16c-4-4-6-10-6-16s2-12 6-16Z" fill="none" stroke="${stroke}" stroke-width="3" stroke-linejoin="round"/>`,
+    skills: `<path d="M18 42h8V22h-8v20Zm10 0h8V14h-8v28Zm10 0h8V30h-8v12Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    chart: `<path d="M18 44h28M22 42V30M30 42V20M38 42v-8" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    image: `<rect x="16" y="18" width="32" height="24" rx="4" fill="none" stroke="${stroke}" stroke-width="4"/><circle cx="26" cy="26" r="3" fill="${stroke}"/><path d="m18 38 8-8 6 6 6-8 10 10" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+    document: `<path d="M22 16h14l8 8v24a2 2 0 0 1-2 2H22a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><path d="M36 16v8h8M26 30h12M26 36h12M26 42h8" fill="none" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>`,
+    tag: `<path d="M18 30 30 18h16v16L34 46 18 30Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/><circle cx="34" cy="26" r="3" fill="${stroke}"/>`,
+    filter: `<path d="M18 18h28l-10 12v8l-8 4v-12L18 18Z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    grid: `<path d="M18 18h10v10H18zM36 18h10v10H36zM18 36h10v10H18zM36 36h10v10H36z" fill="none" stroke="${stroke}" stroke-width="4" stroke-linejoin="round"/>`,
+    default: `${line("M20 36h24M32 20v24")}${`<circle cx="32" cy="32" r="12" stroke="${stroke}" stroke-width="4" fill="none"/>`}`,
+  };
+  const body = bodies[name] ?? bodies.default;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none"><rect x="6" y="6" width="52" height="52" rx="12" fill="${fill}"/>${body}</svg>`;
 }
 
 export const icons: EditorIconMock[] = iconNames.map((name, index) => ({
@@ -338,7 +394,7 @@ export const icons: EditorIconMock[] = iconNames.map((name, index) => ({
   category: iconCategories[index % iconCategories.length] ?? "interface",
   variant: index % 3 === 0 ? "mono" : "color",
   iconName: index % 3 === 0 ? name : undefined,
-  svg: index % 3 === 0 ? undefined : iconSvg(name, index),
+  svg: iconSvg(name, index, index % 3 === 0 ? "mono" : "color"),
   tags: [name, iconCategories[index % iconCategories.length] ?? "interface"],
   favorite: index % 9 === 0,
 }));
@@ -364,20 +420,45 @@ export const emojis: EditorEmojiMock[] = Object.entries(emojiGroups).flatMap(([c
 );
 
 const layerNames = [
-  "Background", "Guides", "Header", "Nom & Poste", "Photo", "Sidebar", "Contact", "Compétences", "Langues", "Expériences",
-  "Formation", "Certifications", "Références", "Décorations", "Timeline", "Graphiques", "Badges", "Portfolio", "Callouts", "Footer",
-  "Numérotation", "Annotations", "Assets importés", "Repères impression", "Overlay sélection",
+  "Fond",
+  "Grille",
+  "Header",
+  "Photo",
+  "Titre",
+  "Sous-titre",
+  "Experiences",
+  "Formations",
+  "Langues",
+  "Competences",
+  "Footer",
+  "Signature",
+  "Décorations",
+  "Timeline",
+  "Graphiques",
+  "Badges",
+  "Portfolio",
+  "Callouts",
+  "Numérotation",
+  "Annotations",
+  "Assets importés",
+  "Repères impression",
+  "Overlay sélection",
+  "Contact",
+  "Sidebar",
 ];
 
 export const layers: EditorLayerMock[] = layerNames.map((name, index) => ({
   id: `layer-${String(index + 1).padStart(2, "0")}`,
   number: index + 1,
   name,
-  page: (index % 12) + 1,
+  page: index < 4 ? 1 : index < 8 ? 2 : index < 12 ? 3 : (index % 12) + 1,
   visible: index % 11 !== 0,
   locked: index % 9 === 0,
-  active: index === 9,
-  objectIds: Array.from({ length: 3 + (index % 4) }).map((_, objectIndex) => `object-${String(index * 3 + objectIndex + 1).padStart(2, "0")}`),
+  active: index === 4,
+  objectIds:
+    index === 4
+      ? ["object-05", "object-17", "object-29"]
+      : Array.from({ length: 3 + (index % 4) }).map((_, objectIndex) => `object-${String(index * 3 + objectIndex + 1).padStart(2, "0")}`),
 }));
 
 const objectTypes: EditorObjectType[] = ["text", "image", "shape", "chart", "variable", "preset", "group"];
@@ -385,11 +466,12 @@ export const objects: EditorObjectMock[] = Array.from({ length: 80 }).map((_, in
   const type = objectTypes[index % objectTypes.length] ?? "text";
   const page = (index % 12) + 1;
   const layerNumber = (index % 25) + 1;
+  const objectLabel = index + 1 === 5 || index + 1 === 17 || index + 1 === 29 ? `Icone-${index + 1}` : null;
 
   return {
     id: `object-${String(index + 1).padStart(2, "0")}`,
     type,
-    name: `${type === "text" ? "Texte" : type === "image" ? "Image" : type === "preset" ? "Preset" : "Objet"} ${index + 1}`,
+    name: objectLabel ?? `${type === "text" ? "Texte" : type === "image" ? "Image" : type === "preset" ? "Preset" : "Objet"} ${index + 1}`,
     page,
     layerNumber,
     visible: index % 13 !== 0,

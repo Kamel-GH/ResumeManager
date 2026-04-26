@@ -1,18 +1,42 @@
 "use client";
 
-import { Eye, EyeOff, Lock, LockOpen, Search, Settings } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, LockOpen, Search, Settings } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { layers } from "@/src/data/editorMockData";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 
-export function LayersPanel({ embedded = false }: { embedded?: boolean }) {
+export function LayersPanel({
+  embedded = false,
+  pageFilter = "",
+  stateFilter = "",
+  onPageFilterChange,
+  onStateFilterChange,
+}: {
+  embedded?: boolean;
+  pageFilter?: string;
+  stateFilter?: string;
+  onPageFilterChange?: (value: string) => void;
+  onStateFilterChange?: (value: string) => void;
+}) {
   const filter = useEditorStore((state) => state.panelPreferences.filters.layers ?? "");
   const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
   const rows = layers.filter((layer) => {
-    if (!filter.trim()) return true;
+    if (!filter.trim() && !pageFilter && !stateFilter) return true;
     const query = filter.toLowerCase();
-    return [layer.name, String(layer.page), String(layer.number)].some((value) => value.toLowerCase().includes(query));
+    const matchesQuery = [layer.name, String(layer.page), String(layer.number), layer.active ? "active" : "inactive", layer.visible ? "visible" : "hidden", layer.locked ? "locked" : "unlocked"].some((value) => value.toLowerCase().includes(query));
+    const matchesPage = !pageFilter || String(layer.page) === pageFilter;
+    const matchesState =
+      !stateFilter ||
+      stateFilter === "all" ||
+      (stateFilter === "active" && layer.active) ||
+      (stateFilter === "visible" && layer.visible) ||
+      (stateFilter === "hidden" && !layer.visible) ||
+      (stateFilter === "locked" && layer.locked) ||
+      (stateFilter === "unlocked" && !layer.locked);
+    return matchesQuery && matchesPage && matchesState;
   });
+  const { sorted, toggle, dirOf } = useSortableRows(rows, "number");
 
   return (
     <aside className={["ef-layers", embedded ? "is-embedded" : ""].join(" ")}>
@@ -28,18 +52,33 @@ export function LayersPanel({ embedded = false }: { embedded?: boolean }) {
           <Search size={18} aria-hidden="true" />
           <input type="search" value={filter} placeholder="Filtrer calques..." aria-label="Filtrer calques" onChange={(event) => setPanelFilter("layers", event.target.value)} />
         </label>
-        <button className="ef-filter-select" type="button">LISTE</button>
+        <select className="ef-filter-select" value={pageFilter} onChange={(event) => onPageFilterChange?.(event.target.value)}>
+          <option value="">Pg</option>
+          {Array.from(new Set(layers.map((layer) => String(layer.page)))).map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </select>
+        <select className="ef-filter-select" value={stateFilter} onChange={(event) => onStateFilterChange?.(event.target.value)}>
+          <option value="">STATUT</option>
+          {["all", "active", "visible", "hidden", "locked", "unlocked"].map((value) => (
+            <option key={value} value={value}>
+              {value.toUpperCase()}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="ef-layer-table">
-        <div className="ef-layer-table-row ef-list-head">
-          <span>N°</span>
-          <span>Nom</span>
-          <span>Pg</span>
-          <span>Œil</span>
-          <span>Ver.</span>
+        <div className="ef-layer-head">
+          <SortHeaderButton label="N°" dir={dirOf("number")} onClick={() => toggle("number")} width={34} align="center" />
+          <SortHeaderButton label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
+          <SortHeaderButton label="Pg" dir={dirOf("page")} onClick={() => toggle("page")} width={34} align="center" />
+          <SortHeaderButton label="Œil" dir={null} onClick={() => undefined} width={30} align="center" />
+          <SortHeaderButton label="Ver." dir={null} onClick={() => undefined} width={30} align="center" />
         </div>
-        {rows.map((layer) => (
+        {sorted.map((layer) => (
           <button
             key={layer.id}
             className={["ef-layer-table-row", layer.active ? "is-active-layer" : ""].join(" ")}
@@ -70,4 +109,66 @@ export function LayersPanel({ embedded = false }: { embedded?: boolean }) {
       </div>
     </aside>
   );
+}
+
+function SortHeaderButton({
+  label,
+  dir,
+  onClick,
+  width,
+  align = "left",
+}: {
+  label: string;
+  dir: "asc" | "desc" | null;
+  onClick: () => void;
+  width?: number;
+  align?: "left" | "center" | "right";
+}) {
+  const icon = dir === "asc" ? <ArrowUp size={11} aria-hidden="true" /> : dir === "desc" ? <ArrowDown size={11} aria-hidden="true" /> : <ArrowUpDown size={11} aria-hidden="true" />;
+  return (
+    <button
+      type="button"
+      className={[
+        "ef-sort-header",
+        align === "center" ? "is-center" : "",
+        align === "right" ? "is-right" : "",
+      ].join(" ")}
+      style={width ? { width } : undefined}
+      onClick={onClick}
+    >
+      <span>{label}</span>
+      <span className="ef-sort-header-icon">{icon}</span>
+    </button>
+  );
+}
+
+function useSortableRows<T extends Record<string, unknown>>(rows: T[], initialKey: keyof T & string) {
+  const [sort, setSort] = useState<{ key: keyof T & string; dir: "asc" | "desc" | null }>({ key: initialKey, dir: "asc" });
+
+  const sorted = useMemo(() => {
+    const copy = [...rows];
+    if (!sort.dir) return copy;
+    copy.sort((a, b) => {
+      const va = a[sort.key];
+      const vb = b[sort.key];
+      if (typeof va === "number" && typeof vb === "number") {
+        if (va < vb) return sort.dir === "asc" ? -1 : 1;
+        if (va > vb) return sort.dir === "asc" ? 1 : -1;
+        return 0;
+      }
+      const sa = String(va ?? "").toLowerCase();
+      const sb = String(vb ?? "").toLowerCase();
+      if (sa < sb) return sort.dir === "asc" ? -1 : 1;
+      if (sa > sb) return sort.dir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return copy;
+  }, [rows, sort]);
+
+  const toggle = (key: keyof T & string) =>
+    setSort((state) => (state.key === key ? { key, dir: state.dir === "asc" ? "desc" : state.dir === "desc" ? null : "asc" } : { key, dir: "asc" }));
+
+  const dirOf = (key: keyof T & string) => (sort.key === key ? sort.dir : null);
+
+  return { sorted, toggle, dirOf };
 }
