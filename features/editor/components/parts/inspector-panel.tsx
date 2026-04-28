@@ -20,9 +20,25 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { useEditorStore } from "@/features/editor/stores/editor-store";
+import { formatOperationAction, formatOperationSnapshot, formatOperationSnapshotOrDeleted } from "@/features/editor/schema/editor-operation-log";
+
 const tabs = ["Style", "Texte", "Données", "Effets"];
 
 export function InspectorPanel() {
+  const activePageId = useEditorStore((state) => state.activePageId);
+  const selectionProjection = useEditorStore((state) => state.selectionProjection);
+  const operationLogs = useEditorStore((state) => state.operationLogs);
+  const clearOperationLogs = useEditorStore((state) => state.clearOperationLogs);
+  const selectedObject = selectionProjection?.object ?? null;
+  const selectedPage = selectionProjection?.page ?? null;
+  const selectionSummary =
+    selectionProjection ?? {
+      selectionTypeLabel: "Page",
+      selectionLabel: `Page ${activePageId.replace("page-", "")}`,
+      userFacingLayer: null,
+    };
+
   return (
     <aside className="ef-inspector">
       <div className="ef-inspector-head">
@@ -34,6 +50,20 @@ export function InspectorPanel() {
           ))}
         </div>
       </div>
+
+      <InspectorSection title="Sélection" open>
+        <div className="ef-grid-font">
+          <span className="ef-field ef-field-strong ef-truncate">{selectionSummary.selectionTypeLabel}</span>
+          <span className="ef-field ef-truncate">{selectionSummary.selectionLabel}</span>
+        </div>
+
+        {selectionSummary.userFacingLayer ? (
+          <div className="ef-grid-font">
+            <span className="ef-field ef-field-strong">Calque</span>
+            <span className="ef-field ef-truncate">{selectionSummary.userFacingLayer.name}</span>
+          </div>
+        ) : null}
+      </InspectorSection>
 
       <InspectorSection title="Texte" open>
         <div className="ef-grid-font">
@@ -75,18 +105,18 @@ export function InspectorPanel() {
 
       <InspectorSection title="Disposition" open>
         <div className="ef-grid-position">
-          <SplitBox values={["X", "85", "mm"]} />
-          <SplitBox values={["Y", "25", "mm"]} />
+          <SplitBox values={["X", String(Math.round(selectedObject?.frame.x ?? 0)), "px"]} />
+          <SplitBox values={["Y", String(Math.round(selectedObject?.frame.y ?? 0)), "px"]} />
           <span className="ef-lock-cell">
             <Lock size={13} aria-hidden="true" />
           </span>
-          <SplitBox values={["L", "120", "mm"]} />
-          <SplitBox values={["H", "18", "mm"]} />
+          <SplitBox values={["L", String(Math.round(selectedObject?.frame.width ?? selectedPage?.width ?? 0)), "px"]} />
+          <SplitBox values={["H", String(Math.round(selectedObject?.frame.height ?? selectedPage?.height ?? 0)), "px"]} />
         </div>
 
         <div className="ef-grid-transform">
           <IconBox icon={RotateCcw} />
-          <SelectBox value="0°" />
+          <SelectBox value={`${Math.round(selectedObject?.rotation ?? 0)}°`} />
           <IconStrip icons={[AlignLeft, AlignCenter, AlignRight, AlignJustify]} activeIndex={1} />
         </div>
 
@@ -102,6 +132,47 @@ export function InspectorPanel() {
           <span className="ef-plus-mark">+</span>
           Ajouter une règle
         </button>
+      </InspectorSection>
+
+      <InspectorSection title="Journal" open>
+        <div className="flex items-center justify-between gap-2 px-1 pb-2 text-[11px] text-slate-500">
+          <span>{operationLogs.length} opération{operationLogs.length > 1 ? "s" : ""}</span>
+          <button className="rounded px-2 py-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" onClick={clearOperationLogs} type="button">
+            Effacer
+          </button>
+        </div>
+
+        <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+          {operationLogs.length === 0 ? (
+            <div className="rounded border border-dashed border-slate-200 px-3 py-2 text-[11px] text-slate-400">
+              Aucune opération enregistrée.
+            </div>
+          ) : (
+            [...operationLogs].reverse().map((entry) => (
+              <div key={entry.id} className="rounded border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-medium text-slate-800">{formatOperationAction(entry.action)}</span>
+                  <span>{new Date(entry.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                </div>
+                <div className="mt-1 text-slate-500">Objet {entry.elementId}</div>
+                <div className="mt-1 grid gap-1">
+                  <div><span className="font-medium text-slate-700">Avant</span> {entry.before ? formatOperationSnapshot(entry.before) : "—"}</div>
+                  <div><span className="font-medium text-slate-700">Après</span> {formatOperationSnapshotOrDeleted(entry.after)}</div>
+                </div>
+                {entry.details?.length ? (
+                  <div className="mt-2 grid gap-1 rounded border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] text-slate-500">
+                    {entry.details.map((detail) => (
+                      <div key={`${entry.id}-${detail.label}`} className="flex items-start justify-between gap-2">
+                        <span className="font-medium text-slate-600">{detail.label}</span>
+                        <span className="text-right text-slate-500">{detail.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))
+          )}
+        </div>
       </InspectorSection>
     </aside>
   );

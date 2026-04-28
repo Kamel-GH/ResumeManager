@@ -1,4 +1,5 @@
 import type { Rect, RenderTreeId, TemplateElementId, TemplatePageId } from "@/features/editor/types";
+import type { PageMargin } from "@/features/editor/schema/template-schema";
 
 export type CanonicalRenderTree = {
   id: RenderTreeId;
@@ -8,8 +9,11 @@ export type CanonicalRenderTree = {
 
 export type RenderPageNode = {
   id: TemplatePageId;
+  name: string;
   width: number;
   height: number;
+  margin: PageMargin;
+  orientation: "portrait" | "landscape" | "square";
   children: RenderNode[];
 };
 
@@ -18,9 +22,12 @@ export type RenderNodeType = "text" | "rich-text" | "image" | "shape" | "table" 
 export type RenderNode = {
   id: TemplateElementId;
   type: RenderNodeType;
+  pageId: TemplatePageId;
   frame: Rect;
+  rotation: number;
   zIndex: number;
   visible: boolean;
+  locked: boolean;
   props: RenderNodeProps;
 };
 

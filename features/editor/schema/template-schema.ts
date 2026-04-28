@@ -30,6 +30,7 @@ export type TemplateElement = {
   pageId: TemplatePageId;
   type: TemplateElementType;
   frame: Rect;
+  rotation?: number;
   zIndex: number;
   locked: boolean;
   visible: boolean;

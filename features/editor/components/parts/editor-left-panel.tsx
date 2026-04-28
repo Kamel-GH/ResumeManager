@@ -62,6 +62,8 @@ type MaterialIconName =
   | "schema"
   | "radio_button_unchecked";
 
+let activeDragPreviewCleanup: (() => void) | null = null;
+
 function MaterialIcon({
   name,
   size = 18,
@@ -627,7 +629,7 @@ function PresetsPanel({ filter, typeFilter }: { filter: string; typeFilter: stri
       </div>
       <div className="ef-entity-card-list ef-entity-card-list-presets">
         {sorted.map((item) => (
-          <button key={item.id} className="ef-entity-card ef-preset-card" type="button" draggable onDragStart={(event) => setDragPayload(event, "preset", item)} title={`${item.token} - ${item.description}`}>
+          <button key={item.id} className="ef-entity-card ef-preset-card" type="button" draggable onDragStart={(event) => setDragPayload(event, "preset", item, "data/presets")} onDragEnd={(event) => handleDragEnd(event, "preset", item, "data/presets")} title={`${item.token} - ${item.description}`}>
             <span className="ef-entity-card-token">{`{${item.token.replace(/[{}]/g, "")}}`}</span>
             <span className="ef-entity-card-type">
               <Badge value={item.type} colorSet={PRESET_TYPE_COLORS[item.type]} width={84} />
@@ -664,8 +666,8 @@ function ImagesPanel({
           <SortHeader label="TAILLE" dir={dirOf("width")} onClick={() => toggle("width")} width={82} align="center" />
         </div>
         {sorted.map((item) => (
-          <button key={item.id} className="ef-list-row is-image" type="button" draggable onDragStart={(event) => setDragPayload(event, "image", item)}>
-            <Image src={item.src} alt="" width={32} height={32} unoptimized className="object-cover" />
+          <button key={item.id} className="ef-list-row is-image" type="button" draggable onDragStart={(event) => setDragPayload(event, "image", item, "libraries/images")} onDragEnd={(event) => handleDragEnd(event, "image", item, "libraries/images")}>
+            <Image src={item.src} alt="" width={32} height={32} unoptimized className="object-cover" draggable={false} />
             <strong>{item.name}</strong>
             <span>{item.category}</span>
             <span>{item.width}×{item.height}</span>
@@ -679,8 +681,8 @@ function ImagesPanel({
   return (
     <div className="ef-asset-grid ef-asset-grid-2">
       {sorted.map((item) => (
-        <button key={item.id} className="ef-asset-card is-image" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "image", item)}>
-          <Image src={item.src} alt={item.name} width={120} height={120} unoptimized className="object-cover" />
+        <button key={item.id} className="ef-asset-card is-image" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "image", item, "libraries/images")} onDragEnd={(event) => handleDragEnd(event, "image", item, "libraries/images")}>
+          <Image src={item.src} alt={item.name} width={120} height={120} unoptimized className="object-cover" draggable={false} />
         </button>
       ))}
       {rows.length === 0 ? <NoResult /> : null}
@@ -1214,9 +1216,173 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
   return { sorted, toggle, dirOf };
 }
 
-function setDragPayload(event: DragEvent<HTMLElement>, type: string, payload: unknown) {
-  event.dataTransfer.setData("application/x-resume-editor-item", JSON.stringify({ type, payload }));
+function setDragPayload(event: DragEvent<HTMLElement>, type: string, payload: unknown, sourcePanel?: string) {
+  applyDragPreview(event, type, payload);
+  event.dataTransfer.setData("application/x-resume-editor-item", JSON.stringify({ type, payload, sourcePanel }));
   event.dataTransfer.effectAllowed = "copy";
+  useEditorStore.getState().setDragTraceContext({
+    sessionId: crypto.randomUUID(),
+    type,
+    sourcePanel,
+    payload,
+  });
+}
+
+function handleDragEnd(event: DragEvent<HTMLElement>, type: string, payload: unknown, sourcePanel?: string) {
+  void event;
+  void type;
+  void payload;
+  void sourcePanel;
+  clearActiveDragPreview();
+  useEditorStore.getState().clearDragTraceContext();
+}
+
+function clearActiveDragPreview() {
+  activeDragPreviewCleanup?.();
+  activeDragPreviewCleanup = null;
+}
+
+function applyDragPreview(event: DragEvent<HTMLElement>, type: string, payload: unknown) {
+  clearActiveDragPreview();
+  const dragImage = document.createElement("div");
+  dragImage.style.position = "fixed";
+  dragImage.style.top = "0";
+  dragImage.style.left = "0";
+  dragImage.style.pointerEvents = "none";
+  dragImage.style.display = "flex";
+  dragImage.style.minWidth = "96px";
+  dragImage.style.minHeight = "96px";
+  dragImage.style.alignItems = "center";
+  dragImage.style.justifyContent = "center";
+  dragImage.style.padding = "10px";
+  dragImage.style.margin = "0";
+  dragImage.style.border = "1px solid rgba(15, 23, 42, 0.14)";
+  dragImage.style.borderRadius = "12px";
+  dragImage.style.background = "#ffffff";
+  dragImage.style.boxShadow = "0 10px 26px rgba(15, 23, 42, 0.18)";
+  dragImage.style.transform = "none";
+  dragImage.style.color = "#0f172a";
+  dragImage.style.fontFamily = "Inter, ui-sans-serif, system-ui, sans-serif";
+  dragImage.style.fontSize = "12px";
+  dragImage.style.lineHeight = "1.2";
+  dragImage.appendChild(buildDragPreviewContent(type, payload));
+  document.body.appendChild(dragImage);
+
+  const rect = dragImage.getBoundingClientRect();
+  event.dataTransfer.setDragImage(dragImage, Math.max(1, rect.width / 2), Math.max(1, rect.height / 2));
+  activeDragPreviewCleanup = () => {
+    dragImage.remove();
+  };
+}
+
+function buildDragPreviewContent(type: string, payload: unknown) {
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.flexDirection = "column";
+  container.style.alignItems = "center";
+  container.style.justifyContent = "center";
+  container.style.gap = "6px";
+  container.style.minWidth = "72px";
+
+  const visual = buildDragPreviewVisual(type, payload);
+  container.appendChild(visual);
+
+  const label = document.createElement("div");
+  label.style.maxWidth = "150px";
+  label.style.overflow = "hidden";
+  label.style.textOverflow = "ellipsis";
+  label.style.whiteSpace = "nowrap";
+  label.style.fontWeight = "600";
+  label.textContent = buildDragPreviewLabel(type, payload);
+  container.appendChild(label);
+
+  return container;
+}
+
+function buildDragPreviewVisual(type: string, payload: unknown) {
+  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+  const imageSrc = typeof record?.src === "string" ? record.src : typeof record?.svg === "string" ? svgToDataUri(record.svg) : null;
+
+  if ((type === "image" || type === "shape") && imageSrc) {
+    return buildPreviewImage(imageSrc, 84, 84, 10);
+  }
+
+  if (type === "icon") {
+    if (typeof record?.svg === "string") {
+      return buildPreviewImage(svgToDataUri(record.svg), 84, 84, 10);
+    }
+    const icon = document.createElement("div");
+    icon.style.width = "72px";
+    icon.style.height = "72px";
+    icon.style.borderRadius = "16px";
+    icon.style.display = "flex";
+    icon.style.alignItems = "center";
+    icon.style.justifyContent = "center";
+    icon.style.background = "#eef2ff";
+    icon.style.color = "#1e3a8a";
+    icon.style.fontSize = "28px";
+    icon.style.fontWeight = "700";
+    icon.textContent = typeof record?.name === "string" ? record.name.slice(0, 2).toUpperCase() : "IC";
+    return icon;
+  }
+
+  if (type === "emoji" && typeof record?.emoji === "string") {
+    const emoji = document.createElement("div");
+    emoji.style.width = "72px";
+    emoji.style.height = "72px";
+    emoji.style.display = "flex";
+    emoji.style.alignItems = "center";
+    emoji.style.justifyContent = "center";
+    emoji.style.fontSize = "40px";
+    emoji.textContent = record.emoji;
+    return emoji;
+  }
+
+  const fallback = document.createElement("div");
+  fallback.style.width = "72px";
+  fallback.style.height = "72px";
+  fallback.style.borderRadius = "14px";
+  fallback.style.display = "flex";
+  fallback.style.alignItems = "center";
+  fallback.style.justifyContent = "center";
+  fallback.style.background = "#e2e8f0";
+  fallback.style.color = "#0f172a";
+  fallback.style.fontSize = "13px";
+  fallback.style.fontWeight = "700";
+  fallback.textContent = buildDragPreviewLabel(type, payload).slice(0, 10) || type;
+  return fallback;
+}
+
+function buildPreviewImage(src: string, width: number, height: number, radius: number) {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = "";
+  img.width = width;
+  img.height = height;
+  img.draggable = false;
+  img.style.width = `${width}px`;
+  img.style.height = `${height}px`;
+  img.style.objectFit = "cover";
+  img.style.borderRadius = `${radius}px`;
+  img.style.display = "block";
+  img.style.background = "#ffffff";
+  img.style.boxShadow = "0 0 0 1px rgba(15, 23, 42, 0.12) inset";
+  return img;
+}
+
+function buildDragPreviewLabel(type: string, payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return type;
+  }
+
+  const record = payload as Record<string, unknown>;
+  return (
+    (typeof record.label === "string" && record.label) ||
+    (typeof record.name === "string" && record.name) ||
+    (typeof record.token === "string" && record.token) ||
+    (typeof record.id === "string" && record.id) ||
+    type
+  );
 }
 
 function svgToDataUri(svg: string): string {

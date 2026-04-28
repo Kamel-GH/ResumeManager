@@ -17,6 +17,7 @@ export function SvgRenderer({ renderTree, selectedElementIds, onSelectElement }:
 
   return (
     <svg className="ef-render-page" width={page.width} height={page.height} viewBox={`0 0 ${page.width} ${page.height}`} role="img" aria-label="Template CV">
+      <ArrowMarker />
       {page.children.map((node) => (
         <RenderNodeView key={node.id} node={node} onSelect={onSelectElement} />
       ))}
@@ -40,6 +41,22 @@ function RenderNodeView({ node, onSelect }: { node: RenderNode; onSelect: (eleme
     return <TemplateText node={node} onSelect={handleSelect} />;
   }
 
+  if (node.type === "rich-text") {
+    return <TemplateRichText node={node} onSelect={handleSelect} />;
+  }
+
+  if (node.type === "image") {
+    return <TemplateImage node={node} onSelect={handleSelect} />;
+  }
+
+  if (node.type === "table") {
+    return <TemplateTable node={node} onSelect={handleSelect} />;
+  }
+
+  if (node.type === "list") {
+    return <TemplateList node={node} onSelect={handleSelect} />;
+  }
+
   if (node.type === "shape") {
     return <TemplateShape node={node} onSelect={handleSelect} />;
   }
@@ -55,36 +72,203 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
   const dash = propNumberArray(props, "dash")?.join(" ");
   const opacity = propNumber(props, "opacity") ?? 1;
   const shape = propString(props, "shape") ?? "rect";
+  const rotation = node.rotation ?? 0;
+  const svgSource = propString(props, "svg") ?? propString(props, "src");
+
+  if (svgSource) {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <image
+          x={frame.x}
+          y={frame.y}
+          width={frame.width}
+          height={frame.height}
+          href={normalizeRenderableSvgSource(svgSource)}
+          preserveAspectRatio="none"
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
 
   if (shape === "circle") {
     return (
-      <circle
-        cx={frame.x + frame.width / 2}
-        cy={frame.y + frame.height / 2}
-        r={Math.min(frame.width, frame.height) / 2}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        opacity={opacity}
-        onClick={onSelect}
-      />
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <circle
+          cx={frame.x + frame.width / 2}
+          cy={frame.y + frame.height / 2}
+          r={Math.min(frame.width, frame.height) / 2}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "ellipse") {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <ellipse
+          cx={frame.x + frame.width / 2}
+          cy={frame.y + frame.height / 2}
+          rx={Math.max(frame.width / 2, 1)}
+          ry={Math.max(frame.height / 2, 1)}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "line") {
+    const points = propNumberArray(props, "points") ?? [0, 0, Math.max(frame.width, 1), Math.max(frame.height, 1)];
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <line
+          x1={frame.x + points[0]}
+          y1={frame.y + points[1]}
+          x2={frame.x + points[2]}
+          y2={frame.y + points[3]}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeDasharray={dash}
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          markerEnd={propBoolean(props, "arrow") ? "url(#arrow-marker)" : undefined}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "polygon") {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <polygon
+          points={pointsToSvgString(frame, propNumberArray(props, "points"))}
+          fill={fill}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "polyline") {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <polyline
+          points={pointsToSvgString(frame, propNumberArray(props, "points"))}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "curve") {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <path
+          d={buildCurvePath(frame, propNumberArray(props, "points"))}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
+    );
+  }
+
+  if (shape === "arc") {
+    return (
+      <>
+        <FrameOutlineRect frame={frame} rotation={rotation} />
+        <path
+          d={buildArcPath(frame, props)}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          opacity={opacity}
+          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          onClick={onSelect}
+        />
+      </>
     );
   }
 
   return (
-    <rect
-      x={frame.x}
-      y={frame.y}
-      width={frame.width}
-      height={frame.height}
-      rx={propNumber(props, "cornerRadius") ?? 0}
-      fill={fill}
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-      strokeDasharray={dash}
-      opacity={opacity}
-      onClick={onSelect}
-    />
+    <>
+      <FrameOutlineRect frame={frame} rotation={rotation} />
+      <rect
+        x={frame.x}
+        y={frame.y}
+        width={frame.width}
+        height={frame.height}
+        rx={propNumber(props, "cornerRadius") ?? 0}
+        fill={fill}
+        stroke={stroke}
+        strokeWidth={strokeWidth}
+        strokeDasharray={dash}
+        opacity={opacity}
+        transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+        onClick={onSelect}
+      />
+    </>
+  );
+}
+
+function TemplateImage({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
+  const { frame, props } = node;
+  const src = normalizeRenderableSvgSource(propString(props, "src") ?? propString(props, "svg") ?? "");
+
+  return (
+    <>
+      <FrameOutlineRect frame={frame} rotation={node.rotation ?? 0} />
+      <image
+        x={frame.x}
+        y={frame.y}
+        width={frame.width}
+        height={frame.height}
+        href={src}
+        preserveAspectRatio="none"
+        opacity={propNumber(props, "opacity") ?? 1}
+        transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}
+        onClick={onSelect}
+      />
+    </>
   );
 }
 
@@ -97,26 +281,160 @@ function TemplateText({ node, onSelect }: { node: RenderNode; onSelect?: () => v
   const x = textAnchor === "middle" ? frame.x + frame.width / 2 : textAnchor === "end" ? frame.x + frame.width : frame.x;
 
   return (
-    <text
-      x={x}
-      y={frame.y + fontSize}
-      width={frame.width}
-      height={frame.height}
-      fill={propString(props, "color") ?? "#111827"}
-      fontFamily={propString(props, "fontFamily") ?? "Inter"}
-      fontSize={fontSize}
-      fontStyle={propString(props, "fontStyle") ?? "normal"}
-      fontWeight={propFontWeight(props)}
-      letterSpacing={propNumber(props, "letterSpacing") ?? 0}
-      textAnchor={textAnchor}
-      onClick={onSelect}
-    >
-      {lines.map((line, index) => (
-        <tspan key={`${node.id}-${index}`} x={x} dy={index === 0 ? 0 : fontSize * lineHeight}>
-          {line}
-        </tspan>
+    <>
+      <FrameOutlineRect frame={frame} rotation={node.rotation ?? 0} />
+      <text
+        x={x}
+        y={frame.y + fontSize}
+        width={frame.width}
+        height={frame.height}
+        fill={propString(props, "color") ?? "#111827"}
+        fontFamily={propString(props, "fontFamily") ?? "Inter"}
+        fontSize={fontSize}
+        fontStyle={propString(props, "fontStyle") ?? "normal"}
+        fontWeight={propFontWeight(props)}
+        letterSpacing={propNumber(props, "letterSpacing") ?? 0}
+        textAnchor={textAnchor}
+        transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}
+        onClick={onSelect}
+      >
+        {lines.map((line, index) => (
+          <tspan key={`${node.id}-${index}`} x={x} dy={index === 0 ? 0 : fontSize * lineHeight}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </>
+  );
+}
+
+function TemplateRichText({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
+  const { frame, props } = node;
+  const fontSize = propNumber(props, "fontSize") ?? 12;
+  const lineHeight = propNumber(props, "lineHeight") ?? 1.2;
+  const textAnchor = propTextAnchor(props);
+  const textX = textAnchor === "middle" ? frame.x + frame.width / 2 : textAnchor === "end" ? frame.x + frame.width - 8 : frame.x + 8;
+
+  return (
+    <g onClick={onSelect} transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}>
+      <FrameOutlineRect frame={frame} rotation={0} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={2} fill="rgba(255,255,255,0.02)" stroke="#cbd5e1" strokeWidth={1} />
+      <text
+        x={textX}
+        y={frame.y + fontSize + 8}
+        width={Math.max(frame.width - 16, 1)}
+        height={Math.max(frame.height - 16, 1)}
+        fill={propString(props, "color") ?? "#111827"}
+        fontFamily={propString(props, "fontFamily") ?? "Inter"}
+        fontSize={fontSize}
+        fontStyle={propString(props, "fontStyle") ?? "normal"}
+        fontWeight={propFontWeight(props)}
+        letterSpacing={propNumber(props, "letterSpacing") ?? 0}
+        textAnchor={textAnchor}
+      >
+        {(propString(props, "text") ?? "").split("\n").map((line, index) => (
+          <tspan key={`${node.id}-${index}`} x={textX} dy={index === 0 ? 0 : fontSize * lineHeight}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
+}
+
+function TemplateTable({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
+  const { frame, props } = node;
+  const rows = Math.max(2, propNumber(props, "rows") ?? 3);
+  const columns = Math.max(2, propNumber(props, "columns") ?? 3);
+  const headerRow = propBoolean(props, "headerRow");
+  const cellWidth = Math.max(frame.width / columns, 1);
+  const cellHeight = Math.max(frame.height / rows, 1);
+
+  return (
+    <g onClick={onSelect} transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}>
+      <FrameOutlineRect frame={frame} rotation={0} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} fill="#ffffff" stroke="#cbd5e1" strokeWidth={1} rx={2} />
+      {headerRow ? <rect x={frame.x} y={frame.y} width={frame.width} height={cellHeight} fill="rgba(148, 163, 184, 0.12)" rx={2} /> : null}
+      {Array.from({ length: rows - 1 }, (_, index) => index + 1).map((row) => (
+        <line key={`table-row-${node.id}-${row}`} x1={frame.x} y1={frame.y + row * cellHeight} x2={frame.x + frame.width} y2={frame.y + row * cellHeight} stroke="#e2e8f0" strokeWidth={1} />
       ))}
-    </text>
+      {Array.from({ length: columns - 1 }, (_, index) => index + 1).map((column) => (
+        <line key={`table-col-${node.id}-${column}`} x1={frame.x + column * cellWidth} y1={frame.y} x2={frame.x + column * cellWidth} y2={frame.y + frame.height} stroke="#e2e8f0" strokeWidth={1} />
+      ))}
+      {Array.from({ length: rows }, (_, row) =>
+        Array.from({ length: columns }, (_, column) => {
+          const isHeader = row === 0 && headerRow;
+          const label = isHeader ? `En-tête ${column + 1}` : `Texte ${row + 1}.${column + 1}`;
+          return (
+            <text
+              key={`table-cell-${node.id}-${row}-${column}`}
+              x={frame.x + column * cellWidth + 8}
+              y={frame.y + row * cellHeight + 16}
+              width={Math.max(cellWidth - 16, 1)}
+              height={Math.max(cellHeight - 12, 1)}
+              fill={isHeader ? "#0f172a" : "#475569"}
+              fontFamily="Inter"
+              fontSize={isHeader ? 12 : 11}
+              fontWeight={isHeader ? 600 : 400}
+              pointerEvents="none"
+            >
+              {label}
+            </text>
+          );
+        }),
+      )}
+    </g>
+  );
+}
+
+function TemplateList({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
+  const { frame, props } = node;
+  const title = propString(props, "label") ?? propString(props, "name") ?? "Preset dynamique";
+  const presetType = propString(props, "presetType") ?? "PRESET";
+  const mappedPath = propString(props, "mappedPath") ?? propString(props, "bindingId") ?? "";
+  const sampleItemsCount = Math.max(propNumber(props, "sampleItemsCount") ?? 3, 1);
+  const repeatable = propBoolean(props, "repeatable");
+  const rows = Math.max(Math.min(sampleItemsCount, 4), 3);
+  const headerHeight = 28;
+  const bodyTop = headerHeight + 10;
+  const bodyBottom = 10;
+  const rowHeight = Math.max((frame.height - bodyTop - bodyBottom) / rows, 20);
+
+  return (
+    <g onClick={onSelect}>
+      <FrameOutlineRect frame={frame} rotation={0} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={4} fill="#ffffff" stroke="#cbd5e1" strokeWidth={1} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={headerHeight} rx={4} fill="rgba(148, 163, 184, 0.12)" />
+      <text x={frame.x + 10} y={frame.y + 18} fill="#0f172a" fontFamily="Inter, Arial, sans-serif" fontSize={12} fontWeight={700}>
+        {title}
+      </text>
+      <text x={frame.x + 10} y={frame.y + 39} fill="#64748b" fontFamily="Inter, Arial, sans-serif" fontSize={10}>
+        {mappedPath}
+      </text>
+      <text x={frame.x + frame.width - 10} y={frame.y + 18} fill="#475569" fontFamily="Inter, Arial, sans-serif" fontSize={10} textAnchor="end">
+        {repeatable ? "Répétable" : "Bloc"}
+      </text>
+      {Array.from({ length: rows }, (_, index) => {
+        const y = frame.y + bodyTop + index * rowHeight;
+        return (
+          <g key={`svg-list-row-${node.id}-${index}`}>
+            <circle cx={frame.x + 14} cy={y + rowHeight / 2} r={2.6} fill="#94a3b8" />
+            <line x1={frame.x + 24} y1={y + rowHeight - 1} x2={frame.x + frame.width - 10} y2={y + rowHeight - 1} stroke="rgba(203, 213, 225, 0.75)" strokeWidth={1} />
+            <text x={frame.x + 26} y={y + 16} fill="#0f172a" fontFamily="Inter, Arial, sans-serif" fontSize={11}>
+              {`Item ${index + 1}`}
+            </text>
+          </g>
+        );
+      })}
+      {sampleItemsCount > rows ? (
+        <text x={frame.x + 10} y={frame.y + frame.height - 6} fill="#64748b" fontFamily="Inter, Arial, sans-serif" fontSize={10}>
+          {`+${sampleItemsCount - rows} élément${sampleItemsCount - rows > 1 ? "s" : ""}`}
+        </text>
+      ) : null}
+      <text x={frame.x + frame.width - 10} y={frame.y + frame.height - 6} fill="#94a3b8" fontFamily="Inter, Arial, sans-serif" fontSize={9} textAnchor="end">
+        {presetType}
+      </text>
+    </g>
   );
 }
 
@@ -133,11 +451,54 @@ function SelectionOverlay({ node }: { node: RenderNode }) {
 
   return (
     <g>
-      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} fill="none" stroke="#2563eb" strokeWidth={2} strokeDasharray="6 3" />
+      <rect
+        x={frame.x}
+        y={frame.y}
+        width={frame.width}
+        height={frame.height}
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth={2}
+        strokeDasharray="6 3"
+        transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}
+      />
       {handles.map((handle) => (
         <rect key={`${handle.x}-${handle.y}`} x={handle.x} y={handle.y} width={handleSize} height={handleSize} fill="#2563eb" />
       ))}
     </g>
+  );
+}
+
+function ArrowMarker() {
+  return (
+    <defs>
+      <marker id="arrow-marker" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+        <path d="M0,0 L8,4 L0,8 z" fill="#2563eb" />
+      </marker>
+    </defs>
+  );
+}
+
+function FrameOutlineRect({
+  frame,
+  rotation,
+}: {
+  frame: { x: number; y: number; width: number; height: number };
+  rotation: number;
+}) {
+  return (
+    <rect
+      x={frame.x}
+      y={frame.y}
+      width={frame.width}
+      height={frame.height}
+      fill="none"
+      stroke="#cbd5e1"
+      strokeOpacity={0.85}
+      strokeWidth={1}
+      pointerEvents="none"
+      transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+    />
   );
 }
 
@@ -168,4 +529,107 @@ function propTextAnchor(props: RenderNodeProps): "start" | "middle" | "end" {
 function propFontWeight(props: RenderNodeProps): string | number {
   const value = props.fontWeight;
   return typeof value === "string" || typeof value === "number" ? value : "normal";
+}
+
+function normalizeRenderableSvgSource(source: string) {
+  const trimmed = source.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("data:image/")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("<svg")) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(trimmed)}`;
+  }
+
+  return trimmed;
+}
+
+function pointsToSvgString(frame: { x: number; y: number }, points: number[] | undefined) {
+  if (!points || points.length < 2) {
+    return "";
+  }
+
+  const coords: string[] = [];
+  for (let index = 0; index < points.length; index += 2) {
+    const x = points[index];
+    const y = points[index + 1];
+    if (typeof x !== "number" || typeof y !== "number") {
+      continue;
+    }
+    coords.push(`${frame.x + x},${frame.y + y}`);
+  }
+
+  return coords.join(" ");
+}
+
+function buildCurvePath(frame: { x: number; y: number }, points: number[] | undefined) {
+  if (!points || points.length < 4) {
+    return "";
+  }
+
+  const coords = absolutePointPairs(frame, points);
+  if (coords.length === 0) {
+    return "";
+  }
+
+  if (coords.length === 1) {
+    return `M ${coords[0].x} ${coords[0].y}`;
+  }
+
+  let path = `M ${coords[0].x} ${coords[0].y}`;
+  for (let index = 1; index < coords.length; index += 1) {
+    const current = coords[index];
+    const next = coords[index + 1];
+    if (!next) {
+      path += ` L ${current.x} ${current.y}`;
+      break;
+    }
+
+    const midX = (current.x + next.x) / 2;
+    const midY = (current.y + next.y) / 2;
+    path += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
+  }
+
+  return path;
+}
+
+function buildArcPath(frame: { x: number; y: number; width: number; height: number }, props: RenderNodeProps) {
+  const cx = frame.x + frame.width / 2;
+  const cy = frame.y + frame.height / 2;
+  const rx = Math.max(frame.width / 2, 1);
+  const ry = Math.max(frame.height / 2, 1);
+  const startAngle = ((propNumber(props, "startAngle") ?? 0) * Math.PI) / 180;
+  const endAngle = ((propNumber(props, "endAngle") ?? 180) * Math.PI) / 180;
+  const arcType = propString(props, "arcType") === "pie" ? "pie" : "open";
+  const sweepFlag = propNumber(props, "arcSweep") === -1 ? 0 : 1;
+  const startX = cx + rx * Math.cos(startAngle);
+  const startY = cy + ry * Math.sin(startAngle);
+  const endX = cx + rx * Math.cos(endAngle);
+  const endY = cy + ry * Math.sin(endAngle);
+  const delta = Math.abs(endAngle - startAngle);
+  const largeArcFlag = delta > Math.PI ? 1 : 0;
+
+  if (arcType === "pie") {
+    return `M ${cx} ${cy} L ${startX} ${startY} A ${rx} ${ry} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY} Z`;
+  }
+
+  return `M ${startX} ${startY} A ${rx} ${ry} 0 ${largeArcFlag} ${sweepFlag} ${endX} ${endY}`;
+}
+
+function absolutePointPairs(frame: { x: number; y: number }, points: number[]) {
+  const coords: Array<{ x: number; y: number }> = [];
+  for (let index = 0; index < points.length; index += 2) {
+    const x = points[index];
+    const y = points[index + 1];
+    if (typeof x !== "number" || typeof y !== "number") {
+      continue;
+    }
+    coords.push({ x: frame.x + x, y: frame.y + y });
+  }
+
+  return coords;
 }

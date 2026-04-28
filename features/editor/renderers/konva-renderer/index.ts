@@ -2,9 +2,11 @@ import type { CanonicalRenderTree } from "@/features/editor/schema/render-tree";
 
 export { KonvaCanvasRenderer } from "@/features/editor/renderers/konva-renderer/konva-canvas-renderer";
 export {
+  getKonvaImageProps,
   getKonvaShapeProps,
   getKonvaTextProps,
   isSelectableNode,
+  isTransformableNode,
 } from "@/features/editor/renderers/konva-renderer/konva-renderer-model";
 
 export type KonvaRendererInput = {

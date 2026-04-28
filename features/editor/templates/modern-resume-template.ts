@@ -3,6 +3,8 @@ import type { TemplateElement, TemplateElementStyle, TemplateElementType, Templa
 import type { Rect } from "@/features/editor/types";
 
 const PAGE_ID = "page-1";
+const PAGE_2_ID = "page-2";
+const PAGE_3_ID = "page-3";
 
 let zIndex = 0;
 
@@ -17,6 +19,20 @@ export const modernResumeTemplate: TemplateSchema = {
       width: EDITOR_PAGE_WIDTH_PX,
       height: EDITOR_PAGE_HEIGHT_PX,
       margin: { top: 28, right: 28, bottom: 28, left: 28 },
+    },
+    {
+      id: PAGE_2_ID,
+      name: "Profile & Experience",
+      width: 760,
+      height: 540,
+      margin: { top: 32, right: 32, bottom: 32, left: 32 },
+    },
+    {
+      id: PAGE_3_ID,
+      name: "Formations & Skills",
+      width: 620,
+      height: 620,
+      margin: { top: 24, right: 24, bottom: 24, left: 24 },
     },
   ],
   elements: [
