@@ -9,13 +9,16 @@ const localStorageMock = createLocalStorageMock();
 vi.stubGlobal("localStorage", localStorageMock);
 
 const {
-  EDITOR_VIEWPORT_MAX_ZOOM,
-  EDITOR_VIEWPORT_MIN_ZOOM,
   deriveEditorDocumentLayersView,
   deriveEditorLayersView,
   deriveEditorObjectsView,
   filterEditorLayersView,
   filterEditorObjectsView,
+} = await import("@/features/editor/selectors");
+
+const {
+  EDITOR_VIEWPORT_MAX_ZOOM,
+  EDITOR_VIEWPORT_MIN_ZOOM,
   useEditorStore,
 } = await import("@/features/editor/stores/editor-store");
 const baselineState = useEditorStore.getState();

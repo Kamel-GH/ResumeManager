@@ -3,7 +3,11 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, LockOpen, Search, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { deriveEditorLayersView, deriveEditorPagesView, useEditorStore } from "@/features/editor/stores/editor-store";
+import {
+  deriveEditorLayersView,
+  deriveEditorPagesView,
+} from "@/features/editor/selectors";
+import { useEditorStore } from "@/features/editor/stores/editor-store";
 
 export function LayersPanel({
   embedded = false,

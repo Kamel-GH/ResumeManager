@@ -10,8 +10,9 @@ const {
   deriveEditorLayersView,
   deriveEditorObjectsView,
   deriveEditorPagesView,
-  useEditorStore,
-} = await import("@/features/editor/stores/editor-store");
+} = await import("@/features/editor/selectors");
+
+const { useEditorStore } = await import("@/features/editor/stores/editor-store");
 
 describe("editor view helpers", () => {
   beforeEach(() => {
