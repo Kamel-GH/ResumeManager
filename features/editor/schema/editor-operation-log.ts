@@ -1,4 +1,4 @@
-import type { CanvasObjectGeometryPatch } from "@/features/editor/schema/canvas-mutation";
+import type { CanvasObjectGeometryPatch, CanvasObjectStylePatch } from "@/features/editor/schema/canvas-mutation";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
 
@@ -7,6 +7,7 @@ export type EditorOperationAction =
   | "move"
   | "resize"
   | "rotate"
+  | "style"
   | "delete"
   | "transform"
   | "dragstart"
@@ -57,6 +58,46 @@ export function buildInsertOperationLog(input: {
     before: null,
     after,
   };
+}
+
+export function buildStyleOperationLogs(input: {
+  beforeTemplate: TemplateSchema;
+  afterTemplate: TemplateSchema;
+  patches: CanvasObjectStylePatch[];
+  timestamp?: number;
+}): EditorOperationLogEntry[] {
+  const timestamp = input.timestamp ?? Date.now();
+  const beforeById = new Map(input.beforeTemplate.elements.map((element) => [element.id, element] as const));
+  const afterById = new Map(input.afterTemplate.elements.map((element) => [element.id, element] as const));
+
+  const entries: Array<EditorOperationLogEntry | null> = input.patches.map((patch) => {
+    const beforeElement = beforeById.get(patch.id);
+    const afterElement = afterById.get(patch.id);
+    if (!beforeElement || !afterElement) {
+      return null;
+    }
+
+    const pageId = beforeElement.pageId ?? afterElement.pageId;
+    const before = snapshotElement(beforeElement, pageId);
+    const after = snapshotElement(afterElement, pageId);
+    const details = buildStyleDetails(beforeElement.style ?? {}, afterElement.style ?? {});
+    if (details.length === 0) {
+      return null;
+    }
+
+    return {
+      id: createOperationLogId("style", patch.id, timestamp),
+      timestamp,
+      action: "style",
+      pageId,
+      elementId: patch.id,
+      before,
+      after,
+      details,
+    } satisfies EditorOperationLogEntry;
+  });
+
+  return entries.filter((entry): entry is EditorOperationLogEntry => entry !== null);
 }
 
 export function buildTraceOperationLog(input: {
@@ -124,6 +165,8 @@ export function formatOperationAction(action: EditorOperationAction) {
       return "Redimensionnement";
     case "rotate":
       return "Rotation";
+    case "style":
+      return "Style";
     case "delete":
       return "Suppression";
     case "transform":
@@ -240,4 +283,93 @@ function formatNumber(value: number) {
 
 function createOperationLogId(action: string, elementId: string, timestamp: number) {
   return `op:${action}:${elementId}:${timestamp}`;
+}
+
+function buildStyleDetails(beforeStyle: Record<string, unknown>, afterStyle: Record<string, unknown>): EditorOperationDetail[] {
+  const fields: Array<{
+    key: string;
+    label: string;
+    format?: (value: unknown) => string;
+  }> = [
+    { key: "fill", label: "Fond" },
+    { key: "stroke", label: "Contour" },
+    { key: "strokeWidth", label: "Trait", format: formatStyleNumber },
+    { key: "opacity", label: "Opacité", format: formatStyleOpacity },
+    { key: "dash", label: "Tiret", format: formatStyleDash },
+  ];
+
+  return fields
+    .map((field) => {
+      const before = beforeStyle[field.key];
+      const after = afterStyle[field.key];
+      if (areStyleValuesEqual(before, after)) {
+        return null;
+      }
+
+      return {
+        label: field.label,
+        value: `${formatStyleValue(before, field.format)} → ${formatStyleValue(after, field.format)}`,
+      };
+    })
+    .filter((entry): entry is EditorOperationDetail => entry !== null);
+}
+
+function areStyleValuesEqual(before: unknown, after: unknown) {
+  if (Array.isArray(before) && Array.isArray(after)) {
+    return areNumberArraysEqual(before, after);
+  }
+
+  return before === after;
+}
+
+function formatStyleValue(value: unknown, format?: (value: unknown) => string) {
+  if (format) {
+    return format(value);
+  }
+
+  if (value === null || value === undefined) {
+    return "—";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return formatNumber(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => (typeof item === "number" ? formatNumber(item) : String(item))).join(", ")}]`;
+  }
+
+  return String(value);
+}
+
+function formatStyleNumber(value: unknown) {
+  return typeof value === "number" ? formatNumber(value) : "—";
+}
+
+function formatStyleOpacity(value: unknown) {
+  return typeof value === "number" ? formatDecimal(value) : "—";
+}
+
+function formatStyleDash(value: unknown) {
+  return Array.isArray(value) ? `[${value.map((item) => (typeof item === "number" ? formatNumber(item) : String(item))).join(", ")}]` : "—";
+}
+
+function formatDecimal(value: number) {
+  return Number.isInteger(value) ? String(value) : Number.parseFloat(value.toFixed(2)).toString();
+}
+
+function areNumberArraysEqual(a: unknown[] | undefined, b: unknown[] | undefined) {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((value, index) => value === b[index]);
 }

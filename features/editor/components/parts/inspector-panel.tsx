@@ -1,25 +1,35 @@
 "use client";
 
+import { useCallback, useMemo, type ReactNode } from "react";
 import {
   AlignCenter,
   AlignJustify,
   AlignLeft,
   AlignRight,
-  Baseline,
-  Bold,
   ChevronDown,
-  Columns3,
-  Italic,
+  Edit2,
+  ImageIcon,
   Link2,
-  List,
-  ListOrdered,
   Lock,
   RotateCcw,
-  Strikethrough,
-  Underline,
+  Type,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  EditorColorPopoverContent,
+  formatEditorColorValue,
+  normalizeEditorColorValue,
+  resolveEditorColorChipStyle,
+} from "@/features/editor/components/parts/editor-color-controls";
+import {
+  resolveCanvasObjectStyleCapabilities,
+  resolveCanvasObjectStylePreview,
+  type CanvasObjectStyleValues,
+} from "@/features/editor/schema/canvas-mutation";
+import type { TemplateElement } from "@/features/editor/schema/template-schema";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 import { formatOperationAction, formatOperationSnapshot, formatOperationSnapshotOrDeleted } from "@/features/editor/schema/editor-operation-log";
 
@@ -27,9 +37,14 @@ const tabs = ["Style", "Texte", "Données", "Effets"];
 
 export function InspectorPanel() {
   const activePageId = useEditorStore((state) => state.activePageId);
+  const workingTemplate = useEditorStore((state) => state.workingTemplate);
+  const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
   const selectionProjection = useEditorStore((state) => state.selectionProjection);
   const operationLogs = useEditorStore((state) => state.operationLogs);
   const clearOperationLogs = useEditorStore((state) => state.clearOperationLogs);
+  const commitCanvasObjectStyle = useEditorStore((state) => state.commitCanvasObjectStyle);
+  const setEditingImageElementId = useEditorStore((state) => state.setEditingImageElementId);
+  const setEditingRichTextElementId = useEditorStore((state) => state.setEditingRichTextElementId);
   const selectedObject = selectionProjection?.object ?? null;
   const selectedPage = selectionProjection?.page ?? null;
   const selectionSummary =
@@ -38,6 +53,42 @@ export function InspectorPanel() {
       selectionLabel: `Page ${activePageId.replace("page-", "")}`,
       userFacingLayer: null,
     };
+  const styleTarget = useMemo(() => {
+    const candidates = selectedElementIds
+      .map((elementId) => workingTemplate.elements.find((element) => element.id === elementId) ?? null)
+      .filter((element): element is (typeof workingTemplate.elements)[number] => element !== null && isStyleableCanvasElement(element));
+
+    return candidates[0] ?? null;
+  }, [selectedElementIds, workingTemplate]);
+  const styleCapabilities = styleTarget ? resolveCanvasObjectStyleCapabilities(styleTarget) : null;
+  const stylePreview = styleTarget ? resolveCanvasObjectStylePreview(styleTarget) : null;
+  const selectionType = selectionProjection?.selectionType ?? null;
+  const selectedElementId = selectedElementIds.length === 1 ? selectedElementIds[0] : null;
+  const selectedElement = useMemo(
+    () => (selectedElementId ? workingTemplate.elements.find((el) => el.id === selectedElementId) ?? null : null),
+    [selectedElementId, workingTemplate.elements],
+  );
+  const isImageSelection = selectionType === "image" && selectedElement?.type === "image" && !selectedElement.locked;
+  const isRichTextSelection = selectionType === "richText" && selectedElement?.type === "rich-text" && !selectedElement.locked;
+  const applyStylePatch = useCallback(
+    (style: Partial<CanvasObjectStyleValues>) => {
+      if (!selectedElementIds.length) {
+        return;
+      }
+
+      const result = commitCanvasObjectStyle({
+        patches: selectedElementIds.map((elementId) => ({
+          id: elementId,
+          style,
+        })),
+      });
+
+      if (!result.committed) {
+        console.warn("[editor] canvas style commit rejected", result.reason);
+      }
+    },
+    [commitCanvasObjectStyle, selectedElementIds],
+  );
 
   return (
     <aside className="ef-inspector">
@@ -65,43 +116,62 @@ export function InspectorPanel() {
         ) : null}
       </InspectorSection>
 
-      <InspectorSection title="Texte" open>
-        <div className="ef-grid-font">
-          <SelectBox value="Playfair Display" />
-          <SelectBox value="Bold" />
-        </div>
-
-        <div className="ef-grid-type">
-          <SplitBox values={["48", "px"]} />
-          <IconBox icon={Baseline} />
-          <IconStrip icons={[AlignLeft, AlignCenter, AlignRight, AlignJustify]} activeIndex={1} />
-        </div>
-
-        <div className="ef-grid-spacing">
-          <IconBox icon={List} />
-          <ValueBox value="1.2" />
-          <span />
-          <ValueBox value="-0.5 °" />
-          <ValueBox value="px" />
+      <InspectorSection title="Style" open>
+        <div className="ef-grid-two">
+          <StyleColorField
+            label="Fond"
+            value={stylePreview?.fill ?? "#ffffff"}
+            disabled={!styleCapabilities?.fill}
+            onChange={(value) => applyStylePatch({ fill: value })}
+          />
+          <StyleColorField
+            label="Contour"
+            value={stylePreview?.stroke ?? "#0f172a"}
+            disabled={!styleCapabilities?.stroke}
+            onChange={(value) => applyStylePatch({ stroke: value })}
+          />
         </div>
 
         <div className="ef-grid-two">
-          <ColorBox value="#0D1B2A" color="#0d1b2a" />
-          <ColorBox value="#DJAF37" color="#daaf37" />
-        </div>
-
-        <IconStrip icons={[Bold, Italic, Underline, Strikethrough, List, ListOrdered, AlignLeft, AlignCenter]} activeIndex={7} />
-        <IconStrip icons={[Columns3, List, AlignJustify, Link2, RotateCcw, Baseline, AlignRight]} />
-
-        <div className="ef-grid-columns">
-          <span>Colonnes</span>
-          <SplitBox values={["1", "⌄"]} />
-          <span className="ef-text-right">Espacement</span>
-          <SplitBox values={["12", "px"]} />
+          <StyleNumberField
+            label="Trait"
+            value={stylePreview?.strokeWidth ?? 1}
+            unit="px"
+            min={0}
+            step={0.5}
+            disabled={!styleCapabilities?.strokeWidth}
+            onChange={(value) => applyStylePatch({ strokeWidth: value })}
+          />
+          <StyleNumberField
+            label="Opacité"
+            value={stylePreview?.opacity ?? 1}
+            unit=""
+            min={0}
+            max={1}
+            step={0.05}
+            disabled={!styleCapabilities?.opacity}
+            onChange={(value) => applyStylePatch({ opacity: value })}
+          />
         </div>
       </InspectorSection>
 
-      <InspectorSection title="Image" />
+      {isRichTextSelection && selectedElement ? (
+        <InspectorSection title="Texte" open>
+          <RichTextInspector
+            element={selectedElement}
+            onEdit={() => setEditingRichTextElementId(selectedElement.id)}
+          />
+        </InspectorSection>
+      ) : null}
+
+      {isImageSelection && selectedElement ? (
+        <InspectorSection title="Image" open>
+          <ImageInspector
+            element={selectedElement}
+            onEdit={() => setEditingImageElementId(selectedElement.id)}
+          />
+        </InspectorSection>
+      ) : null}
 
       <InspectorSection title="Disposition" open>
         <div className="ef-grid-position">
@@ -178,7 +248,7 @@ export function InspectorPanel() {
   );
 }
 
-function InspectorSection({ title, children, open }: { title: string; children?: React.ReactNode; open?: boolean }) {
+function InspectorSection({ title, children, open }: { title: string; children?: ReactNode; open?: boolean }) {
   return (
     <section className="ef-inspector-section">
       <h3 className="ef-inspector-title">
@@ -202,10 +272,6 @@ function SelectBox({ value }: { value: string }) {
   );
 }
 
-function ValueBox({ value }: { value: string }) {
-  return <span className="ef-field ef-field-strong ef-value-field">{value}</span>;
-}
-
 function SplitBox({ values }: { values: string[] }) {
   return (
     <span className="ef-field ef-split-field" style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}>
@@ -218,12 +284,159 @@ function SplitBox({ values }: { values: string[] }) {
   );
 }
 
-function ColorBox({ value, color }: { value: string; color: string }) {
+function StyleColorField({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  disabled?: boolean;
+  onChange: (value: string) => void;
+}) {
+  const pickerValue = normalizeEditorColorValue(value);
+  const displayValue = formatEditorColorValue(value);
+
   return (
-    <span className="ef-field ef-color-field">
-      <span className="ef-color-chip" style={{ backgroundColor: color }} />
-      {value}
-    </span>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="ef-field ef-style-color-field" disabled={disabled}>
+          <span className="ef-style-color-chip" style={resolveEditorColorChipStyle(value, false)} />
+          <span className="ef-style-color-label">{label}</span>
+          <span className="ef-style-color-value">{displayValue}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" sideOffset={10} className="ef-style-color-popover">
+        <EditorColorPopoverContent
+          title={label}
+          value={value}
+          defaultValue={pickerValue}
+          mixed={false}
+          showReset={false}
+          onChange={onChange}
+          onReset={() => undefined}
+          onClose={() => {}}
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function StyleNumberField({
+  label,
+  value,
+  unit,
+  min,
+  max,
+  step,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  unit: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="ef-field ef-style-number-field">
+      <span className="ef-style-number-label">{label}</span>
+      <input
+        className="ef-style-number-input"
+        type="number"
+        value={Number.isFinite(value) ? value : 0}
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        onChange={(event) => {
+          const next = Number.parseFloat(event.target.value);
+          if (Number.isNaN(next)) {
+            return;
+          }
+
+          const clampedMax = max !== undefined ? Math.min(max, next) : next;
+          const clamped = min !== undefined ? Math.max(min, clampedMax) : clampedMax;
+          onChange(clamped);
+        }}
+      />
+      {unit ? <span className="ef-style-number-unit">{unit}</span> : null}
+    </label>
+  );
+}
+
+function isStyleableCanvasElement(element: TemplateElement) {
+  const capabilities = resolveCanvasObjectStyleCapabilities(element);
+  return capabilities.fill || capabilities.stroke || capabilities.strokeWidth || capabilities.opacity || capabilities.dash;
+}
+
+function RichTextInspector({ element, onEdit }: { element: TemplateElement; onEdit: () => void }) {
+  const html = typeof element.props?.html === "string" ? element.props.html : null;
+  const displayMode = typeof element.props?.richTextDisplayMode === "string" ? element.props.richTextDisplayMode : "label";
+
+  const preview = html
+    ? html
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80)
+    : null;
+
+  return (
+    <>
+      {preview ? (
+        <div className="ef-inspector-rich-text-preview" title={preview}>
+          <Type size={11} className="shrink-0 text-slate-400" aria-hidden="true" />
+          <span className="ef-truncate text-[11px] text-slate-500">{preview}</span>
+        </div>
+      ) : (
+        <div className="ef-inspector-rich-text-preview">
+          <Type size={11} className="shrink-0 text-slate-400" aria-hidden="true" />
+          <span className="text-[11px] italic text-slate-400">Bloc vide</span>
+        </div>
+      )}
+      <div className="ef-inspector-meta-row">
+        <span className="text-[10px] text-slate-400">Mode</span>
+        <span className="text-[10px] font-medium text-slate-600">{displayMode}</span>
+      </div>
+      <button type="button" className="ef-inspector-edit-button" onClick={onEdit}>
+        <Edit2 size={12} aria-hidden="true" />
+        Éditer le texte
+      </button>
+    </>
+  );
+}
+
+function ImageInspector({ element, onEdit }: { element: TemplateElement; onEdit: () => void }) {
+  const label = typeof element.props?.label === "string" ? element.props.label : typeof element.props?.name === "string" ? element.props.name : "Image";
+  const src = typeof element.props?.src === "string" ? element.props.src : null;
+  const isDataUri = src?.startsWith("data:") ?? false;
+  const srcDisplay = isDataUri ? "Données intégrées" : src ? src.slice(0, 40) + (src.length > 40 ? "…" : "") : "—";
+
+  return (
+    <>
+      {src && isDataUri ? (
+        <div className="ef-inspector-image-thumb">
+          <img src={src} alt={label} className="ef-inspector-image-thumb-img" />
+        </div>
+      ) : null}
+      <div className="ef-inspector-meta-row">
+        <span className="text-[10px] text-slate-400">Nom</span>
+        <span className="text-[10px] font-medium text-slate-600 ef-truncate">{label}</span>
+      </div>
+      <div className="ef-inspector-meta-row">
+        <span className="text-[10px] text-slate-400">Source</span>
+        <span className="text-[10px] text-slate-500 ef-truncate">{srcDisplay}</span>
+      </div>
+      <button type="button" className="ef-inspector-edit-button" onClick={onEdit}>
+        <ImageIcon size={12} aria-hidden="true" />
+        Éditer l'image
+      </button>
+    </>
   );
 }
 

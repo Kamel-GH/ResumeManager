@@ -1,5 +1,11 @@
 import type { TemplateElement, TemplateElementStyle, TemplateElementType } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
+import {
+  DEFAULT_CANVAS_FILL_COLOR,
+  DEFAULT_CANVAS_STROKE_COLOR,
+  DEFAULT_CANVAS_STROKE_WIDTH,
+} from "@/features/editor/schema/canvas-mutation";
+import { parseRichTextHtmlToJson } from "@/features/editor/lib/rich-text-variable";
 
 export type CanvasDropEnvelope = {
   type: string;
@@ -80,6 +86,7 @@ export type CanvasInsertionContext = {
   point: { x: number; y: number };
   layer: CanvasWorkspaceLayer;
   frame?: Rect;
+  styleDefaults?: TemplateElementStyle;
 };
 
 export type CanvasInsertionResult =
@@ -185,7 +192,7 @@ export function createCanvasInsertionElement(input: {
         frame,
         type: "shape",
         style: {
-          ...resolveShapeStyle(rawPayload, shape),
+          ...resolveShapeStyle(rawPayload, shape, input.context.styleDefaults),
           ...(shape === "line" || shape === "polyline" || shape === "curve" || shape === "arc" ? {} : {}),
         },
         props: {
@@ -196,6 +203,8 @@ export function createCanvasInsertionElement(input: {
           shape,
           ...(svg ? { svg } : {}),
           ...(normalizedPoints ? { points: normalizedPoints } : {}),
+          ...(asString(rawPayload.presetId) ? { presetId: asString(rawPayload.presetId) } : {}),
+          ...(asString(rawPayload.presetKind) ? { presetKind: asString(rawPayload.presetKind) } : {}),
           label: asString(rawPayload.name) ?? asString(rawPayload.label) ?? sourceType,
           name: asString(rawPayload.name) ?? asString(rawPayload.label) ?? sourceType,
           layerId: layer.id,
@@ -243,6 +252,7 @@ export function createCanvasInsertionElement(input: {
 
   if (sourceType === "text-block") {
     const text = resolveTextBlockText(rawPayload);
+    const html = asString(rawPayload.html) ?? asString(rawPayload.preview) ?? text;
     return {
       inserted: true,
       layer,
@@ -255,6 +265,7 @@ export function createCanvasInsertionElement(input: {
           ...DEFAULT_TEXT_STYLE,
           fontSize: 13,
           lineHeight: 1.35,
+          ...resolveContainerStyleDefaults(input.context.styleDefaults),
         },
         props: {
           selectable: true,
@@ -262,7 +273,9 @@ export function createCanvasInsertionElement(input: {
           entityType: sourceType,
           kind: sourceType,
           text,
-          html: asString(rawPayload.html) ?? asString(rawPayload.preview) ?? text,
+          html,
+          richTextJson: parseRichTextHtmlToJson(html),
+          richTextDisplayMode: "label",
           label: asString(rawPayload.name) ?? text,
           name: asString(rawPayload.name) ?? text,
           layerId: layer.id,
@@ -290,10 +303,11 @@ export function createCanvasInsertionElement(input: {
         frame,
         type: "list",
         style: {
-          fill: "rgba(255, 255, 255, 0.96)",
-          stroke: "#cbd5e1",
-          strokeWidth: 1,
+          fill: input.context.styleDefaults?.fill ?? "rgba(255, 255, 255, 0.96)",
+          stroke: input.context.styleDefaults?.stroke ?? "#cbd5e1",
+          strokeWidth: input.context.styleDefaults?.strokeWidth ?? 1,
           cornerRadius: 4,
+          opacity: 1,
         },
         props: {
           selectable: true,
@@ -378,7 +392,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame,
         type: "shape",
-        style: resolveShapeStyle(payload, "rect"),
+        style: resolveShapeStyle(payload, "rect", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -406,7 +420,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame,
         type: "shape",
-        style: resolveShapeStyle(payload, "ellipse"),
+        style: resolveShapeStyle(payload, "ellipse", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -441,7 +455,9 @@ function createCanvasToolInsertionElement(
     const arcSweep = (asNumber(payload.arcSweep) as 1 | -1 | undefined) ?? arcGeometry?.sweep ?? 1;
     const outerRadius = asNumber(payload.outerRadius) ?? arcGeometry?.radius ?? Math.max(Math.min(resolvedFrame.width, resolvedFrame.height) / 2, 1);
     const label =
-      toolId === "pie" ? "Camembert" : toolId === "arc2point" ? "Arc 2 points" : toolId === "arc3point" ? "Arc 3 points" : "Arc";
+      asString(payload.name) ??
+      asString(payload.label) ??
+      (toolId === "pie" ? "Camembert" : toolId === "arc2point" ? "Arc 2 points" : toolId === "arc3point" ? "Arc 3 points" : "Arc");
 
     return {
       inserted: true,
@@ -451,7 +467,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame: resolvedFrame,
         type: "shape",
-        style: arcType === "pie" ? resolvePieShapeStyle(payload) : resolveShapeStyle(payload, "arc"),
+        style: arcType === "pie" ? resolvePieShapeStyle(payload, input.context.styleDefaults) : resolveShapeStyle(payload, "arc", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -464,6 +480,7 @@ function createCanvasToolInsertionElement(
           endAngle: endAngle ?? 180,
           innerRadius: asNumber(payload.innerRadius) ?? 0,
           outerRadius,
+          ...(asString(payload.presetId) ? { presetId: asString(payload.presetId) } : {}),
           label,
           name: label,
           layerId: layer.id,
@@ -491,7 +508,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame,
         type: "shape",
-        style: resolveShapeStyle(payload, shape),
+        style: resolveShapeStyle(payload, shape, input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -524,12 +541,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame,
         type: "shape",
-        style: {
-          fill: "transparent",
-          stroke: "#0f172a",
-          strokeWidth: 2,
-          opacity: 1,
-        },
+        style: resolveShapeStyle(payload, "line", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -564,7 +576,7 @@ function createCanvasToolInsertionElement(
         pageId,
         frame,
         type: "shape",
-        style: resolveShapeStyle(payload, "polyline"),
+        style: resolveShapeStyle(payload, "polyline", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -585,6 +597,7 @@ function createCanvasToolInsertionElement(
   }
 
   if (toolId === "richtext") {
+    const html = asString(payload.html) ?? "<p>Double-cliquez pour éditer</p>";
     return {
       inserted: true,
       layer,
@@ -597,6 +610,10 @@ function createCanvasToolInsertionElement(
           ...DEFAULT_TEXT_STYLE,
           fontSize: 14,
           lineHeight: 1.3,
+          fill: "rgba(255, 255, 255, 0.02)",
+          stroke: "#cbd5e1",
+          strokeWidth: 1,
+          opacity: 1,
         },
         props: {
           selectable: true,
@@ -604,7 +621,9 @@ function createCanvasToolInsertionElement(
           entityType: "canvas-tool",
           kind: toolId,
           text: asString(payload.text) ?? "Double-cliquez pour éditer",
-          html: asString(payload.html) ?? "<p>Double-cliquez pour éditer</p>",
+          html,
+          richTextJson: parseRichTextHtmlToJson(html),
+          richTextDisplayMode: "label",
           label: "Zone rich text",
           name: "Zone rich text",
           layerId: layer.id,
@@ -629,9 +648,9 @@ function createCanvasToolInsertionElement(
         frame,
         type: "table",
         style: {
-          fill: "transparent",
-          stroke: "#0f172a",
-          strokeWidth: 1,
+          fill: input.context.styleDefaults?.fill ?? "#ffffff",
+          stroke: input.context.styleDefaults?.stroke ?? "#cbd5e1",
+          strokeWidth: input.context.styleDefaults?.strokeWidth ?? 1,
           opacity: 1,
         },
         props: {
@@ -737,9 +756,18 @@ function resolveWidth(sourceType: string, payload: Record<string, unknown>): num
   }
 
   if (sourceType === "shape") {
+    const explicitWidth = asNumber(payload.width);
+    if (explicitWidth) {
+      return clampNumber(explicitWidth, 8, 360);
+    }
+
     const shapeType = asString(payload.type)?.toLowerCase() ?? "";
     if (shapeType.includes("circle") || shapeType.includes("oval")) {
       return shapeType.includes("oval") ? 72 : 56;
+    }
+
+    if (shapeType.includes("star") || shapeType.includes("triangle") || shapeType.includes("diamond") || shapeType.includes("pentagon") || shapeType.includes("hexagon") || shapeType.includes("bubble") || shapeType.includes("badge") || shapeType.includes("rounded") || shapeType.includes("heart")) {
+      return 72;
     }
 
     if (shapeType.includes("line") || shapeType.includes("separator") || shapeType.includes("arrow")) {
@@ -784,9 +812,18 @@ function resolveHeight(sourceType: string, payload: Record<string, unknown>, wid
   }
 
   if (sourceType === "shape") {
+    const explicitHeight = asNumber(payload.height);
+    if (explicitHeight) {
+      return clampNumber(explicitHeight, 8, 360);
+    }
+
     const shapeType = asString(payload.type)?.toLowerCase() ?? "";
     if (shapeType.includes("circle") || shapeType.includes("oval")) {
       return shapeType.includes("oval") ? 48 : 56;
+    }
+
+    if (shapeType.includes("star") || shapeType.includes("triangle") || shapeType.includes("diamond") || shapeType.includes("pentagon") || shapeType.includes("hexagon") || shapeType.includes("bubble") || shapeType.includes("badge") || shapeType.includes("rounded") || shapeType.includes("heart")) {
+      return 72;
     }
 
     if (shapeType.includes("line") || shapeType.includes("separator") || shapeType.includes("arrow")) {
@@ -826,17 +863,18 @@ function resolveShapeKind(payload: Record<string, unknown>): CanvasShapeKind {
   return "rect";
 }
 
-function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeKind): TemplateElementStyle {
+function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeKind, styleDefaults?: TemplateElementStyle): TemplateElementStyle {
   const fillMode = asString(payload.fillMode)?.toLowerCase() ?? "color";
-  const accent = fillMode === "mono" ? "#e5e7eb" : fillMode === "transparent" ? "transparent" : "#d9b86f";
-  const stroke = fillMode === "transparent" ? "#9ca3af" : "#0f172a";
+  const accent = fillMode === "mono" ? "#e5e7eb" : fillMode === "transparent" ? "transparent" : styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR;
+  const stroke = styleDefaults?.stroke ?? DEFAULT_CANVAS_STROKE_COLOR;
+  const defaultStrokeWidth = asNumber(payload.strokeWidth) ?? styleDefaults?.strokeWidth ?? (shape === "rect" ? 1 : DEFAULT_CANVAS_STROKE_WIDTH);
 
   if (shape === "line" || shape === "polyline" || shape === "curve" || shape === "arc") {
     const dash = asNumberArray(payload.dash);
     return {
       fill: "transparent",
       stroke,
-      strokeWidth: 2,
+      strokeWidth: defaultStrokeWidth,
       opacity: 1,
       ...(dash ? { dash } : {}),
     };
@@ -847,7 +885,7 @@ function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeK
     return {
       fill: accent,
       stroke,
-      strokeWidth: 2,
+      strokeWidth: defaultStrokeWidth,
       opacity: 1,
       ...(dash ? { dash } : {}),
     };
@@ -857,25 +895,40 @@ function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeK
     ? {
         fill: accent,
         stroke,
-        strokeWidth: 2,
+        strokeWidth: defaultStrokeWidth,
+        opacity: 1,
       }
     : {
         fill: accent,
         stroke,
-        strokeWidth: 1,
-        cornerRadius: 8,
+        strokeWidth: defaultStrokeWidth,
+        cornerRadius: clampNumber(asNumber(payload.cornerRadius) ?? 8, 0, 999),
+        opacity: 1,
       };
 }
 
-function resolvePieShapeStyle(payload: Record<string, unknown>): TemplateElementStyle {
+function resolvePieShapeStyle(payload: Record<string, unknown>, styleDefaults?: TemplateElementStyle): TemplateElementStyle {
   const fillMode = asString(payload.fillMode)?.toLowerCase() ?? "color";
-  const fill = fillMode === "transparent" ? "transparent" : fillMode === "mono" ? "#e5e7eb" : "#d9b86f";
+  const fill = fillMode === "transparent" ? "transparent" : fillMode === "mono" ? "#e5e7eb" : styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR;
 
   return {
     fill,
-    stroke: "#0f172a",
-    strokeWidth: 2,
+    stroke: styleDefaults?.stroke ?? DEFAULT_CANVAS_STROKE_COLOR,
+    strokeWidth: styleDefaults?.strokeWidth ?? DEFAULT_CANVAS_STROKE_WIDTH,
     opacity: 1,
+  };
+}
+
+function resolveContainerStyleDefaults(styleDefaults?: TemplateElementStyle): TemplateElementStyle {
+  if (!styleDefaults) {
+    return {};
+  }
+
+  return {
+    fill: styleDefaults.fill,
+    stroke: styleDefaults.stroke,
+    strokeWidth: styleDefaults.strokeWidth,
+    opacity: styleDefaults.opacity,
   };
 }
 

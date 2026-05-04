@@ -56,4 +56,57 @@ describe("editor render pipeline foundation", () => {
     expect(renderTree.pages[0]?.children).toHaveLength(1);
     expect(renderTree.pages[0]?.children[0]?.props.bindingId).toBe("candidate.name");
   });
+
+  it("projects canonical object order to render tree order without changing layer order", () => {
+    const template: TemplateSchema = {
+      id: "template-order",
+      name: "Order template",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Page 1",
+          width: 400,
+          height: 300,
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        },
+      ],
+      elements: [
+        {
+          id: "layer-b-back",
+          pageId: "page-1",
+          type: "shape",
+          frame: { x: 0, y: 0, width: 20, height: 20 },
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          props: { shape: "rect", layerId: "layer-b", layerOrder: 2 },
+        },
+        {
+          id: "layer-a-front",
+          pageId: "page-1",
+          type: "shape",
+          frame: { x: 0, y: 0, width: 20, height: 20 },
+          zIndex: 10,
+          locked: false,
+          visible: true,
+          props: { shape: "rect", layerId: "layer-a", layerOrder: 1 },
+        },
+        {
+          id: "layer-a-back",
+          pageId: "page-1",
+          type: "shape",
+          frame: { x: 0, y: 0, width: 20, height: 20 },
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          props: { shape: "rect", layerId: "layer-a", layerOrder: 1 },
+        },
+      ],
+    };
+
+    const renderTree = buildCanonicalRenderTree(resolveBindings({ template, data: {} }));
+
+    expect(renderTree.pages[0]?.children.map((node) => node.id)).toEqual(["layer-a-back", "layer-a-front", "layer-b-back"]);
+  });
 });

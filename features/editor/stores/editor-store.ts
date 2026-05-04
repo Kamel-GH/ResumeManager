@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { StoreApi } from "zustand";
+import type { JSONContent } from "@tiptap/core";
 
 import { modernResumeTemplate } from "@/features/editor/templates/modern-resume-template";
 import {
@@ -11,15 +12,34 @@ import {
   type CanvasToolId,
   type CanvasWorkspaceLayer,
 } from "@/features/editor/schema/canvas-insertion";
-import { applyCanvasObjectGeometry, type CanvasObjectGeometryPatch } from "@/features/editor/schema/canvas-mutation";
+import {
+  DEFAULT_CANVAS_FILL_COLOR,
+  DEFAULT_CANVAS_STROKE_COLOR,
+  applyCanvasObjectGeometry,
+  applyCanvasObjectStyle,
+  alignTemplateCanvasElements,
+  deleteTemplateCanvasElements,
+  duplicateTemplateCanvasElements,
+  duplicateTemplateCanvasElementsFromElements,
+  flipTemplateCanvasElements,
+  reorderTemplateCanvasElements,
+  type CanvasObjectAlignmentAction,
+  type CanvasObjectGeometryPatch,
+  type CanvasObjectOrderAction,
+  type CanvasObjectFlipAxis,
+  type CanvasObjectStylePatch,
+} from "@/features/editor/schema/canvas-mutation";
 import {
   buildDeleteOperationLogs,
   type EditorOperationLogEntry,
   buildGeometryOperationLogs,
   buildInsertOperationLog,
+  buildStyleOperationLogs,
 } from "@/features/editor/schema/editor-operation-log";
+import { parseRichTextHtmlToJson, serializeRichTextJsonToHtml, type RichTextVariableDisplayMode } from "@/features/editor/lib/rich-text-variable";
 import { defaultWorkspaceSettings, type EditorWorkspaceSettings } from "@/features/editor/schema/workspace-layout";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
+import type { TemplateElement, TemplateElementType } from "@/features/editor/schema/template-schema";
 import type { KonvaSelectionProjection } from "@/features/editor/schema/selection-projection";
 
 export type EditorPanelId = "pages" | "layers" | "assets" | "data" | "inspector";
@@ -33,6 +53,9 @@ export type EditorViewportState = {
   panX: number;
   panY: number;
 };
+
+export const EDITOR_VIEWPORT_MIN_ZOOM = 0.25;
+export const EDITOR_VIEWPORT_MAX_ZOOM = 4;
 
 export type EditorPanelPreferences = {
   leftCollapsed: boolean;
@@ -53,28 +76,76 @@ export type EditorStoreState = {
     sourcePanel?: string;
     payload: unknown;
   } | null;
+  canvasClipboard: {
+    elements: TemplateElement[];
+  } | null;
   selectedElementIds: string[];
   selectionProjection: KonvaSelectionProjection | null;
   operationLogs: EditorOperationLogEntry[];
   workingTemplate: TemplateSchema;
+  defaultFillColor: string;
+  defaultStrokeColor: string;
   workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]>;
   activeWorkspaceLayerIdByPageId: Record<string, string | null>;
+  selectedWorkspaceLayerIdByPageId: Record<string, string | null>;
   workspaceSettings: EditorWorkspaceSettings;
   openPanels: Record<EditorPanelId, boolean>;
   panelPreferences: EditorPanelPreferences;
   viewport: EditorViewportState;
   setActivePageId: (pageId: string) => void;
+  addTemplatePage: () => { added: true; pageId: string } | { added: false; reason: string };
+  setActiveWorkspaceLayerIdForPage: (input: { pageId: string; layerId: string | null }) => void;
+  setSelectedWorkspaceLayerIdForPage: (input: { pageId: string; layerId: string | null }) => void;
+  addWorkspaceLayerForPage: (input: { pageId: string }) => { added: true; layerId: string } | { added: false; reason: string };
+  renameWorkspaceLayerForPage: (input: { pageId: string; layerId: string; name: string }) => { renamed: true; layerId: string } | { renamed: false; reason: string };
+  deleteWorkspaceLayerForPage: (input: { pageId: string; layerId: string }) => { deleted: true; layerId: string } | { deleted: false; reason: string };
+  deleteWorkspaceLayersForPage: (input: { pageId: string; layerIds: string[] }) => { deleted: true; layerIds: string[]; skippedIds: string[] } | { deleted: false; reason: string; skippedIds?: string[] };
+  mergeWorkspaceLayersForPage: (input: { pageId: string; layerIds: string[] }) => { merged: true; targetLayerId: string; removedLayerIds: string[] } | { merged: false; reason: string };
+  setWorkspaceLayerVisibility: (input: { pageId: string; layerId: string; visible: boolean }) => { updated: true; layerId: string } | { updated: false; reason: string };
+  setWorkspaceLayerLocked: (input: { pageId: string; layerId: string; locked: boolean }) => { updated: true; layerId: string } | { updated: false; reason: string };
+  reorderWorkspaceLayerForPage: (input: {
+    pageId: string;
+    layerId: string;
+    targetLayerId: string;
+    position: "before" | "after";
+  }) => { reordered: true; layerId: string } | { reordered: false; reason: string };
+  moveWorkspaceLayerForPage: (input: { pageId: string; layerId: string; direction: "up" | "down" }) => { reordered: true; layerId: string } | { reordered: false; reason: string };
+  moveWorkspaceLayersForPage: (input: { pageId: string; layerIds: string[]; direction: "up" | "down" }) => { reordered: true; layerIds: string[] } | { reordered: false; reason: string };
   setActiveCanvasTool: (toolId: CanvasToolId) => void;
+  setDefaultFillColor: (color: string) => void;
+  setDefaultStrokeColor: (color: string) => void;
   setDragTraceContext: (context: EditorStoreState["dragTraceContext"]) => void;
   clearDragTraceContext: () => void;
+  copyCanvasElements: (input: { elementIds: string[] }) => { copied: true; ids: string[] } | { copied: false; reason: string };
+  pasteCanvasElements: () => { pasted: true; ids: string[] } | { pasted: false; reason: string };
   setSelectedElementIds: (elementIds: string[]) => void;
   setSelectionProjection: (projection: KonvaSelectionProjection | null) => void;
   appendOperationLogs: (entries: EditorOperationLogEntry[]) => void;
   clearOperationLogs: () => void;
+  undoStack: TemplateSchema[];
+  redoStack: TemplateSchema[];
+  undo: () => { undone: true } | { undone: false; reason: string };
+  redo: () => { redone: true } | { redone: false; reason: string };
   insertCanvasDropPayload: (input: { pageId: string; point: { x: number; y: number }; source: CanvasDropEnvelope }) => { inserted: true; elementId: string; pageId: string; layerId: string } | { inserted: false; reason: string; sourceType: string };
   insertCanvasToolPayload: (input: { pageId: string; frame: { x: number; y: number; width: number; height: number }; source: CanvasToolEnvelope }) => { inserted: true; elementId: string; pageId: string; layerId: string } | { inserted: false; reason: string; sourceType: string };
   commitCanvasObjectGeometry: (input: { pageId: string; patches: CanvasObjectGeometryPatch[] }) => { committed: true; ids: string[] } | { committed: false; reason: string };
+  commitCanvasObjectStyle: (input: { patches: CanvasObjectStylePatch[] }) => { committed: true; ids: string[] } | { committed: false; reason: string };
+  duplicateCanvasElements: (input: { elementIds: string[] }) => { duplicated: true; ids: string[] } | { duplicated: false; reason: string };
+  reorderCanvasElements: (input: { elementIds: string[]; action: CanvasObjectOrderAction }) => { reordered: true; ids: string[] } | { reordered: false; reason: string };
+  alignCanvasElements: (input: { elementIds: string[]; alignment: CanvasObjectAlignmentAction }) => { aligned: true; ids: string[] } | { aligned: false; reason: string };
+  flipCanvasElements: (input: { elementIds: string[]; axis: CanvasObjectFlipAxis }) => { flipped: true; ids: string[] } | { flipped: false; reason: string };
   deleteCanvasElements: (input: { elementIds: string[] }) => { deleted: true; ids: string[] } | { deleted: false; reason: string };
+  updateRichTextElementContent: (input: {
+    elementId: string;
+    html?: string;
+    json?: JSONContent;
+    displayMode?: RichTextVariableDisplayMode;
+  }) => { updated: true; elementId: string } | { updated: false; reason: string };
+  updateRichTextContainerProps: (input: {
+    elementId: string;
+    props: Record<string, unknown>;
+  }) => { updated: true; elementId: string } | { updated: false; reason: string };
+  updateImageElementEditing: (input: { elementId: string; imageEditing: TemplateElement["props"] }) => { updated: true; elementId: string } | { updated: false; reason: string };
   setWorkspaceSettings: (patch: Partial<EditorWorkspaceSettings>) => void;
   setZoom: (zoom: number) => void;
   setViewportPan: (input: { panX: number; panY: number }) => void;
@@ -85,12 +156,16 @@ export type EditorStoreState = {
   setPanelDisplayMode: (mode: EditorPanelDisplayMode) => void;
   setAssetViewMode: (mode: EditorAssetViewMode) => void;
   setPanelFilter: (key: EditorLeftPanelTab | EditorLeftSubTab, value: string) => void;
+  editingRichTextElementId: string | null;
+  editingImageElementId: string | null;
+  setEditingRichTextElementId: (id: string | null) => void;
+  setEditingImageElementId: (id: string | null) => void;
 };
 
 const defaultPanelPreferences: EditorPanelPreferences = {
   leftCollapsed: false,
   rightCollapsed: false,
-  activeLeftTab: "data",
+  activeLeftTab: "pages",
   activeSubTabs: {
     data: "variables",
     libraries: "images",
@@ -103,14 +178,16 @@ const defaultPanelPreferences: EditorPanelPreferences = {
 function createInitialWorkspaceLayers(template: TemplateSchema) {
   const workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]> = {};
   const activeWorkspaceLayerIdByPageId: Record<string, string | null> = {};
+  const selectedWorkspaceLayerIdByPageId: Record<string, string | null> = {};
 
   template.pages.forEach((page) => {
     const layer = createDefaultWorkspaceLayer(page.id, 1);
     workspaceLayersByPageId[page.id] = [layer];
     activeWorkspaceLayerIdByPageId[page.id] = layer.id;
+    selectedWorkspaceLayerIdByPageId[page.id] = layer.id;
   });
 
-  return { workspaceLayersByPageId, activeWorkspaceLayerIdByPageId };
+  return { workspaceLayersByPageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId };
 }
 
 function createDefaultWorkspaceLayer(pageId: string, order: number): CanvasWorkspaceLayer {
@@ -124,16 +201,297 @@ function createDefaultWorkspaceLayer(pageId: string, order: number): CanvasWorks
   };
 }
 
+export type EditorPageView = {
+  id: string;
+  name: string;
+  index: number;
+  width: number;
+  height: number;
+  active: boolean;
+  elementCount: number;
+};
+
+export type EditorLayerView = {
+  id: string;
+  pageId: string;
+  pageName: string;
+  pageIndex: number;
+  number: number;
+  name: string;
+  order: number;
+  visible: boolean;
+  locked: boolean;
+  active: boolean;
+  selected: boolean;
+  objectCount: number;
+  source: "workspace" | "derived" | "fallback";
+};
+
+export type EditorLayerViewFilters = {
+  text?: string;
+  page?: string;
+  visibility?: "all" | "visible" | "hidden";
+  lock?: "all" | "locked" | "unlocked";
+};
+
+export type EditorObjectView = {
+  id: string;
+  name: string;
+  type: TemplateElementType;
+  pageId: string;
+  pageName: string;
+  pageIndex: number;
+  layerId: string | null;
+  layerNumber: number | null;
+  layerName: string;
+  layerOrder: number | null;
+  visible: boolean;
+  locked: boolean;
+  grouped: boolean | null;
+  groupId: string | null;
+  selected: boolean;
+};
+
+export type EditorObjectViewFilters = {
+  text?: string;
+  type?: string;
+  layer?: string;
+  page?: string;
+};
+
+export function deriveEditorPagesView(template: TemplateSchema, activePageId?: string | null): EditorPageView[] {
+  if (template.pages.length === 0) {
+    return [];
+  }
+
+  const resolvedActivePageId = template.pages.some((page) => page.id === activePageId) ? activePageId : template.pages[0]?.id ?? null;
+  const elementCountByPageId = template.elements.reduce<Record<string, number>>((counts, element) => {
+    counts[element.pageId] = (counts[element.pageId] ?? 0) + 1;
+    return counts;
+  }, {});
+
+  return template.pages.map((page, index) => ({
+    id: page.id,
+    name: page.name,
+    index: index + 1,
+    width: page.width,
+    height: page.height,
+    active: page.id === resolvedActivePageId,
+    elementCount: elementCountByPageId[page.id] ?? 0,
+  }));
+}
+
+export function deriveEditorLayersView(
+  template: TemplateSchema,
+  workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]>,
+  activePageId?: string | null,
+  activeWorkspaceLayerIdByPageId?: Record<string, string | null>,
+  selectedWorkspaceLayerIdByPageId?: Record<string, string | null>,
+): EditorLayerView[] {
+  const activePage = resolveEditorPage(template, activePageId);
+  if (!activePage) {
+    return [];
+  }
+
+  const pageIndex = template.pages.findIndex((page) => page.id === activePage.id) + 1;
+  const pageElements = template.elements.filter((element) => element.pageId === activePage.id);
+  const workspaceLayers = [...(workspaceLayersByPageId[activePage.id] ?? [])];
+  const fallbackLayerId = workspaceLayers.length === 1 ? workspaceLayers[0]?.id ?? null : null;
+  const records = new Map<string, EditorLayerView>();
+
+  workspaceLayers.forEach((layer) => {
+    records.set(layer.id, {
+      id: layer.id,
+      pageId: activePage.id,
+      pageName: activePage.name,
+      pageIndex,
+      number: resolveStableLayerNumber(layer.id, layer.order),
+      name: layer.name,
+      order: layer.order,
+      visible: layer.visible,
+      locked: layer.locked,
+      active: false,
+      selected: false,
+      objectCount: 0,
+      source: "workspace",
+    });
+  });
+
+  pageElements.forEach((element, index) => {
+    const layerIdentity = resolveElementLayerIdentity(element, fallbackLayerId);
+    if (!layerIdentity) {
+      return;
+    }
+
+    const existing = records.get(layerIdentity.key);
+    if (existing) {
+      records.set(layerIdentity.key, {
+        ...existing,
+        objectCount: existing.objectCount + 1,
+      });
+      return;
+    }
+
+    records.set(layerIdentity.key, {
+      id: layerIdentity.key,
+      pageId: activePage.id,
+      pageName: activePage.name,
+      pageIndex,
+      number: resolveStableLayerNumber(layerIdentity.key, layerIdentity.order ?? index + 1),
+      name: layerIdentity.name,
+      order: layerIdentity.order ?? index + 1,
+      visible: layerIdentity.visible ?? true,
+      locked: layerIdentity.locked ?? false,
+      active: false,
+      selected: false,
+      objectCount: 1,
+      source: "derived",
+    });
+  });
+
+  if (records.size === 0) {
+    const fallbackLayer = createDefaultWorkspaceLayer(activePage.id, 1);
+    records.set(fallbackLayer.id, {
+      id: fallbackLayer.id,
+      pageId: activePage.id,
+      pageName: activePage.name,
+      pageIndex,
+      number: resolveStableLayerNumber(fallbackLayer.id, fallbackLayer.order),
+      name: fallbackLayer.name,
+      order: fallbackLayer.order,
+      visible: fallbackLayer.visible,
+      locked: fallbackLayer.locked,
+      active: false,
+      selected: false,
+      objectCount: pageElements.length,
+      source: "fallback",
+    });
+  }
+
+  const rows = [...records.values()].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr") || a.id.localeCompare(b.id, "fr"));
+  const resolvedActiveLayerId = resolveActiveLayerId(activePage.id, rows, activeWorkspaceLayerIdByPageId);
+  const resolvedSelectedLayerId = resolveActiveLayerId(activePage.id, rows, selectedWorkspaceLayerIdByPageId);
+
+  return rows.map((row) => ({
+    ...row,
+    active: row.id === resolvedActiveLayerId,
+    selected: row.id === resolvedSelectedLayerId,
+  }));
+}
+
+export function deriveEditorDocumentLayersView(
+  template: TemplateSchema,
+  workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]>,
+  activePageId?: string | null,
+  activeWorkspaceLayerIdByPageId?: Record<string, string | null>,
+  selectedWorkspaceLayerIdByPageId?: Record<string, string | null>,
+): EditorLayerView[] {
+  const pageCount = Math.max(template.pages.length, 1);
+
+  return template.pages.flatMap((page, pageIndex) =>
+    deriveEditorLayersView(template, workspaceLayersByPageId, page.id, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId).map((layer) => {
+      const localNumber = resolveStableLayerNumber(layer.id, layer.order);
+      return {
+        ...layer,
+        number: pageIndex + 1 + (localNumber - 1) * pageCount,
+        active: page.id === activePageId && layer.active,
+        selected: page.id === activePageId && layer.selected,
+      };
+    }),
+  );
+}
+
+export function filterEditorLayersView(layers: EditorLayerView[], filters: EditorLayerViewFilters) {
+  const query = filters.text?.trim().toLowerCase() ?? "";
+
+  return layers.filter((layer) => {
+    const matchesText =
+      !query ||
+      [layer.id, layer.name, layer.pageName, String(layer.pageIndex), String(layer.number), String(layer.order), layer.visible ? "visible" : "hidden", layer.locked ? "locked" : "unlocked", String(layer.objectCount)].some((value) =>
+        value.toLowerCase().includes(query),
+      );
+    const matchesPage = !filters.page || filters.page === "all" || String(layer.pageIndex) === filters.page;
+    const matchesVisibility = !filters.visibility || filters.visibility === "all" || (filters.visibility === "visible" ? layer.visible : !layer.visible);
+    const matchesLock = !filters.lock || filters.lock === "all" || (filters.lock === "locked" ? layer.locked : !layer.locked);
+    return matchesText && matchesPage && matchesVisibility && matchesLock;
+  });
+}
+
+export function deriveEditorObjectsView(template: TemplateSchema, selectedElementIds: string[], activePageId?: string | null): EditorObjectView[] {
+  const activePage = resolveEditorPage(template, activePageId);
+  if (!activePage) {
+    return [];
+  }
+
+  const pageIndex = template.pages.findIndex((page) => page.id === activePage.id) + 1;
+  const fallbackLayerId = resolveSingleLayerIdForPage(template, activePage.id);
+  const pageElements = template.elements
+    .filter((element) => element.pageId === activePage.id)
+    .sort((a, b) => {
+      const layerOrderA = resolveElementLayerIdentity(a, fallbackLayerId)?.order ?? 0;
+      const layerOrderB = resolveElementLayerIdentity(b, fallbackLayerId)?.order ?? 0;
+      if (layerOrderA !== layerOrderB) {
+        return layerOrderA - layerOrderB;
+      }
+
+      return a.zIndex - b.zIndex || a.id.localeCompare(b.id, "fr");
+    });
+
+  return pageElements.map((element) => {
+    const layerIdentity = resolveElementLayerIdentity(element, fallbackLayerId);
+    return {
+      id: element.id,
+      name: resolveElementLabel(element),
+      type: element.type,
+      pageId: activePage.id,
+      pageName: activePage.name,
+      pageIndex,
+      layerId: layerIdentity?.key ?? null,
+      layerNumber: layerIdentity ? resolveStableLayerNumber(layerIdentity.key, layerIdentity.order ?? 1) : null,
+      layerName: layerIdentity?.name ?? "Contenu",
+      layerOrder: layerIdentity?.order ?? null,
+      visible: element.visible,
+      locked: element.locked,
+      grouped: readElementPropBoolean(element, "grouped") ?? (readElementPropString(element, "groupId") ? true : null),
+      groupId: readElementPropString(element, "groupId"),
+      selected: selectedElementIds.includes(element.id),
+    };
+  });
+}
+
+export function filterEditorObjectsView(objects: EditorObjectView[], filters: EditorObjectViewFilters) {
+  const query = filters.text?.trim().toLowerCase() ?? "";
+
+  return objects.filter((object) => {
+    const matchesText =
+      !query ||
+      [object.name, object.type, object.pageName, String(object.pageIndex), object.layerName, object.layerNumber ? String(object.layerNumber) : "", object.visible ? "visible" : "hidden", object.locked ? "locked" : "unlocked"].some((value) =>
+        value.toLowerCase().includes(query),
+      );
+    const matchesType = !filters.type || filters.type === "all" || object.type === filters.type;
+    const matchesLayer = !filters.layer || filters.layer === "all" || object.layerId === filters.layer;
+    const matchesPage = !filters.page || filters.page === "all" || String(object.pageIndex) === filters.page || object.pageId === filters.page;
+    return matchesText && matchesType && matchesLayer && matchesPage;
+  });
+}
+
 export const useEditorStore = create<EditorStoreState>()(
   persist(
     (set) => ({
       activePageId: "page-1",
       activeCanvasTool: "pointer",
       dragTraceContext: null,
+      canvasClipboard: null,
       selectedElementIds: [],
       selectionProjection: null,
       operationLogs: [],
+      undoStack: [],
+      redoStack: [],
+      editingRichTextElementId: null,
+      editingImageElementId: null,
       workingTemplate: structuredClone(modernResumeTemplate),
+      defaultFillColor: DEFAULT_CANVAS_FILL_COLOR,
+      defaultStrokeColor: DEFAULT_CANVAS_STROKE_COLOR,
       ...createInitialWorkspaceLayers(modernResumeTemplate),
       workspaceSettings: structuredClone(defaultWorkspaceSettings),
       openPanels: {
@@ -149,10 +507,757 @@ export const useEditorStore = create<EditorStoreState>()(
         panX: 0,
         panY: 0,
       },
-      setActivePageId: (pageId) => set({ activePageId: pageId }),
+      setActivePageId: (pageId) =>
+        set((state) => ({
+          activePageId: pageId,
+          selectedElementIds: state.selectedElementIds.filter((elementId) => state.workingTemplate.elements.some((element) => element.id === elementId && element.pageId === pageId)),
+          selectionProjection: null,
+        })),
+      addTemplatePage: () => {
+        let outcome: { added: true; pageId: string } | { added: false; reason: string } = {
+          added: false,
+          reason: "creation_page_refusee",
+        };
+
+        set((state) => {
+          const sourcePage = state.workingTemplate.pages.find((page) => page.id === state.activePageId) ?? state.workingTemplate.pages[0];
+          if (!sourcePage) {
+            return state;
+          }
+
+          const pageNumber = resolveNextTemplatePageNumber(state.workingTemplate.pages);
+          const pageId = resolveNextTemplatePageId(state.workingTemplate.pages, pageNumber);
+          const nextPage = {
+            id: pageId,
+            name: `Page ${pageNumber}`,
+            width: sourcePage.width,
+            height: sourcePage.height,
+            margin: { ...sourcePage.margin },
+          };
+          const defaultLayer = createDefaultWorkspaceLayer(pageId, 1);
+
+          outcome = {
+            added: true,
+            pageId,
+          };
+
+          return {
+            activePageId: pageId,
+            selectedElementIds: [],
+            selectionProjection: null,
+            workingTemplate: {
+              ...state.workingTemplate,
+              pages: [...state.workingTemplate.pages, nextPage],
+            },
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: [defaultLayer],
+            },
+            activeWorkspaceLayerIdByPageId: {
+              ...state.activeWorkspaceLayerIdByPageId,
+              [pageId]: defaultLayer.id,
+            },
+            selectedWorkspaceLayerIdByPageId: {
+              ...state.selectedWorkspaceLayerIdByPageId,
+              [pageId]: defaultLayer.id,
+            },
+          };
+        });
+
+        return outcome;
+      },
+      setActiveWorkspaceLayerIdForPage: ({ pageId, layerId }) =>
+        set((state) => ({
+          activeWorkspaceLayerIdByPageId: {
+            ...state.activeWorkspaceLayerIdByPageId,
+            [pageId]: layerId,
+          },
+        })),
+      setSelectedWorkspaceLayerIdForPage: ({ pageId, layerId }) =>
+        set((state) => ({
+          selectedWorkspaceLayerIdByPageId: {
+            ...state.selectedWorkspaceLayerIdByPageId,
+            [pageId]: layerId,
+          },
+        })),
+      addWorkspaceLayerForPage: ({ pageId }) => {
+        let outcome: { added: true; layerId: string } | { added: false; reason: string } = {
+          added: false,
+          reason: "page_introuvable",
+        };
+
+        set((state) => {
+          if (!state.workingTemplate.pages.some((page) => page.id === pageId)) {
+            return state;
+          }
+
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])];
+          const order = currentLayers.reduce((max, layer) => Math.max(max, layer.order), 0) + 1;
+          const layer: CanvasWorkspaceLayer = {
+            id: resolveNextWorkspaceLayerId(pageId, currentLayers),
+            pageId,
+            name: `Calque ${order}`,
+            order,
+            visible: true,
+            locked: false,
+          };
+
+          outcome = {
+            added: true,
+            layerId: layer.id,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: [...currentLayers, layer],
+            },
+            activeWorkspaceLayerIdByPageId: {
+              ...state.activeWorkspaceLayerIdByPageId,
+              [pageId]: layer.id,
+            },
+            selectedWorkspaceLayerIdByPageId: {
+              ...state.selectedWorkspaceLayerIdByPageId,
+              [pageId]: layer.id,
+            },
+          };
+        });
+
+        return outcome;
+      },
+      renameWorkspaceLayerForPage: ({ pageId, layerId, name }) => {
+        const nextName = name.trim();
+        let outcome: { renamed: true; layerId: string } | { renamed: false; reason: string } = {
+          renamed: false,
+          reason: "nom_invalide",
+        };
+
+        if (!nextName) {
+          return outcome;
+        }
+
+        set((state) => {
+          const currentLayers = state.workspaceLayersByPageId[pageId] ?? [];
+          if (!currentLayers.some((layer) => layer.id === layerId)) {
+            outcome = {
+              renamed: false,
+              reason: "calque_introuvable",
+            };
+            return state;
+          }
+
+          outcome = {
+            renamed: true,
+            layerId,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: currentLayers.map((layer) => (layer.id === layerId ? { ...layer, name: nextName } : layer)),
+            },
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element): TemplateElement => {
+                if (element.pageId !== pageId || readElementPropString(element, "layerId") !== layerId) {
+                  return element;
+                }
+
+                return {
+                  ...element,
+                  props: {
+                    ...element.props,
+                    layerName: nextName,
+                  },
+                };
+              }),
+            },
+          };
+        });
+
+        return outcome;
+      },
+      deleteWorkspaceLayerForPage: ({ pageId, layerId }) => {
+        let outcome: { deleted: true; layerId: string } | { deleted: false; reason: string } = {
+          deleted: false,
+          reason: "calque_introuvable",
+        };
+
+        set((state) => {
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          const target = currentLayers.find((layer) => layer.id === layerId);
+          if (!target) {
+            return state;
+          }
+
+          if (currentLayers.length <= 1) {
+            outcome = {
+              deleted: false,
+              reason: "dernier_calque",
+            };
+            return state;
+          }
+
+          const hasObjects = state.workingTemplate.elements.some((element) => element.pageId === pageId && readElementPropString(element, "layerId") === layerId);
+          if (hasObjects) {
+            outcome = {
+              deleted: false,
+              reason: "calque_non_vide",
+            };
+            return state;
+          }
+
+          const nextLayers = currentLayers
+            .filter((layer) => layer.id !== layerId)
+            .map((layer, index) => ({
+              ...layer,
+              order: index + 1,
+            }));
+          const fallbackLayerId = nextLayers[0]?.id ?? null;
+
+          outcome = {
+            deleted: true,
+            layerId,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: nextLayers,
+            },
+            activeWorkspaceLayerIdByPageId: {
+              ...state.activeWorkspaceLayerIdByPageId,
+              [pageId]: state.activeWorkspaceLayerIdByPageId[pageId] === layerId ? fallbackLayerId : state.activeWorkspaceLayerIdByPageId[pageId] ?? fallbackLayerId,
+            },
+            selectedWorkspaceLayerIdByPageId: {
+              ...state.selectedWorkspaceLayerIdByPageId,
+              [pageId]: state.selectedWorkspaceLayerIdByPageId[pageId] === layerId ? fallbackLayerId : state.selectedWorkspaceLayerIdByPageId[pageId] ?? fallbackLayerId,
+            },
+          };
+        });
+
+        return outcome;
+      },
+      deleteWorkspaceLayersForPage: ({ pageId, layerIds }) => {
+        let outcome:
+          | { deleted: true; layerIds: string[]; skippedIds: string[] }
+          | { deleted: false; reason: string; skippedIds?: string[] } = {
+          deleted: false,
+          reason: "aucun_calque",
+        };
+
+        set((state) => {
+          const requestedIds = Array.from(new Set(layerIds)).filter(Boolean);
+          if (requestedIds.length === 0) {
+            return state;
+          }
+
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          const existingIds = new Set(currentLayers.map((layer) => layer.id));
+          const idsWithObjects = new Set(
+            state.workingTemplate.elements
+              .filter((element) => element.pageId === pageId)
+              .map((element) => readElementPropString(element, "layerId"))
+              .filter((id): id is string => Boolean(id)),
+          );
+          const skippedIds = requestedIds.filter((id) => !existingIds.has(id) || idsWithObjects.has(id));
+          const deletableCandidates = requestedIds.filter((id) => existingIds.has(id) && !idsWithObjects.has(id));
+          const maxDeletableCount = Math.max(currentLayers.length - 1, 0);
+          const deletableIds = deletableCandidates.slice(0, maxDeletableCount);
+          const protectedLastLayerIds = deletableCandidates.slice(maxDeletableCount);
+
+          if (currentLayers.length <= 1) {
+            outcome = {
+              deleted: false,
+              reason: "dernier_calque",
+              skippedIds: requestedIds,
+            };
+            return state;
+          }
+
+          if (deletableIds.length === 0) {
+            outcome = {
+              deleted: false,
+              reason: "aucun_calque_supprimable",
+              skippedIds,
+            };
+            return state;
+          }
+
+          const deletedIdSet = new Set(deletableIds);
+          const nextLayers = currentLayers
+            .filter((layer) => !deletedIdSet.has(layer.id))
+            .map((layer, index) => ({
+              ...layer,
+              order: index + 1,
+            }));
+          const fallbackLayerId = nextLayers[0]?.id ?? null;
+
+          outcome = {
+            deleted: true,
+            layerIds: deletableIds,
+            skippedIds: [...skippedIds, ...protectedLastLayerIds],
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: nextLayers,
+            },
+            activeWorkspaceLayerIdByPageId: {
+              ...state.activeWorkspaceLayerIdByPageId,
+              [pageId]: deletedIdSet.has(state.activeWorkspaceLayerIdByPageId[pageId] ?? "") ? fallbackLayerId : state.activeWorkspaceLayerIdByPageId[pageId] ?? fallbackLayerId,
+            },
+            selectedWorkspaceLayerIdByPageId: {
+              ...state.selectedWorkspaceLayerIdByPageId,
+              [pageId]: deletedIdSet.has(state.selectedWorkspaceLayerIdByPageId[pageId] ?? "") ? fallbackLayerId : state.selectedWorkspaceLayerIdByPageId[pageId] ?? fallbackLayerId,
+            },
+          };
+        });
+
+        return outcome;
+      },
+      mergeWorkspaceLayersForPage: ({ pageId, layerIds }) => {
+        let outcome: { merged: true; targetLayerId: string; removedLayerIds: string[] } | { merged: false; reason: string } = {
+          merged: false,
+          reason: "selection_insuffisante",
+        };
+
+        set((state) => {
+          const requestedIds = Array.from(new Set(layerIds)).filter(Boolean);
+          if (requestedIds.length < 2) {
+            return state;
+          }
+
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          const selectedLayers = currentLayers.filter((layer) => requestedIds.includes(layer.id));
+          if (selectedLayers.length < 2) {
+            return state;
+          }
+
+          const activeLayerId = state.activeWorkspaceLayerIdByPageId[pageId] ?? null;
+          const targetLayer = selectedLayers.find((layer) => layer.id === activeLayerId) ?? selectedLayers[0];
+          if (!targetLayer) {
+            outcome = {
+              merged: false,
+              reason: "calque_cible_introuvable",
+            };
+            return state;
+          }
+
+          const sourceIds = selectedLayers.map((layer) => layer.id).filter((id) => id !== targetLayer.id);
+          const sourceIdSet = new Set(sourceIds);
+          const nextLayers = currentLayers
+            .filter((layer) => !sourceIdSet.has(layer.id))
+            .map((layer, index) => ({
+              ...layer,
+              order: index + 1,
+            }));
+          const targetOrder = nextLayers.find((layer) => layer.id === targetLayer.id)?.order ?? targetLayer.order;
+
+          outcome = {
+            merged: true,
+            targetLayerId: targetLayer.id,
+            removedLayerIds: sourceIds,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: nextLayers,
+            },
+            activeWorkspaceLayerIdByPageId: {
+              ...state.activeWorkspaceLayerIdByPageId,
+              [pageId]: targetLayer.id,
+            },
+            selectedWorkspaceLayerIdByPageId: {
+              ...state.selectedWorkspaceLayerIdByPageId,
+              [pageId]: targetLayer.id,
+            },
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element): TemplateElement => {
+                if (element.pageId !== pageId) {
+                  return element;
+                }
+
+                const elementLayerId = readElementPropString(element, "layerId");
+                if (!elementLayerId || !sourceIdSet.has(elementLayerId)) {
+                  return element;
+                }
+
+                return {
+                  ...element,
+                  props: {
+                    ...element.props,
+                    layerId: targetLayer.id,
+                    layerName: targetLayer.name,
+                    layerOrder: targetOrder,
+                    layerVisible: targetLayer.visible,
+                    layerLocked: targetLayer.locked,
+                  },
+                };
+              }),
+            },
+          };
+        });
+
+        return outcome;
+      },
+      setWorkspaceLayerVisibility: ({ pageId, layerId, visible }) => updateWorkspaceLayerState(set, { pageId, layerId, patch: { visible } }),
+      setWorkspaceLayerLocked: ({ pageId, layerId, locked }) => updateWorkspaceLayerState(set, { pageId, layerId, patch: { locked } }),
+      reorderWorkspaceLayerForPage: ({ pageId, layerId, targetLayerId, position }) => {
+        let outcome: { reordered: true; layerId: string } | { reordered: false; reason: string } = {
+          reordered: false,
+          reason: "calque_introuvable",
+        };
+
+        set((state) => {
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          const fromIndex = currentLayers.findIndex((layer) => layer.id === layerId);
+          const targetIndex = currentLayers.findIndex((layer) => layer.id === targetLayerId);
+
+          if (fromIndex < 0 || targetIndex < 0) {
+            return state;
+          }
+
+          if (layerId === targetLayerId) {
+            outcome = {
+              reordered: false,
+              reason: "aucun_changement",
+            };
+            return state;
+          }
+
+          const [movedLayer] = currentLayers.splice(fromIndex, 1);
+          if (!movedLayer) {
+            return state;
+          }
+
+          const adjustedTargetIndex = currentLayers.findIndex((layer) => layer.id === targetLayerId);
+          const insertIndex = position === "after" ? adjustedTargetIndex + 1 : adjustedTargetIndex;
+          currentLayers.splice(insertIndex, 0, movedLayer);
+
+          const nextLayers = currentLayers.map((layer, index) => ({
+            ...layer,
+            order: index + 1,
+          }));
+
+          const layerOrderById = new Map(nextLayers.map((layer) => [layer.id, layer.order] as const));
+          const layerNameById = new Map(nextLayers.map((layer) => [layer.id, layer.name] as const));
+
+          outcome = {
+            reordered: true,
+            layerId,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: nextLayers,
+            },
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element): TemplateElement => {
+                if (element.pageId !== pageId) {
+                  return element;
+                }
+
+                const elementLayerId = readElementPropString(element, "layerId");
+                if (!elementLayerId || !layerOrderById.has(elementLayerId)) {
+                  return element;
+                }
+                const layerOrder = layerOrderById.get(elementLayerId);
+                if (layerOrder === undefined) {
+                  return element;
+                }
+
+                return {
+                  ...element,
+                  props: {
+                    ...element.props,
+                    layerOrder,
+                    ...(layerNameById.has(elementLayerId) ? { layerName: layerNameById.get(elementLayerId) ?? "" } : {}),
+                  },
+                };
+              }),
+            },
+          };
+        });
+
+        return outcome;
+      },
+      moveWorkspaceLayerForPage: ({ pageId, layerId, direction }) => {
+        let outcome: { reordered: true; layerId: string } | { reordered: false; reason: string } = {
+          reordered: false,
+          reason: "calque_introuvable",
+        };
+
+        set((state) => {
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          const fromIndex = currentLayers.findIndex((layer) => layer.id === layerId);
+          if (fromIndex < 0) {
+            return state;
+          }
+
+          const targetIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1;
+          const targetLayer = currentLayers[targetIndex];
+          if (!targetLayer) {
+            outcome = {
+              reordered: false,
+              reason: "aucun_changement",
+            };
+            return state;
+          }
+
+          const [movedLayer] = currentLayers.splice(fromIndex, 1);
+          if (!movedLayer) {
+            return state;
+          }
+
+          currentLayers.splice(targetIndex, 0, movedLayer);
+          const nextLayers = currentLayers.map((layer, index) => ({
+            ...layer,
+            order: index + 1,
+          }));
+          const layerOrderById = new Map(nextLayers.map((layer) => [layer.id, layer.order] as const));
+
+          outcome = {
+            reordered: true,
+            layerId,
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: nextLayers,
+            },
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element): TemplateElement => {
+                if (element.pageId !== pageId) {
+                  return element;
+                }
+                const elementLayerId = readElementPropString(element, "layerId");
+                const layerOrder = elementLayerId ? layerOrderById.get(elementLayerId) : undefined;
+                if (layerOrder === undefined) {
+                  return element;
+                }
+
+                return {
+                  ...element,
+                  props: {
+                    ...element.props,
+                    layerOrder,
+                  },
+                };
+              }),
+            },
+          };
+        });
+
+        return outcome;
+      },
+      moveWorkspaceLayersForPage: ({ pageId, layerIds, direction }) => {
+        let outcome: { reordered: true; layerIds: string[] } | { reordered: false; reason: string } = {
+          reordered: false,
+          reason: "calque_introuvable",
+        };
+
+        set((state) => {
+          const selectedIds = new Set(layerIds.filter(Boolean));
+          if (selectedIds.size === 0) {
+            return state;
+          }
+
+          const currentLayers = [...(state.workspaceLayersByPageId[pageId] ?? [])].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"));
+          if (![...selectedIds].every((id) => currentLayers.some((layer) => layer.id === id))) {
+            return state;
+          }
+
+          const nextLayers = [...currentLayers];
+          if (direction === "up") {
+            for (let index = 1; index < nextLayers.length; index += 1) {
+              const layer = nextLayers[index];
+              const previous = nextLayers[index - 1];
+              if (layer && previous && selectedIds.has(layer.id) && !selectedIds.has(previous.id)) {
+                nextLayers[index - 1] = layer;
+                nextLayers[index] = previous;
+              }
+            }
+          } else {
+            for (let index = nextLayers.length - 2; index >= 0; index -= 1) {
+              const layer = nextLayers[index];
+              const next = nextLayers[index + 1];
+              if (layer && next && selectedIds.has(layer.id) && !selectedIds.has(next.id)) {
+                nextLayers[index + 1] = layer;
+                nextLayers[index] = next;
+              }
+            }
+          }
+
+          const changed = nextLayers.some((layer, index) => layer.id !== currentLayers[index]?.id);
+          if (!changed) {
+            outcome = {
+              reordered: false,
+              reason: "aucun_changement",
+            };
+            return state;
+          }
+
+          const reorderedLayers = nextLayers.map((layer, index) => ({
+            ...layer,
+            order: index + 1,
+          }));
+          const layerOrderById = new Map(reorderedLayers.map((layer) => [layer.id, layer.order] as const));
+
+          outcome = {
+            reordered: true,
+            layerIds: [...selectedIds],
+          };
+
+          return {
+            workspaceLayersByPageId: {
+              ...state.workspaceLayersByPageId,
+              [pageId]: reorderedLayers,
+            },
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element): TemplateElement => {
+                if (element.pageId !== pageId) {
+                  return element;
+                }
+
+                const elementLayerId = readElementPropString(element, "layerId");
+                const layerOrder = elementLayerId ? layerOrderById.get(elementLayerId) : undefined;
+                if (layerOrder === undefined) {
+                  return element;
+                }
+
+                return {
+                  ...element,
+                  props: {
+                    ...element.props,
+                    layerOrder,
+                  },
+                };
+              }),
+            },
+          };
+        });
+
+        return outcome;
+      },
       setActiveCanvasTool: (toolId) => set({ activeCanvasTool: toolId }),
+      setDefaultFillColor: (defaultFillColor) => set({ defaultFillColor }),
+      setDefaultStrokeColor: (defaultStrokeColor) => set({ defaultStrokeColor }),
       setDragTraceContext: (context) => set({ dragTraceContext: context }),
       clearDragTraceContext: () => set({ dragTraceContext: null }),
+      copyCanvasElements: ({ elementIds }) => {
+        let outcome: { copied: true; ids: string[] } | { copied: false; reason: string } = {
+          copied: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const snapshot = state.workingTemplate.elements.filter((element) => elementIds.includes(element.id) && !element.locked);
+          if (snapshot.length === 0) {
+            outcome = {
+              copied: false,
+              reason: "aucun_objet_copie",
+            };
+            return state;
+          }
+
+          const ids = snapshot.map((element) => element.id);
+          outcome = {
+            copied: true,
+            ids,
+          };
+
+          return {
+            canvasClipboard: {
+              elements: structuredClone(snapshot),
+            },
+          };
+        });
+
+        return outcome;
+      },
+      pasteCanvasElements: () => {
+        let outcome: { pasted: true; ids: string[] } | { pasted: false; reason: string } = {
+          pasted: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const clipboard = state.canvasClipboard;
+          if (!clipboard || clipboard.elements.length === 0) {
+            outcome = {
+              pasted: false,
+              reason: "presse_papier_vide",
+            };
+            return state;
+          }
+
+          const targetPage = state.workingTemplate.pages.find((page) => page.id === state.activePageId) ?? state.workingTemplate.pages[0] ?? null;
+          if (!targetPage) {
+            outcome = {
+              pasted: false,
+              reason: "page_introuvable",
+            };
+            return state;
+          }
+
+          const targetLayer =
+            (state.workspaceLayersByPageId[targetPage.id] ?? []).find((layer) => layer.id === state.activeWorkspaceLayerIdByPageId[targetPage.id]) ??
+            (state.workspaceLayersByPageId[targetPage.id] ?? [])[0] ??
+            null;
+          const template = structuredClone(state.workingTemplate);
+          const offset = { x: 12, y: 12 };
+          const nextResult = duplicateTemplateCanvasElementsFromElements(template, clipboard.elements, offset);
+          if (nextResult.duplicatedIds.length === 0) {
+            outcome = {
+              pasted: false,
+              reason: "aucun_objet_colle",
+            };
+            return state;
+          }
+
+          nextResult.duplicatedElements.forEach((element) => {
+            element.pageId = targetPage.id;
+            element.frame = clampFrameToPage(element.frame, targetPage.width, targetPage.height);
+
+            if (!targetLayer) {
+              return;
+            }
+
+            element.props = element.props ? structuredClone(element.props) : {};
+            element.props.layerId = targetLayer.id;
+            element.props.layerName = targetLayer.name;
+            element.props.layerOrder = targetLayer.order;
+            element.props.layerVisible = targetLayer.visible;
+            element.props.layerLocked = targetLayer.locked;
+          });
+
+          outcome = {
+            pasted: true,
+            ids: nextResult.duplicatedIds,
+          };
+
+          const logs = nextResult.duplicatedElements.map((element) => buildInsertOperationLog({ element, pageId: element.pageId }));
+
+          return {
+            workingTemplate: nextResult.template,
+            selectedElementIds: nextResult.duplicatedIds,
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
       setSelectedElementIds: (elementIds) => set({ selectedElementIds: elementIds }),
       setSelectionProjection: (projection) => set({ selectionProjection: projection }),
       appendOperationLogs: (entries) =>
@@ -160,6 +1265,56 @@ export const useEditorStore = create<EditorStoreState>()(
           operationLogs: appendOperationLogs(state.operationLogs, entries),
         })),
       clearOperationLogs: () => set({ operationLogs: [] }),
+      undo: () => {
+        let outcome: { undone: true } | { undone: false; reason: string } = {
+          undone: false,
+          reason: "aucune_action_a_annuler",
+        };
+
+        set((state) => {
+          if (state.undoStack.length === 0) {
+            return state;
+          }
+
+          const previous = state.undoStack[state.undoStack.length - 1]!;
+          outcome = { undone: true };
+
+          return {
+            undoStack: state.undoStack.slice(0, -1),
+            redoStack: [...state.redoStack, structuredClone(state.workingTemplate)],
+            workingTemplate: previous,
+            selectedElementIds: [],
+            selectionProjection: null,
+          };
+        });
+
+        return outcome;
+      },
+      redo: () => {
+        let outcome: { redone: true } | { redone: false; reason: string } = {
+          redone: false,
+          reason: "aucune_action_a_retablir",
+        };
+
+        set((state) => {
+          if (state.redoStack.length === 0) {
+            return state;
+          }
+
+          const next = state.redoStack[state.redoStack.length - 1]!;
+          outcome = { redone: true };
+
+          return {
+            redoStack: state.redoStack.slice(0, -1),
+            undoStack: [...state.undoStack, structuredClone(state.workingTemplate)],
+            workingTemplate: next,
+            selectedElementIds: [],
+            selectionProjection: null,
+          };
+        });
+
+        return outcome;
+      },
       insertCanvasDropPayload: ({ pageId, point, source }) => {
         return insertCanvasSource(set, {
           pageId,
@@ -187,9 +1342,14 @@ export const useEditorStore = create<EditorStoreState>()(
         set((state) => {
           const beforeTemplate = structuredClone(state.workingTemplate);
           const nextTemplate = applyCanvasObjectGeometry(structuredClone(state.workingTemplate), patches);
-          const appliedIds = patches
-            .map((patch) => patch.id)
-            .filter((id) => nextTemplate.elements.some((element) => element.id === id));
+          const beforeById = new Map(beforeTemplate.elements.map((element) => [element.id, element] as const));
+          const afterById = new Map(nextTemplate.elements.map((element) => [element.id, element] as const));
+          const appliedPatches = patches.filter((patch) => {
+            const beforeElement = beforeById.get(patch.id);
+            const afterElement = afterById.get(patch.id);
+            return Boolean(beforeElement && afterElement && hasCanvasGeometryChanged(beforeElement, afterElement, patch));
+          });
+          const appliedIds = appliedPatches.map((patch) => patch.id);
 
           if (appliedIds.length === 0) {
             outcome = {
@@ -208,14 +1368,216 @@ export const useEditorStore = create<EditorStoreState>()(
             beforeTemplate,
             afterTemplate: nextTemplate,
             pageId,
-            patches,
+            patches: appliedPatches,
           });
 
           return {
             workingTemplate: nextTemplate,
             activePageId: pageId,
             selectedElementIds: appliedIds,
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
             operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
+      commitCanvasObjectStyle: ({ patches }) => {
+        let outcome: { committed: true; ids: string[] } | { committed: false; reason: string } = {
+          committed: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const beforeTemplate = structuredClone(state.workingTemplate);
+          const nextTemplate = applyCanvasObjectStyle(structuredClone(state.workingTemplate), patches);
+          const logs = buildStyleOperationLogs({
+            beforeTemplate,
+            afterTemplate: nextTemplate,
+            patches,
+          });
+          const appliedIds = logs.map((entry) => entry.elementId);
+
+          if (appliedIds.length === 0) {
+            outcome = {
+              committed: false,
+              reason: "aucun_objet_modifie",
+            };
+            return state;
+          }
+
+          outcome = {
+            committed: true,
+            ids: appliedIds,
+          };
+
+          return {
+            workingTemplate: nextTemplate,
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
+      duplicateCanvasElements: ({ elementIds }) => {
+        let outcome: { duplicated: true; ids: string[] } | { duplicated: false; reason: string } = {
+          duplicated: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const beforeTemplate = structuredClone(state.workingTemplate);
+          const result = duplicateTemplateCanvasElements(beforeTemplate, { elementIds });
+
+          if (result.duplicatedIds.length === 0) {
+            outcome = {
+              duplicated: false,
+              reason: "aucun_objet_duplique",
+            };
+            return state;
+          }
+
+          const logs = result.duplicatedElements.map((element) => buildInsertOperationLog({ element, pageId: element.pageId }));
+
+          outcome = {
+            duplicated: true,
+            ids: result.duplicatedIds,
+          };
+
+          return {
+            workingTemplate: result.template,
+            selectedElementIds: result.duplicatedIds,
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
+      reorderCanvasElements: ({ elementIds, action }) => {
+        let outcome: { reordered: true; ids: string[] } | { reordered: false; reason: string } = {
+          reordered: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const result = reorderTemplateCanvasElements(structuredClone(state.workingTemplate), { elementIds, action });
+          if (result.changedIds.length === 0) {
+            outcome = {
+              reordered: false,
+              reason: "aucun_objet_reordonne",
+            };
+            return state;
+          }
+
+          outcome = {
+            reordered: true,
+            ids: result.changedIds,
+          };
+
+          return {
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            workingTemplate: result.template,
+            selectedElementIds: state.selectedElementIds.filter((id) => result.template.elements.some((element) => element.id === id)),
+          };
+        });
+
+        return outcome;
+      },
+      alignCanvasElements: ({ elementIds, alignment }) => {
+        let outcome: { aligned: true; ids: string[] } | { aligned: false; reason: string } = {
+          aligned: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const beforeTemplate = structuredClone(state.workingTemplate);
+          const result = alignTemplateCanvasElements(beforeTemplate, { elementIds, alignment });
+
+          if (result.changedIds.length === 0) {
+            outcome = {
+              aligned: false,
+              reason: "aucun_objet_aligne",
+            };
+            return state;
+          }
+
+          const beforeById = new Map(beforeTemplate.elements.map((element) => [element.id, element] as const));
+          const afterById = new Map(result.template.elements.map((element) => [element.id, element] as const));
+          const patchesByPageId = new Map<string, CanvasObjectGeometryPatch[]>();
+
+          result.patches.forEach((patch) => {
+            const beforeElement = beforeById.get(patch.id);
+            const afterElement = afterById.get(patch.id);
+            if (!beforeElement || !afterElement) {
+              return;
+            }
+
+            const pagePatches = patchesByPageId.get(afterElement.pageId);
+            if (pagePatches) {
+              pagePatches.push(patch);
+              return;
+            }
+
+            patchesByPageId.set(afterElement.pageId, [patch]);
+          });
+
+          const logs = [...patchesByPageId.entries()].flatMap(([pageId, patchesForPage]) =>
+            buildGeometryOperationLogs({
+              beforeTemplate,
+              afterTemplate: result.template,
+              pageId,
+              patches: patchesForPage,
+            }),
+          );
+
+          outcome = {
+            aligned: true,
+            ids: result.changedIds,
+          };
+
+          return {
+            workingTemplate: result.template,
+            selectedElementIds: state.selectedElementIds.filter((id) => result.template.elements.some((element) => element.id === id)),
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
+      flipCanvasElements: ({ elementIds, axis }) => {
+        let outcome: { flipped: true; ids: string[] } | { flipped: false; reason: string } = {
+          flipped: false,
+          reason: "aucune_modification",
+        };
+
+        set((state) => {
+          const result = flipTemplateCanvasElements(structuredClone(state.workingTemplate), { elementIds, axis });
+          if (result.changedIds.length === 0) {
+            outcome = {
+              flipped: false,
+              reason: "aucun_objet_retourne",
+            };
+            return state;
+          }
+
+          outcome = {
+            flipped: true,
+            ids: result.changedIds,
+          };
+
+          return {
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            workingTemplate: result.template,
+            selectedElementIds: state.selectedElementIds.filter((id) => result.template.elements.some((element) => element.id === id)),
           };
         });
 
@@ -229,21 +1591,8 @@ export const useEditorStore = create<EditorStoreState>()(
 
         set((state) => {
           const beforeTemplate = structuredClone(state.workingTemplate);
-          const idsToDelete = Array.from(new Set(elementIds)).filter(Boolean);
-          if (idsToDelete.length === 0) {
-            outcome = {
-              deleted: false,
-              reason: "aucun_objet_a_supprimer",
-            };
-            return state;
-          }
-
-          const remainingElements = beforeTemplate.elements.filter((element) => !idsToDelete.includes(element.id));
-          const deletedIds = beforeTemplate.elements
-            .filter((element) => idsToDelete.includes(element.id))
-            .map((element) => element.id);
-
-          if (deletedIds.length === 0) {
+          const result = deleteTemplateCanvasElements(beforeTemplate, { elementIds });
+          if (result.deletedIds.length === 0) {
             outcome = {
               deleted: false,
               reason: "aucun_objet_supprime",
@@ -251,26 +1600,214 @@ export const useEditorStore = create<EditorStoreState>()(
             return state;
           }
 
-          const nextTemplate = {
-            ...beforeTemplate,
-            elements: remainingElements,
-          };
           const logs = buildDeleteOperationLogs({
             beforeTemplate,
-            afterTemplate: nextTemplate,
-            elementIds: deletedIds,
+            afterTemplate: result.template,
+            elementIds: result.deletedIds,
           });
 
           outcome = {
             deleted: true,
-            ids: deletedIds,
+            ids: result.deletedIds,
+          };
+
+          return {
+            workingTemplate: result.template,
+            selectedElementIds: state.selectedElementIds.filter((id) => !result.deletedIds.includes(id)),
+            selectionProjection: null,
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, logs),
+          };
+        });
+
+        return outcome;
+      },
+      updateRichTextElementContent: ({ elementId, html, json, displayMode }) => {
+        let outcome: { updated: true; elementId: string } | { updated: false; reason: string } = {
+          updated: false,
+          reason: "bloc_introuvable",
+        };
+
+        set((state) => {
+          const target = state.workingTemplate.elements.find((element) => element.id === elementId);
+          if (!target) {
+            return state;
+          }
+
+          if (target.type !== "rich-text") {
+            outcome = {
+              updated: false,
+              reason: "type_non_rich_text",
+            };
+            return state;
+          }
+
+          if (target.locked) {
+            outcome = {
+              updated: false,
+              reason: "bloc_verrouille",
+            };
+            return state;
+          }
+
+          outcome = {
+            updated: true,
+            elementId,
+          };
+
+          const nextDisplayMode = displayMode ?? (readElementPropString(target, "richTextDisplayMode") as RichTextVariableDisplayMode | undefined) ?? "label";
+          const nextJson = json ?? (html ? parseRichTextHtmlToJson(html) : null) ?? parseRichTextHtmlToJson("<p></p>");
+          const nextHtml = html ?? serializeRichTextJsonToHtml(nextJson, { displayMode: nextDisplayMode });
+
+          return {
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element) =>
+                element.id === elementId
+                  ? {
+                      ...element,
+                      props: {
+                        ...element.props,
+                        html: nextHtml,
+                        richTextJson: nextJson,
+                        richTextDisplayMode: nextDisplayMode,
+                        text: stripRichTextHtml(nextHtml),
+                      },
+                    }
+                  : element,
+              ),
+            },
+            selectedElementIds: state.selectedElementIds,
+            selectionProjection: null,
+          };
+        });
+
+        return outcome;
+      },
+      updateRichTextContainerProps: ({ elementId, props }) => {
+        let outcome: { updated: true; elementId: string } | { updated: false; reason: string } = {
+          updated: false,
+          reason: "bloc_introuvable",
+        };
+
+        set((state) => {
+          const target = state.workingTemplate.elements.find((element) => element.id === elementId);
+          if (!target) return state;
+
+          if (target.type !== "rich-text") {
+            outcome = { updated: false, reason: "type_non_rich_text" };
+            return state;
+          }
+
+          if (target.locked) {
+            outcome = { updated: false, reason: "bloc_verrouille" };
+            return state;
+          }
+
+          outcome = { updated: true, elementId };
+
+          return {
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            workingTemplate: {
+              ...state.workingTemplate,
+              elements: state.workingTemplate.elements.map((element) =>
+                element.id === elementId
+                  ? { ...element, props: { ...(element.props ?? {}), ...props } }
+                  : element,
+              ),
+            },
+            selectedElementIds: state.selectedElementIds,
+            selectionProjection: null,
+          };
+        });
+
+        return outcome;
+      },
+      updateImageElementEditing: ({ elementId, imageEditing }) => {
+        let outcome: { updated: true; elementId: string } | { updated: false; reason: string } = {
+          updated: false,
+          reason: "bloc_introuvable",
+        };
+
+        set((state) => {
+          const target = state.workingTemplate.elements.find((element) => element.id === elementId);
+          if (!target) {
+            return state;
+          }
+
+          if (target.type !== "image") {
+            outcome = {
+              updated: false,
+              reason: "type_non_image",
+            };
+            return state;
+          }
+
+          if (target.locked) {
+            outcome = {
+              updated: false,
+              reason: "bloc_verrouille",
+            };
+            return state;
+          }
+
+          const nextTemplate: TemplateSchema = {
+            ...state.workingTemplate,
+            elements: state.workingTemplate.elements.map((element) =>
+              element.id === elementId
+                ? {
+                    ...element,
+                    props: {
+                      ...element.props,
+                      imageEditing,
+                    },
+                  }
+                : element,
+            ),
+          };
+          const afterElement = nextTemplate.elements.find((element) => element.id === elementId);
+          if (!afterElement) {
+            return state;
+          }
+
+          outcome = {
+            updated: true,
+            elementId,
+          };
+
+          const timestamp = Date.now();
+          const log: EditorOperationLogEntry = {
+            id: `style:${elementId}:${timestamp}`,
+            timestamp,
+            action: "style",
+            pageId: target.pageId,
+            elementId,
+            before: {
+              id: target.id,
+              pageId: target.pageId,
+              frame: target.frame,
+              rotation: target.rotation ?? 0,
+            },
+            after: {
+              id: afterElement.id,
+              pageId: afterElement.pageId,
+              frame: afterElement.frame,
+              rotation: afterElement.rotation ?? 0,
+            },
+            details: [{ label: "Image", value: "Édition non destructive" }],
           };
 
           return {
             workingTemplate: nextTemplate,
-            selectedElementIds: [],
+            selectedElementIds: state.selectedElementIds.includes(elementId) ? state.selectedElementIds : [elementId],
             selectionProjection: null,
-            operationLogs: appendOperationLogs(state.operationLogs, logs),
+            undoStack: pushUndoCheckpoint(state),
+            redoStack: [],
+            operationLogs: appendOperationLogs(state.operationLogs, [log]),
           };
         });
 
@@ -287,7 +1824,7 @@ export const useEditorStore = create<EditorStoreState>()(
         set((state) => ({
           viewport: {
             ...state.viewport,
-            zoom,
+            zoom: clampEditorViewportZoom(zoom),
           },
         })),
       setViewportPan: ({ panX, panY }) =>
@@ -354,6 +1891,8 @@ export const useEditorStore = create<EditorStoreState>()(
             },
           },
         })),
+      setEditingRichTextElementId: (id) => set({ editingRichTextElementId: id }),
+      setEditingImageElementId: (id) => set({ editingImageElementId: id }),
     }),
     {
       name: "resume-manager-editor-panels-v2",
@@ -362,10 +1901,126 @@ export const useEditorStore = create<EditorStoreState>()(
         panelPreferences: state.panelPreferences,
         viewport: state.viewport,
         workspaceSettings: state.workspaceSettings,
+        defaultFillColor: state.defaultFillColor,
+        defaultStrokeColor: state.defaultStrokeColor,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<EditorStoreState> | undefined;
+
+        return {
+          ...currentState,
+          ...persisted,
+          workspaceSettings: {
+            ...defaultWorkspaceSettings,
+            ...(persisted?.workspaceSettings ?? {}),
+          },
+        };
+      },
     },
   ),
 );
+
+function resolveNextWorkspaceLayerId(pageId: string, layers: CanvasWorkspaceLayer[]) {
+  const existing = new Set(layers.map((layer) => layer.id));
+  let index = layers.length + 1;
+  let id = `${pageId}:layer-${index}`;
+  while (existing.has(id)) {
+    index += 1;
+    id = `${pageId}:layer-${index}`;
+  }
+  return id;
+}
+
+function resolveNextTemplatePageNumber(pages: TemplateSchema["pages"]) {
+  const existingNumbers = pages
+    .map((page) => /(?:^|\D)(\d+)$/.exec(page.id)?.[1] ?? /(?:^|\D)(\d+)$/.exec(page.name)?.[1])
+    .map((value) => (value ? Number.parseInt(value, 10) : Number.NaN))
+    .filter(Number.isFinite);
+  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : pages.length;
+  return maxNumber + 1;
+}
+
+function resolveNextTemplatePageId(pages: TemplateSchema["pages"], startNumber: number) {
+  const existingIds = new Set(pages.map((page) => page.id));
+  let pageNumber = startNumber;
+  let pageId = `page-${pageNumber}`;
+  while (existingIds.has(pageId)) {
+    pageNumber += 1;
+    pageId = `page-${pageNumber}`;
+  }
+
+  return pageId;
+}
+
+function clampEditorViewportZoom(zoom: number) {
+  if (!Number.isFinite(zoom)) {
+    return 1;
+  }
+
+  return Math.min(EDITOR_VIEWPORT_MAX_ZOOM, Math.max(EDITOR_VIEWPORT_MIN_ZOOM, zoom));
+}
+
+function resolveStableLayerNumber(layerId: string, fallback: number) {
+  const match = /(?:^|:)(?:layer|calque)[^\d]*(\d+)$/i.exec(layerId);
+  if (!match) {
+    return fallback;
+  }
+
+  const number = Number.parseInt(match[1] ?? "", 10);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function updateWorkspaceLayerState(
+  set: StoreApi<EditorStoreState>["setState"],
+  input: { pageId: string; layerId: string; patch: Partial<Pick<CanvasWorkspaceLayer, "visible" | "locked">> },
+) {
+  let outcome: { updated: true; layerId: string } | { updated: false; reason: string } = {
+    updated: false,
+    reason: "calque_introuvable",
+  };
+
+  set((state) => {
+    const currentLayers = state.workspaceLayersByPageId[input.pageId] ?? [];
+    const target = currentLayers.find((layer) => layer.id === input.layerId);
+    if (!target) {
+      return state;
+    }
+
+    const nextLayers = currentLayers.map((layer) => (layer.id === input.layerId ? { ...layer, ...input.patch } : layer));
+    const nextTemplate: TemplateSchema = {
+      ...state.workingTemplate,
+      elements: state.workingTemplate.elements.map((element): TemplateElement => {
+        if (element.pageId !== input.pageId || element.props?.layerId !== input.layerId) {
+          return element;
+        }
+
+        return {
+          ...element,
+          props: {
+            ...element.props,
+            ...(input.patch.visible !== undefined ? { layerVisible: input.patch.visible } : {}),
+            ...(input.patch.locked !== undefined ? { layerLocked: input.patch.locked } : {}),
+          },
+        };
+      }),
+    };
+
+    outcome = {
+      updated: true,
+      layerId: input.layerId,
+    };
+
+    return {
+      workingTemplate: nextTemplate,
+      workspaceLayersByPageId: {
+        ...state.workspaceLayersByPageId,
+        [input.pageId]: nextLayers,
+      },
+    };
+  });
+
+  return outcome;
+}
 
 function insertCanvasSource(
   set: StoreApi<EditorStoreState>["setState"],
@@ -401,7 +2056,7 @@ function insertCanvasSource(
     const activeLayer = existingActiveLayer ?? createDefaultWorkspaceLayer(targetPage.id, pageLayers.length + 1);
     const createdLayer = existingActiveLayer === null;
 
-    const elementId = `canvas-object-${String(template.elements.length + 1).padStart(4, "0")}`;
+    const elementId = `el-${crypto.randomUUID()}`;
     const insertion = createCanvasInsertionElement({
       source: input.source,
       context: {
@@ -410,6 +2065,10 @@ function insertCanvasSource(
         point: input.point,
         frame: input.frame,
         layer: activeLayer,
+        styleDefaults: {
+          fill: state.defaultFillColor,
+          stroke: state.defaultStrokeColor,
+        },
       },
     });
 
@@ -450,12 +2109,155 @@ function insertCanvasSource(
       activePageId: targetPage.id,
       workspaceLayersByPageId: layersByPageId,
       activeWorkspaceLayerIdByPageId: activeLayerByPageId,
+      undoStack: pushUndoCheckpoint(state),
+      redoStack: [],
       operationLogs: appendOperationLogs(state.operationLogs, logs),
     };
   });
 
   return outcome;
 }
+
+function resolveEditorPage(template: TemplateSchema, activePageId?: string | null) {
+  return template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
+}
+
+function resolveActiveLayerId(pageId: string, rows: EditorLayerView[], activeWorkspaceLayerIdByPageId?: Record<string, string | null>) {
+  const explicit = activeWorkspaceLayerIdByPageId?.[pageId] ?? null;
+  if (explicit && rows.some((row) => row.id === explicit)) {
+    return explicit;
+  }
+
+  return rows[0]?.id ?? null;
+}
+
+function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
+  const pageElements = template.elements.filter((element) => element.pageId === pageId);
+  if (pageElements.length === 0) {
+    return null;
+  }
+
+  const explicitLayerIds = new Set(
+    pageElements
+      .map((element) => readElementPropString(element, "layerId") ?? readElementPropString(element, "layerName"))
+      .filter((value): value is string => Boolean(value)),
+  );
+
+  if (explicitLayerIds.size === 1) {
+    return explicitLayerIds.values().next().value ?? null;
+  }
+
+  const pageLayers = pageElements.length > 0 ? [createDefaultWorkspaceLayer(pageId, 1)] : [];
+  return pageLayers.length === 1 ? pageLayers[0].id : null;
+}
+
+function resolveElementLayerIdentity(
+  element: TemplateElement,
+  fallbackLayerId: string | null,
+): { key: string; name: string; order: number | null; visible: boolean | null; locked: boolean | null } | null {
+  const layerId = readElementPropString(element, "layerId");
+  const layerName = readElementPropString(element, "layerName");
+  const resolvedKey = layerId ?? layerName ?? fallbackLayerId;
+  if (!resolvedKey) {
+    return null;
+  }
+
+  return {
+    key: resolvedKey,
+    name: layerName ?? layerId ?? "Contenu",
+    order: readElementPropNumber(element, "layerOrder"),
+    visible: readElementPropBoolean(element, "layerVisible"),
+    locked: readElementPropBoolean(element, "layerLocked"),
+  };
+}
+
+function resolveElementLabel(element: TemplateElement) {
+  const explicitLabel = readElementPropString(element, "label") ?? readElementPropString(element, "name") ?? readElementPropString(element, "text") ?? readElementPropString(element, "alt");
+  if (explicitLabel) {
+    return explicitLabel;
+  }
+
+  switch (element.type) {
+    case "text":
+      return "Texte";
+    case "rich-text":
+      return "Rich text";
+    case "image":
+      return "Image";
+    case "shape":
+      return readElementPropString(element, "shape") ?? "Forme";
+    case "table":
+      return "Tableau";
+    case "list":
+      return "Liste";
+    default:
+      return element.id;
+  }
+}
+
+function readElementPropString(element: TemplateElement, key: string) {
+  const value = element.props?.[key];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function stripRichTextHtml(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join("\n");
+}
+
+function readElementPropBoolean(element: TemplateElement, key: string) {
+  const value = element.props?.[key];
+  return typeof value === "boolean" ? value : null;
+}
+
+function readElementPropNumber(element: TemplateElement, key: string) {
+  const value = element.props?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function hasCanvasGeometryChanged(before: TemplateElement, after: TemplateElement, patch: CanvasObjectGeometryPatch) {
+  return (
+    !areFramesEqual(before.frame, after.frame) ||
+    !areNumbersEqual(before.rotation ?? 0, after.rotation ?? 0) ||
+    !areOptionalNumberArraysEqual(readElementNumberArray(before, "points"), patch.points ? readElementNumberArray(after, "points") : readElementNumberArray(before, "points"))
+  );
+}
+
+function areFramesEqual(a: TemplateElement["frame"], b: TemplateElement["frame"]) {
+  return areNumbersEqual(a.x, b.x) && areNumbersEqual(a.y, b.y) && areNumbersEqual(a.width, b.width) && areNumbersEqual(a.height, b.height);
+}
+
+function areNumbersEqual(a: number, b: number) {
+  return Math.abs(a - b) < 0.0001;
+}
+
+function readElementNumberArray(element: TemplateElement, key: string) {
+  const value = element.props?.[key];
+  return Array.isArray(value) && value.every((item) => typeof item === "number") ? value : null;
+}
+
+function areOptionalNumberArraysEqual(a: number[] | null, b: number[] | null) {
+  if (!a && !b) {
+    return true;
+  }
+
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  return a.every((value, index) => areNumbersEqual(value, b[index] ?? Number.NaN));
+}
+
 function clampFrameToPage(frame: TemplateSchema["elements"][number]["frame"], pageWidth: number, pageHeight: number) {
   const width = Math.min(frame.width, pageWidth);
   const height = Math.min(frame.height, pageHeight);
@@ -479,4 +2281,10 @@ function appendOperationLogs(existing: EditorOperationLogEntry[], next: EditorOp
   const merged = [...existing, ...next];
   const limit = 150;
   return merged.length > limit ? merged.slice(merged.length - limit) : merged;
+}
+
+function pushUndoCheckpoint(state: Pick<EditorStoreState, "undoStack" | "workingTemplate">): TemplateSchema[] {
+  const next = [...state.undoStack, structuredClone(state.workingTemplate)];
+  const limit = 50;
+  return next.length > limit ? next.slice(next.length - limit) : next;
 }

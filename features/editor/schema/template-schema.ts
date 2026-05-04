@@ -56,4 +56,4 @@ export type TemplateElementStyle = {
   dash?: number[];
 };
 
-export type TemplateElementProps = Record<string, string | number | boolean | null | number[]>;
+export type TemplateElementProps = Record<string, unknown>;

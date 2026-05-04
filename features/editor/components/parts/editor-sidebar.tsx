@@ -1,12 +1,15 @@
 "use client";
 
-import { FileText, LayoutDashboard, LogOut, Settings, Shield, UserRound } from "lucide-react";
+import { Database, FileText, LayoutDashboard, LogOut, Settings, Shield, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const SIDEBAR_ICON_SIZE = 20;
 
-const globalNavItems: { label: string; icon: LucideIcon; active?: boolean }[] = [
-  { label: "Éditeur", icon: LayoutDashboard, active: true },
+const globalNavItems: { label: string; icon: LucideIcon; href?: string }[] = [
+  { label: "Éditeur", icon: LayoutDashboard, href: "/editor" },
+  { label: "Variables", icon: Database, href: "/editor/mapping" },
   { label: "Templates", icon: FileText },
   { label: "Candidats", icon: UserRound },
   { label: "Admin", icon: Shield },
@@ -14,14 +17,23 @@ const globalNavItems: { label: string; icon: LucideIcon; active?: boolean }[] = 
 ];
 
 export function EditorSidebar() {
+  const pathname = usePathname();
+
   return (
     <nav className="ef-sidebar">
       <div className="ef-sidebar-nav">
         {globalNavItems.map((item) => {
           const Icon = item.icon;
+          const active = item.href ? pathname === item.href : false;
+          const className = ["ef-sidebar-item", active ? "is-active" : ""].join(" ").trim();
 
-          return (
-            <button key={item.label} className={["ef-sidebar-item", item.active ? "is-active" : ""].join(" ")} type="button" title={item.label} aria-label={item.label}>
+          return item.href ? (
+            <Link key={item.label} className={className} href={item.href} title={item.label} aria-label={item.label} aria-current={active ? "page" : undefined}>
+              <Icon size={SIDEBAR_ICON_SIZE} strokeWidth={2} aria-hidden="true" />
+              <span className="ef-sidebar-label">{item.label}</span>
+            </Link>
+          ) : (
+            <button key={item.label} className={className} type="button" title={item.label} aria-label={item.label}>
               <Icon size={SIDEBAR_ICON_SIZE} strokeWidth={2} aria-hidden="true" />
               <span className="ef-sidebar-label">{item.label}</span>
             </button>

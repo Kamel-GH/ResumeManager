@@ -1,6 +1,14 @@
 "use client";
 
 import type { CanonicalRenderTree, RenderNode, RenderNodeProps } from "@/features/editor/schema/render-tree";
+import type { ImageEditingState } from "@/features/editor/components/image-editing/image-editor-types";
+import {
+  buildImageCssFilter,
+  buildImageMaskPathData,
+  resolveImageEditingFromProps,
+  resolveImageMaskBorderPresentation,
+  resolveImageMaskFrame,
+} from "@/features/editor/components/image-editing/image-editor-utils";
 
 export type SvgRendererProps = {
   renderTree: CanonicalRenderTree;
@@ -87,7 +95,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           href={normalizeRenderableSvgSource(svgSource)}
           preserveAspectRatio="none"
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -106,7 +114,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           stroke={stroke}
           strokeWidth={strokeWidth}
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -126,7 +134,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           stroke={stroke}
           strokeWidth={strokeWidth}
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -148,7 +156,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           strokeWidth={strokeWidth}
           strokeDasharray={dash}
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           markerEnd={propBoolean(props, "arrow") ? "url(#arrow-marker)" : undefined}
           onClick={onSelect}
         />
@@ -167,7 +175,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           strokeWidth={strokeWidth}
           strokeLinejoin="round"
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -186,7 +194,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           strokeLinejoin="round"
           strokeLinecap="round"
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -205,7 +213,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           strokeLinejoin="round"
           strokeLinecap="round"
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -222,7 +230,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
           stroke={stroke}
           strokeWidth={strokeWidth}
           opacity={opacity}
-          transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+          transform={buildSvgNodeTransform(frame, props, rotation)}
           onClick={onSelect}
         />
       </>
@@ -243,7 +251,7 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
         strokeWidth={strokeWidth}
         strokeDasharray={dash}
         opacity={opacity}
-        transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
+        transform={buildSvgNodeTransform(frame, props, rotation)}
         onClick={onSelect}
       />
     </>
@@ -253,21 +261,35 @@ function TemplateShape({ node, onSelect }: { node: RenderNode; onSelect?: () => 
 function TemplateImage({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
   const { frame, props } = node;
   const src = normalizeRenderableSvgSource(propString(props, "src") ?? propString(props, "svg") ?? "");
+  const imageEditing = resolveImageEditingFromProps(props);
+  const clipId = `clip-${node.id}`;
+  const imageWidth = frame.width * imageEditing.crop.zoom;
+  const imageHeight = frame.height * imageEditing.crop.zoom;
+  const imageX = frame.x + frame.width / 2 + imageEditing.crop.x * frame.width * 0.5 - imageWidth / 2;
+  const imageY = frame.y + frame.height / 2 + imageEditing.crop.y * frame.height * 0.5 - imageHeight / 2;
+  const centerX = frame.x + frame.width / 2;
+  const centerY = frame.y + frame.height / 2;
 
   return (
     <>
       <FrameOutlineRect frame={frame} rotation={node.rotation ?? 0} />
-      <image
-        x={frame.x}
-        y={frame.y}
-        width={frame.width}
-        height={frame.height}
-        href={src}
-        preserveAspectRatio="none"
-        opacity={propNumber(props, "opacity") ?? 1}
-        transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}
-        onClick={onSelect}
-      />
+      <defs>
+        <clipPath id={clipId}>{renderImageSvgClipPath(frame, imageEditing)}</clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`} transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`} onClick={onSelect}>
+        <image
+          x={imageX}
+          y={imageY}
+          width={imageWidth}
+          height={imageHeight}
+          href={src}
+          preserveAspectRatio="none"
+          opacity={(propNumber(props, "opacity") ?? 1) * imageEditing.adjustments.opacity}
+          transform={`translate(${centerX} ${centerY}) scale(${imageEditing.transform.flipX ? -1 : 1} ${imageEditing.transform.flipY ? -1 : 1}) rotate(${imageEditing.crop.rotation + imageEditing.transform.rotation}) translate(${-centerX} ${-centerY})`}
+          style={{ filter: buildImageCssFilter(imageEditing) }}
+        />
+      </g>
+      {renderImageSvgMaskBorder(frame, node.rotation ?? 0, imageEditing)}
     </>
   );
 }
@@ -314,11 +336,15 @@ function TemplateRichText({ node, onSelect }: { node: RenderNode; onSelect?: () 
   const lineHeight = propNumber(props, "lineHeight") ?? 1.2;
   const textAnchor = propTextAnchor(props);
   const textX = textAnchor === "middle" ? frame.x + frame.width / 2 : textAnchor === "end" ? frame.x + frame.width - 8 : frame.x + 8;
+  const fill = propString(props, "fill") ?? "rgba(255,255,255,0.02)";
+  const stroke = propString(props, "stroke") ?? "#cbd5e1";
+  const strokeWidth = propNumber(props, "strokeWidth") ?? 1;
+  const opacity = propNumber(props, "opacity") ?? 1;
 
   return (
-    <g onClick={onSelect} transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}>
+    <g onClick={onSelect} transform={buildSvgNodeTransform(frame, props, node.rotation ?? 0)} opacity={opacity}>
       <FrameOutlineRect frame={frame} rotation={0} />
-      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={2} fill="rgba(255,255,255,0.02)" stroke="#cbd5e1" strokeWidth={1} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={2} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
       <text
         x={textX}
         y={frame.y + fontSize + 8}
@@ -342,6 +368,105 @@ function TemplateRichText({ node, onSelect }: { node: RenderNode; onSelect?: () 
   );
 }
 
+function renderImageSvgClipPath(frame: { x: number; y: number; width: number; height: number }, editing: ImageEditingState) {
+  const maskFrame = resolveImageMaskFrame(editing.mask.bounds, frame.width, frame.height);
+  const centerX = frame.x + maskFrame.x + maskFrame.width / 2;
+  const centerY = frame.y + maskFrame.y + maskFrame.height / 2;
+  const radius = Math.min(editing.mask.radius, maskFrame.width / 2, maskFrame.height / 2);
+
+  switch (editing.mask.type) {
+    case "rounded-rect":
+      return <rect x={frame.x + maskFrame.x} y={frame.y + maskFrame.y} width={maskFrame.width} height={maskFrame.height} rx={radius} ry={radius} />;
+    case "circle": {
+      const size = Math.min(maskFrame.width, maskFrame.height);
+      return <circle cx={centerX} cy={centerY} r={size / 2} />;
+    }
+    case "ellipse":
+      return <ellipse cx={centerX} cy={centerY} rx={maskFrame.width / 2} ry={maskFrame.height / 2} />;
+    case "diamond":
+      return <polygon points={`${centerX},${frame.y + maskFrame.y} ${frame.x + maskFrame.x + maskFrame.width},${centerY} ${centerX},${frame.y + maskFrame.y + maskFrame.height} ${frame.x + maskFrame.x},${centerY}`} />;
+    case "star":
+      return <polygon points={buildStarSvgPoints({ x: frame.x + maskFrame.x, y: frame.y + maskFrame.y, width: maskFrame.width, height: maskFrame.height })} />;
+    case "blob":
+      return (
+        <polygon
+          points={[
+            [frame.x + maskFrame.x + maskFrame.width * 0.44, frame.y + maskFrame.y + maskFrame.height * 0.03],
+            [frame.x + maskFrame.x + maskFrame.width * 0.75, frame.y + maskFrame.y + maskFrame.height * 0.1],
+            [frame.x + maskFrame.x + maskFrame.width * 0.98, frame.y + maskFrame.y + maskFrame.height * 0.38],
+            [frame.x + maskFrame.x + maskFrame.width * 0.89, frame.y + maskFrame.y + maskFrame.height * 0.72],
+            [frame.x + maskFrame.x + maskFrame.width * 0.61, frame.y + maskFrame.y + maskFrame.height * 0.96],
+            [frame.x + maskFrame.x + maskFrame.width * 0.26, frame.y + maskFrame.y + maskFrame.height * 0.88],
+            [frame.x + maskFrame.x + maskFrame.width * 0.04, frame.y + maskFrame.y + maskFrame.height * 0.58],
+            [frame.x + maskFrame.x + maskFrame.width * 0.12, frame.y + maskFrame.y + maskFrame.height * 0.23],
+          ]
+            .map((point) => point.join(","))
+            .join(" ")}
+        />
+      );
+    case "rectangle":
+    default:
+      return <rect x={frame.x + maskFrame.x} y={frame.y + maskFrame.y} width={maskFrame.width} height={maskFrame.height} />;
+  }
+}
+
+function renderImageSvgMaskBorder(frame: { x: number; y: number; width: number; height: number }, rotation: number, editing: ImageEditingState) {
+  const border = editing.mask.border;
+  if (border.width <= 0) {
+    return null;
+  }
+
+  const maskFrame = resolveImageMaskFrame(editing.mask.bounds, frame.width, frame.height);
+  const pathData = buildImageMaskPathData(
+    {
+      x: frame.x + maskFrame.x,
+      y: frame.y + maskFrame.y,
+      width: maskFrame.width,
+      height: maskFrame.height,
+    },
+    editing.mask.type,
+    editing.mask.type === "rounded-rect" ? editing.mask.radius : 0,
+  );
+  const presentation = resolveImageMaskBorderPresentation(border);
+
+  return (
+    <g transform={`rotate(${rotation} ${frame.x} ${frame.y})`} aria-hidden="true" pointerEvents="none">
+      <path
+        d={pathData}
+        fill="none"
+        stroke={border.color}
+        strokeWidth={border.width}
+        strokeDasharray={presentation.dash.length > 0 ? presentation.dash.join(" ") : undefined}
+        strokeLinecap={presentation.lineCap}
+        strokeLinejoin={presentation.lineJoin}
+        vectorEffect="non-scaling-stroke"
+        style={{
+          filter:
+            border.shadow > 0
+              ? `drop-shadow(0 0 ${Math.max(1, border.shadow * 9).toFixed(2)}px rgba(0, 0, 0, 0.55))`
+              : undefined,
+        }}
+      />
+    </g>
+  );
+}
+
+function buildStarSvgPoints(frame: { x: number; y: number; width: number; height: number }) {
+  const centerX = frame.x + frame.width / 2;
+  const centerY = frame.y + frame.height / 2;
+  const outer = Math.min(frame.width, frame.height) / 2;
+  const inner = outer * 0.46;
+  const points: string[] = [];
+
+  for (let index = 0; index < 10; index += 1) {
+    const angle = -Math.PI / 2 + (index * Math.PI) / 5;
+    const radius = index % 2 === 0 ? outer : inner;
+    points.push(`${centerX + Math.cos(angle) * radius},${centerY + Math.sin(angle) * radius}`);
+  }
+
+  return points.join(" ");
+}
+
 function TemplateTable({ node, onSelect }: { node: RenderNode; onSelect?: () => void }) {
   const { frame, props } = node;
   const rows = Math.max(2, propNumber(props, "rows") ?? 3);
@@ -349,11 +474,15 @@ function TemplateTable({ node, onSelect }: { node: RenderNode; onSelect?: () => 
   const headerRow = propBoolean(props, "headerRow");
   const cellWidth = Math.max(frame.width / columns, 1);
   const cellHeight = Math.max(frame.height / rows, 1);
+  const fill = propString(props, "fill") ?? "#ffffff";
+  const stroke = propString(props, "stroke") ?? "#cbd5e1";
+  const strokeWidth = propNumber(props, "strokeWidth") ?? 1;
+  const opacity = propNumber(props, "opacity") ?? 1;
 
   return (
-    <g onClick={onSelect} transform={`rotate(${node.rotation ?? 0} ${frame.x} ${frame.y})`}>
+    <g onClick={onSelect} transform={buildSvgNodeTransform(frame, props, node.rotation ?? 0)} opacity={opacity}>
       <FrameOutlineRect frame={frame} rotation={0} />
-      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} fill="#ffffff" stroke="#cbd5e1" strokeWidth={1} rx={2} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} fill={fill} stroke={stroke} strokeWidth={strokeWidth} rx={2} />
       {headerRow ? <rect x={frame.x} y={frame.y} width={frame.width} height={cellHeight} fill="rgba(148, 163, 184, 0.12)" rx={2} /> : null}
       {Array.from({ length: rows - 1 }, (_, index) => index + 1).map((row) => (
         <line key={`table-row-${node.id}-${row}`} x1={frame.x} y1={frame.y + row * cellHeight} x2={frame.x + frame.width} y2={frame.y + row * cellHeight} stroke="#e2e8f0" strokeWidth={1} />
@@ -399,11 +528,15 @@ function TemplateList({ node, onSelect }: { node: RenderNode; onSelect?: () => v
   const bodyTop = headerHeight + 10;
   const bodyBottom = 10;
   const rowHeight = Math.max((frame.height - bodyTop - bodyBottom) / rows, 20);
+  const fill = propString(props, "fill") ?? "#ffffff";
+  const stroke = propString(props, "stroke") ?? "#cbd5e1";
+  const strokeWidth = propNumber(props, "strokeWidth") ?? 1;
+  const opacity = propNumber(props, "opacity") ?? 1;
 
   return (
-    <g onClick={onSelect}>
+    <g onClick={onSelect} transform={buildSvgNodeTransform(frame, props, node.rotation ?? 0)} opacity={opacity}>
       <FrameOutlineRect frame={frame} rotation={0} />
-      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={4} fill="#ffffff" stroke="#cbd5e1" strokeWidth={1} />
+      <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx={4} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />
       <rect x={frame.x} y={frame.y} width={frame.width} height={headerHeight} rx={4} fill="rgba(148, 163, 184, 0.12)" />
       <text x={frame.x + 10} y={frame.y + 18} fill="#0f172a" fontFamily="Inter, Arial, sans-serif" fontSize={12} fontWeight={700}>
         {title}
@@ -500,6 +633,20 @@ function FrameOutlineRect({
       transform={`rotate(${rotation} ${frame.x} ${frame.y})`}
     />
   );
+}
+
+function buildSvgNodeTransform(frame: { x: number; y: number; width: number; height: number }, props: RenderNodeProps, rotation: number) {
+  const transforms = [`rotate(${rotation} ${frame.x} ${frame.y})`];
+  const flipX = propBoolean(props, "flipX");
+  const flipY = propBoolean(props, "flipY");
+
+  if (flipX || flipY) {
+    const centerX = frame.x + frame.width / 2;
+    const centerY = frame.y + frame.height / 2;
+    transforms.push(`translate(${centerX} ${centerY}) scale(${flipX ? -1 : 1} ${flipY ? -1 : 1}) translate(${-centerX} ${-centerY})`);
+  }
+
+  return transforms.join(" ");
 }
 
 function propString(props: RenderNodeProps, key: string): string | undefined {

@@ -6,6 +6,11 @@ import {
   CircleHelp,
   Columns3,
   Grid2X2,
+  FilePlus2,
+  FolderOpen,
+  Save,
+  Upload,
+  Eye,
   Minus,
   Monitor,
   PanelTop,
@@ -18,14 +23,25 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { documentActions } from "@/features/editor/components/editor-mock-data";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
+
+const DOCUMENT_ACTIONS = [
+  { label: "Nouveau", icon: FilePlus2 },
+  { label: "Ouvrir", icon: FolderOpen },
+  { label: "Enregistrer", icon: Save },
+  { label: "Exporter", icon: Upload, primary: true },
+  { label: "Aperçu", icon: Eye },
+] as const;
 
 const ICON_SIZE = 20;
 const ICON_STROKE = 1.8;
 
 export function EditorTopbar() {
   const zoom = useEditorStore((state) => state.viewport.zoom);
+  const undo = useEditorStore((state) => state.undo);
+  const redo = useEditorStore((state) => state.redo);
+  const canUndo = useEditorStore((state) => state.undoStack.length > 0);
+  const canRedo = useEditorStore((state) => state.redoStack.length > 0);
 
   return (
     <header className="ef-topbar">
@@ -36,13 +52,13 @@ export function EditorTopbar() {
 
       <div className="ef-topbar-module">
         <div className="ef-topbar-main">
-          {documentActions.map((action) => (
+          {DOCUMENT_ACTIONS.map((action) => (
             <ActionButton key={action.label} label={action.label} icon={action.icon} />
           ))}
 
           <div className="ef-topbar-tools">
-            <IconButton label="Annuler" icon={Undo2} />
-            <IconButton label="Rétablir" icon={Redo2} muted />
+            <IconButton label="Annuler (⌘Z)" icon={Undo2} onClick={undo} disabled={!canUndo} />
+            <IconButton label="Rétablir (⌘⇧Z)" icon={Redo2} onClick={redo} disabled={!canRedo} muted={!canRedo} />
           </div>
 
           <ZoomControl value={`${Math.round(zoom * 100)}%`} />
@@ -95,9 +111,14 @@ function ActionButton({ label, icon: Icon }: ButtonProps) {
   );
 }
 
-function IconButton({ label, icon: Icon, active, muted }: ButtonProps & { active?: boolean; muted?: boolean }) {
+function IconButton({ label, icon: Icon, active, muted, disabled, onClick }: ButtonProps & { active?: boolean; muted?: boolean; disabled?: boolean; onClick?: () => void }) {
   return (
-    <button className={["ef-topbar-icon-button", active ? "is-active" : "", muted ? "is-muted" : ""].join(" ")} title={label}>
+    <button
+      className={["ef-topbar-icon-button", active ? "is-active" : "", muted ? "is-muted" : "", disabled ? "is-disabled" : ""].join(" ")}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
       <Icon size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
     </button>
   );

@@ -1,15 +1,13 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, GitBranch, RefreshCw, Table2, X } from "lucide-react";
-
-import { chartBars, dataPreview, mappingRows, repeaterRows } from "@/features/editor/components/editor-mock-data";
+import { ChevronDown, GitBranch, RefreshCw, Table2, X } from "lucide-react";
 
 export function BottomDataMappingPanel() {
   return (
     <section className="ef-mapping-panel">
       <div className="ef-mapping-header">
         <h2 className="ef-mapping-title">Mapping des donnees</h2>
-        <button className="ef-square-button" title="Fermer">
+        <button className="ef-square-button" title="Fermer" type="button">
           <X size={14} aria-hidden="true" />
         </button>
       </div>
@@ -18,59 +16,33 @@ export function BottomDataMappingPanel() {
         <div className="ef-card">
           <div className="ef-card-toolbar">
             <span>Source de donnees</span>
-            <button className="ef-mini-button">
-              CSV <ChevronDown size={12} aria-hidden="true" />
+            <button className="ef-mini-button" type="button">
+              Source <ChevronDown size={12} aria-hidden="true" />
             </button>
-            <button className="ef-mini-button ef-mini-select">
-              cv_donnees.csv <ChevronDown size={12} aria-hidden="true" />
+            <button className="ef-mini-button ef-mini-select" type="button">
+              Non branchée <ChevronDown size={12} aria-hidden="true" />
             </button>
             <span className="ef-status-ok">
               <span className="ef-dot ef-dot-ok" />
-              Connecte
+              Hors périmètre
             </span>
             <RefreshCw size={13} aria-hidden="true" />
           </div>
 
           <div className="ef-mapping-body">
-            <div className="ef-card-kicker">Apercu des donnees</div>
-            <div className="ef-card">
-              <div className="ef-table-head ef-preview-grid">
-                <span>Nom</span>
-                <span>Prenom</span>
-                <span>Poste</span>
-                <span>Telephone</span>
-                <span />
-              </div>
-              <div className="ef-table-row ef-preview-grid">
-                {dataPreview.map((cell) => (
-                  <span key={cell} className="ef-truncate">
-                    {cell}
-                  </span>
-                ))}
-                <span className="ef-muted-cell">...</span>
-              </div>
+            <div className="ef-card-kicker">Aperçu des données</div>
+            <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+              <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Mapping</strong>
+              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Section non branchée dans ce lot.</span>
             </div>
           </div>
         </div>
 
         <div className="ef-card">
-          <div className="ef-table-head ef-mapping-table-grid">
-            <span>Element du template</span>
-            <span>Variable</span>
-            <span>Source</span>
-            <span>Apercu</span>
+          <div className="ef-no-result" style={{ minHeight: 174, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+            <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Table de mapping</strong>
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Aucune donnée réelle branchée ici pour le moment.</span>
           </div>
-          {mappingRows.map((row) => (
-            <div key={row.source} className="ef-table-row ef-mapping-table-grid">
-              <span className="ef-truncate ef-font-medium">
-                <CheckCircle2 className="ef-inline-icon-blue" size={12} aria-hidden="true" />
-                {row.source}
-              </span>
-              <span className="ef-truncate">{row.target}</span>
-              <span className="ef-truncate">{row.field}</span>
-              <span className="ef-truncate">{row.preview}</span>
-            </div>
-          ))}
         </div>
 
         <div className="ef-card ef-card-padded">
@@ -81,14 +53,8 @@ export function BottomDataMappingPanel() {
             </div>
             <ChevronDown size={14} aria-hidden="true" />
           </div>
-          <div className="ef-card-list">
-            {repeaterRows.map((row) => (
-              <div key={row.label} className="ef-repeater-row">
-                <span className="ef-truncate ef-font-medium">{row.label}</span>
-                <span className="ef-badge">{row.items}</span>
-                <span className="ef-truncate">{row.target}</span>
-              </div>
-            ))}
+          <div className="ef-no-result" style={{ minHeight: 96, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Module non branché dans ce lot.</span>
           </div>
         </div>
 
@@ -97,14 +63,8 @@ export function BottomDataMappingPanel() {
             <Table2 size={15} aria-hidden="true" />
             <h3 className="ef-card-title">Graphiques</h3>
           </div>
-          <p className="ef-chart-title">Competences</p>
-          <button className="ef-mini-button ef-chart-select">
-            Barres verticales <ChevronDown size={12} aria-hidden="true" />
-          </button>
-          <div className="ef-chart">
-            {chartBars.concat([{ label: "Print", value: 74 }, { label: "Web", value: 88 }]).map((bar) => (
-              <span key={bar.label} className="ef-chart-bar" style={{ height: `${Math.max(18, bar.value * 0.55)}px` }} title={`${bar.label} ${bar.value}%`} />
-            ))}
+          <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Section non branchée dans ce lot.</span>
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import {
   buildDeleteOperationLogs,
   buildGeometryOperationLogs,
   buildInsertOperationLog,
+  buildStyleOperationLogs,
   buildTraceOperationLog,
   formatOperationAction,
   formatOperationSnapshot,
@@ -169,6 +170,86 @@ describe("editor operation log", () => {
       { label: "Phase", value: "dragstart" },
       { label: "Type", value: "preset" },
       { label: "Label", value: "Expérience senior" },
+    ]);
+  });
+
+  it("builds a style log with changed style details", () => {
+    const beforeTemplate: TemplateSchema = {
+      id: "template-1",
+      name: "Template",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Page 1",
+          width: 800,
+          height: 600,
+          margin: { top: 40, right: 40, bottom: 40, left: 40 },
+        },
+      ],
+      elements: [
+        {
+          id: "shape-1",
+          pageId: "page-1",
+          type: "shape",
+          frame: { x: 10, y: 20, width: 30, height: 40 },
+          rotation: 0,
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          props: {
+            shape: "rect",
+            selectable: true,
+          },
+          style: {
+            fill: "#ffffff",
+            stroke: "#cbd5e1",
+            strokeWidth: 1,
+            opacity: 1,
+          },
+        },
+      ],
+    };
+
+    const afterTemplate: TemplateSchema = {
+      ...beforeTemplate,
+      elements: [
+        {
+          ...beforeTemplate.elements[0],
+          style: {
+            fill: "#ff0000",
+            stroke: "#111111",
+            strokeWidth: 3,
+            opacity: 0.5,
+          },
+        },
+      ],
+    };
+
+    const [log] = buildStyleOperationLogs({
+      beforeTemplate,
+      afterTemplate,
+      patches: [
+        {
+          id: "shape-1",
+          style: {
+            fill: "#ff0000",
+            stroke: "#111111",
+            strokeWidth: 3,
+            opacity: 0.5,
+          },
+        },
+      ],
+      timestamp: 1_700_000_000_004,
+    });
+
+    expect(log?.action).toBe("style");
+    expect(formatOperationAction(log?.action ?? "transform")).toBe("Style");
+    expect(log?.details).toEqual([
+      { label: "Fond", value: "#ffffff → #ff0000" },
+      { label: "Contour", value: "#cbd5e1 → #111111" },
+      { label: "Trait", value: "1 → 3" },
+      { label: "Opacité", value: "1 → 0.5" },
     ]);
   });
 });

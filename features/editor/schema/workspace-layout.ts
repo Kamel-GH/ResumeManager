@@ -5,6 +5,7 @@ export type EditorWorkspaceSettings = {
   gridEnabled: boolean;
   gridSize: number;
   rulersVisible: boolean;
+  rulerMode: RulerMode;
   marginsVisible: boolean;
   guidesVisible: boolean;
   snapEnabled: boolean;
@@ -18,10 +19,13 @@ export type EditorWorkspaceSettings = {
   rulerMinorStep: number;
 };
 
+export type RulerMode = "global" | "page";
+
 export const defaultWorkspaceSettings: EditorWorkspaceSettings = {
   gridEnabled: true,
   gridSize: 20,
   rulersVisible: true,
+  rulerMode: "page",
   marginsVisible: true,
   guidesVisible: true,
   snapEnabled: true,
@@ -70,6 +74,14 @@ export type RulerTick = {
   isMajor: boolean;
   label?: string;
   position: number;
+  workspacePosition: number;
+};
+
+export type WorkspaceRulerTicks = {
+  mode: RulerMode;
+  origin: WorkspacePoint;
+  horizontal: RulerTick[];
+  vertical: RulerTick[];
 };
 
 export function buildWorkspaceLayout(pages: WorkspacePageSource[], settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">): WorkspaceLayout {
@@ -98,6 +110,16 @@ export function buildWorkspaceLayout(pages: WorkspacePageSource[], settings: Pic
   };
 }
 
+export function buildActiveWorkspaceLayout(pages: WorkspacePageSource[], activePageId: string | null | undefined, settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">): WorkspaceLayout {
+  const activePage = pages.find((page) => page.id === activePageId) ?? pages[0];
+  return buildWorkspaceLayout(activePage ? [activePage] : [], settings);
+}
+
+export function resolveEffectiveRulerMode(settings: Pick<EditorWorkspaceSettings, "rulerMode">): RulerMode {
+  void settings;
+  return "page";
+}
+
 export function derivePageOrientation(width: number, height: number): "portrait" | "landscape" | "square" {
   if (Math.abs(width - height) <= 1) {
     return "square";
@@ -117,6 +139,10 @@ export function findWorkspacePageAtPoint(layout: WorkspaceLayout, point: Workspa
   }
 
   return layout.pages[0] ?? null;
+}
+
+export function findWorkspacePageAtPointStrict(layout: WorkspaceLayout, point: WorkspacePoint): WorkspacePageLayout | null {
+  return layout.pages.find((page) => point.x >= page.x && point.x <= page.x + page.width && point.y >= page.y && point.y <= page.y + page.height) ?? null;
 }
 
 export function convertClientPointToWorkspacePoint(
@@ -191,7 +217,7 @@ export function snapWorkspaceFrame(frame: Rect, page: WorkspacePageLayout, setti
   return clampFrameToPage(nextFrame, page);
 }
 
-export function buildRulerTicks(lengthPx: number, majorStep: number, minorStep: number): RulerTick[] {
+export function buildRulerTicks(lengthPx: number, majorStep: number, minorStep: number, workspaceOffset = 0): RulerTick[] {
   const ticks: RulerTick[] = [];
   const step = Math.max(1, minorStep);
 
@@ -201,15 +227,69 @@ export function buildRulerTicks(lengthPx: number, majorStep: number, minorStep: 
       isMajor,
       label: isMajor ? String(position) : undefined,
       position,
+      workspacePosition: workspaceOffset + position,
     });
   }
 
   const lastTick = ticks[ticks.length - 1];
   if (!lastTick || lastTick.position !== lengthPx) {
-    ticks.push({ isMajor: true, label: String(lengthPx), position: lengthPx });
+    ticks.push({ isMajor: true, label: String(lengthPx), position: lengthPx, workspacePosition: workspaceOffset + lengthPx });
   }
 
   return ticks;
+}
+
+export function resolveRulerOrigin(layout: WorkspaceLayout, activePageId: string | null | undefined, mode: RulerMode): WorkspacePoint {
+  if (mode === "global") {
+    return { x: 0, y: 0 };
+  }
+
+  const activePage = resolveWorkspaceRulerPage(layout, activePageId);
+  return activePage ? { x: activePage.x, y: activePage.y } : { x: 0, y: 0 };
+}
+
+export function resolveWorkspaceRulerTicks(
+  layout: WorkspaceLayout,
+  activePageId: string | null | undefined,
+  input: {
+    mode: RulerMode;
+    majorStep: number;
+    minorStep: number;
+  },
+): WorkspaceRulerTicks {
+  if (input.mode === "global") {
+    return {
+      mode: "global",
+      origin: { x: 0, y: 0 },
+      horizontal: buildRulerTicks(layout.width, input.majorStep, input.minorStep),
+      vertical: buildRulerTicks(layout.height, input.majorStep, input.minorStep),
+    };
+  }
+
+  const activePage = resolveWorkspaceRulerPage(layout, activePageId);
+  if (!activePage) {
+    return {
+      mode: "page",
+      origin: { x: 0, y: 0 },
+      horizontal: [],
+      vertical: [],
+    };
+  }
+
+  return {
+    mode: "page",
+    origin: { x: activePage.x, y: activePage.y },
+    horizontal: buildRulerTicks(activePage.width, input.majorStep, input.minorStep, activePage.x),
+    vertical: buildRulerTicks(activePage.height, input.majorStep, input.minorStep, activePage.y),
+  };
+}
+
+export function projectRulerTickToViewportPosition(tick: RulerTick, viewport: WorkspaceViewport, axis: "x" | "y") {
+  return tick.workspacePosition * viewport.zoom + (axis === "x" ? viewport.panX : viewport.panY);
+}
+
+function resolveWorkspaceRulerPage(layout: WorkspaceLayout, activePageId: string | null | undefined): WorkspacePageLayout | null {
+  return layout.pages.find((page) => page.id === activePageId) ?? layout.pages[0] ?? null;
 }
 
 function clampFrameToPage(frame: Rect, page: WorkspacePageLayout): Rect {

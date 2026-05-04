@@ -1,273 +1,141 @@
 "use client";
 
-import Image from "next/image";
-import { useMemo, useState, type CSSProperties, type DragEvent } from "react";
-
 import {
-  emojis,
-  icons,
-  images,
-  layers,
-  objects,
-  pages,
-  presets,
-  shapes,
-  textBlocks,
-  variables,
-  type EditorIconMock,
-  type EditorObjectMock,
-  type EditorLayerMock,
-  type EditorPresetMock,
-  type EditorVariableMock,
-} from "@/src/data/editorMockData";
-import { useEditorStore, type EditorLeftPanelTab, type EditorLeftSubTab } from "@/features/editor/stores/editor-store";
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Database,
+  Eye,
+  EyeOff,
+  FileText,
+  Layers3,
+  LibraryBig,
+  Lock,
+  LockOpen,
+  Merge,
+  Pencil,
+  Plus,
+  Search,
+  Settings2,
+  Shapes,
+  Trash2,
+  List,
+  type LucideIcon,
+} from "lucide-react";
+import { useMemo, useState, type CSSProperties, type DragEvent, type MouseEvent } from "react";
 
-type ColorSet = { bg: string; fg: string; border: string };
+import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
+import { VariablesCompactPanel } from "@/features/data-mapping/components/variables-compact-panel";
+import {
+  deriveEditorDocumentLayersView,
+  deriveEditorObjectsView,
+  deriveEditorPagesView,
+  filterEditorLayersView,
+  filterEditorObjectsView,
+  type EditorLayerView,
+  type EditorObjectView,
+  type EditorPageView,
+  useEditorStore,
+  type EditorLeftPanelTab,
+  type EditorLeftSubTab,
+} from "@/features/editor/stores/editor-store";
+
+type IconName = LucideIcon;
 type SortDir = "asc" | "desc" | null;
-type ActionIcon = "settings" | "upload" | "add" | "edit" | "delete" | "merge" | "reorder" | "duplicate" | "move";
-type MaterialIconName =
-  | "database"
-  | "data_object"
-  | "bookmark"
-  | "photo_library"
-  | "image"
-  | "category"
-  | "star"
-  | "sentiment_satisfied"
-  | "text_fields"
-  | "layers"
-  | "description"
-  | "grid_view"
-  | "view_list"
-  | "settings"
-  | "upload"
-  | "filter_list"
-  | "arrow_upward"
-  | "arrow_downward"
-  | "unfold_more"
-  | "visibility"
-  | "visibility_off"
-  | "lock"
-  | "lock_open"
-  | "add"
-  | "edit"
-  | "delete"
-  | "merge"
-  | "swap_vert"
-  | "content_copy"
-  | "drive_file_move"
-  | "drag_indicator"
-  | "chevron_right"
-  | "expand_more"
-  | "schema"
-  | "radio_button_unchecked";
-
-let activeDragPreviewCleanup: (() => void) | null = null;
-
-function MaterialIcon({
-  name,
-  size = 18,
-  filled = false,
-}: {
-  name: MaterialIconName;
-  size?: number;
-  filled?: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`ms${filled ? " filled" : ""}`}
-      style={{ fontSize: `${size}px` }}
-    >
-      {name}
-    </span>
-  );
-}
-
-const VAR_TYPE_COLORS: Record<EditorVariableMock["type"], ColorSet> = {
-  TEXTE: { bg: "#1e3a5f", fg: "#7fb8ff", border: "#2c5183" },
-  IMAGE: { bg: "#3d1e5f", fg: "#c7a3ff", border: "#5a2c83" },
-  LISTE: { bg: "#1e4a2e", fg: "#7fd99a", border: "#2c6640" },
-  TABLE: { bg: "#4a3416", fg: "#ffc880", border: "#66481f" },
-};
-
-const PRESET_TYPE_COLORS: Record<EditorPresetMock["type"], ColorSet> = {
-  EXPERIENCES: { bg: "#4a3416", fg: "#ffc880", border: "#66481f" },
-  FORMATIONS: { bg: "#1e3a5f", fg: "#7fb8ff", border: "#2c5183" },
-  LANGUES: { bg: "#3d1e5f", fg: "#c7a3ff", border: "#5a2c83" },
-  COMPETENCES: { bg: "#1e4a2e", fg: "#7fd99a", border: "#2c6640" },
-  INTERETS: { bg: "#5f1e3a", fg: "#ff9ac4", border: "#832c58" },
-};
-
-const OBJECT_TYPE_COLORS: Record<EditorObjectMock["type"], ColorSet> = {
-  text: { bg: "#eaf0f8", fg: "#334155", border: "#cfd8e3" },
-  image: { bg: "#e8efff", fg: "#3454a6", border: "#c8d7ff" },
-  shape: { bg: "#f0ebff", fg: "#6c4cff", border: "#d9d0ff" },
-  chart: { bg: "#ecfaf4", fg: "#1f8a5b", border: "#c6ecd9" },
-  variable: { bg: "#fff4e5", fg: "#d87a00", border: "#f7d6a6" },
-  preset: { bg: "#fcecff", fg: "#b12c80", border: "#f1c0e0" },
-  group: { bg: "#eef2f7", fg: "#475569", border: "#d6dee8" },
-};
+type ColorSet = { bg: string; fg: string; border: string };
 
 const PRIMARY_TABS: Array<{
   id: EditorLeftPanelTab;
-  icon: MaterialIconName;
-  tooltip: string;
-  subTabs: Array<{ id: EditorLeftSubTab; icon: MaterialIconName; tooltip: string }> | null;
+  label: string;
+  icon: IconName;
+  subTabs: Array<{ id: EditorLeftSubTab; label: string; icon: IconName }> | null;
 }> = [
   {
     id: "data",
-    icon: "database",
-    tooltip: "Données",
+    label: "Données",
+    icon: Database,
     subTabs: [
-      { id: "variables", icon: "data_object", tooltip: "Variables" },
-      { id: "presets", icon: "bookmark", tooltip: "Presets" },
+      { id: "variables", label: "Variables", icon: Database },
+      { id: "presets", label: "Presets", icon: LibraryBig },
     ],
   },
   {
     id: "libraries",
-    icon: "photo_library",
-    tooltip: "Bibliothèques",
+    label: "Bibliothèques",
+    icon: LibraryBig,
     subTabs: [
-      { id: "images", icon: "image", tooltip: "Images" },
-      { id: "charts-shapes", icon: "category", tooltip: "Graphiques / Shapes" },
-      { id: "icons", icon: "star", tooltip: "Icônes" },
-      { id: "emoji", icon: "sentiment_satisfied", tooltip: "Emoji" },
-      { id: "text-blocks", icon: "text_fields", tooltip: "Blocs textes" },
+      { id: "images", label: "Images", icon: FileText },
+      { id: "charts-shapes", label: "Graphiques / Shapes", icon: Shapes },
+      { id: "icons", label: "Icônes", icon: Circle },
+      { id: "emoji", label: "Emoji", icon: Circle },
+      { id: "text-blocks", label: "Blocs textes", icon: FileText },
     ],
   },
-  { id: "layers", icon: "layers", tooltip: "Calques", subTabs: null },
-  { id: "objects", icon: "category", tooltip: "Objets", subTabs: null },
-  { id: "pages", icon: "description", tooltip: "Pages", subTabs: null },
+  { id: "layers", label: "Calques", icon: Layers3, subTabs: null },
+  { id: "objects", label: "Objets", icon: Shapes, subTabs: null },
+  { id: "pages", label: "Pages", icon: FileText, subTabs: null },
 ];
 
-const STATE_CONFIG: Record<
-  string,
-  {
-    showView: boolean;
-    rightActions: ActionIcon[];
-    filter:
-      | { placeholder: string; typeOptions?: string[]; typeLabel?: string; typeOptions2?: string[]; typeLabel2?: string }
-      | null;
-    panel: "variables" | "presets" | "images" | "shapes" | "icons" | "emoji" | "text-blocks" | "layers" | "objects" | "pages";
-    footer: ActionIcon[] | null;
-  }
-> = {
-  "data/variables": {
-    showView: false,
-    rightActions: ["settings"],
-    filter: { placeholder: "Filtrer variables…", typeOptions: ["TEXTE", "IMAGE", "LISTE", "TABLE"], typeLabel: "Type" },
-    panel: "variables",
-    footer: null,
-  },
-  "data/presets": {
-    showView: false,
-    rightActions: ["settings"],
-    filter: {
-      placeholder: "Filtrer presets…",
-      typeOptions: ["EXPERIENCES", "FORMATIONS", "LANGUES", "COMPETENCES", "INTERETS"],
-      typeLabel: "Type",
-    },
-    panel: "presets",
-    footer: null,
-  },
-  "libraries/images": {
-    showView: true,
-    rightActions: ["upload", "settings"],
-    filter: { placeholder: "Filtrer images…", typeOptions: uniqueSorted(images.map((item) => item.category)), typeLabel: "Cat." },
-    panel: "images",
-    footer: null,
-  },
-  "libraries/charts-shapes": {
-    showView: true,
-    rightActions: ["upload", "settings"],
-    filter: { placeholder: "Filtrer shapes…", typeOptions: uniqueSorted(shapes.map((item) => item.category)), typeLabel: "Cat." },
-    panel: "shapes",
-    footer: null,
-  },
-  "libraries/icons": {
-    showView: true,
-    rightActions: ["upload", "settings"],
-    filter: {
-      placeholder: "Filtrer icônes…",
-      typeOptions: uniqueSorted(icons.map((item) => item.category)),
-      typeLabel: "Cat.",
-      typeOptions2: ["mono", "color"],
-      typeLabel2: "Mode",
-    },
-    panel: "icons",
-    footer: null,
-  },
-  "libraries/emoji": {
-    showView: false,
-    rightActions: ["upload", "settings"],
-    filter: { placeholder: "Filtrer emoji…", typeOptions: uniqueSorted(emojis.map((item) => item.category)), typeLabel: "Cat." },
-    panel: "emoji",
-    footer: null,
-  },
-  "libraries/text-blocks": {
-    showView: true,
-    rightActions: ["settings"],
-    filter: { placeholder: "Filtrer blocs…", typeOptions: uniqueSorted(textBlocks.map((item) => item.category)), typeLabel: "Cat." },
-    panel: "text-blocks",
-    footer: null,
-  },
-  layers: {
-    showView: false,
-    rightActions: ["settings"],
-    filter: {
-      placeholder: "Filtrer calques…",
-      typeOptions: uniqueSorted(layers.map((layer) => String(layer.page))),
-      typeLabel: "PAGE",
-      typeOptions2: ["all", "visible", "hidden", "locked", "unlocked", "active"],
-      typeLabel2: "Statut",
-    },
-    panel: "layers",
-    footer: ["add", "edit", "delete", "merge", "reorder"],
-  },
-  objects: {
-    showView: false,
-    rightActions: ["settings"],
-    filter: {
-      placeholder: "Filtrer objets…",
-      typeOptions: uniqueSorted(objects.map((item) => item.type)),
-      typeLabel: "Type",
-      typeOptions2: uniqueSorted(pages.map((page) => String(page.number))),
-      typeLabel2: "Pg",
-    },
-    panel: "objects",
-    footer: ["duplicate", "move", "delete"],
-  },
-  pages: {
-    showView: false,
-    rightActions: ["settings"],
-    filter: { placeholder: "Filtrer pages…" },
-    panel: "pages",
-    footer: ["edit", "duplicate", "delete", "move"],
-  },
-};
+const REAL_TABS = new Set<EditorLeftPanelTab>(["pages", "layers", "objects"]);
 
 export function EditorLeftPanel() {
   const activeTab = useEditorStore((state) => state.panelPreferences.activeLeftTab);
   const activeSubTabs = useEditorStore((state) => state.panelPreferences.activeSubTabs);
-  const assetViewMode = useEditorStore((state) => state.panelPreferences.assetViewMode);
+  const panelFilters = useEditorStore((state) => state.panelPreferences.filters);
   const setActiveLeftTab = useEditorStore((state) => state.setActiveLeftTab);
   const setActiveSubTab = useEditorStore((state) => state.setActiveSubTab);
-  const setAssetViewMode = useEditorStore((state) => state.setAssetViewMode);
   const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
-  const panelFilters = useEditorStore((state) => state.panelPreferences.filters);
-  const [typeFilters, setTypeFilters] = useState<Record<string, string>>({});
-  const [layersViewMode, setLayersViewMode] = useState<"list" | "tree">("tree");
+  const activePageId = useEditorStore((state) => state.activePageId);
+  const activeWorkspaceLayerIdByPageId = useEditorStore((state) => state.activeWorkspaceLayerIdByPageId);
+  const selectedWorkspaceLayerIdByPageId = useEditorStore((state) => state.selectedWorkspaceLayerIdByPageId);
+  const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
+  const setActivePageId = useEditorStore((state) => state.setActivePageId);
+  const setActiveWorkspaceLayerIdForPage = useEditorStore((state) => state.setActiveWorkspaceLayerIdForPage);
+  const setSelectedWorkspaceLayerIdForPage = useEditorStore((state) => state.setSelectedWorkspaceLayerIdForPage);
+  const addWorkspaceLayerForPage = useEditorStore((state) => state.addWorkspaceLayerForPage);
+  const renameWorkspaceLayerForPage = useEditorStore((state) => state.renameWorkspaceLayerForPage);
+  const deleteWorkspaceLayersForPage = useEditorStore((state) => state.deleteWorkspaceLayersForPage);
+  const mergeWorkspaceLayersForPage = useEditorStore((state) => state.mergeWorkspaceLayersForPage);
+  const reorderWorkspaceLayerForPage = useEditorStore((state) => state.reorderWorkspaceLayerForPage);
+  const moveWorkspaceLayersForPage = useEditorStore((state) => state.moveWorkspaceLayersForPage);
+  const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
+  const setDragTraceContext = useEditorStore((state) => state.setDragTraceContext);
+  const clearDragTraceContext = useEditorStore((state) => state.clearDragTraceContext);
+  const workingTemplate = useEditorStore((state) => state.workingTemplate);
+  const workspaceLayersByPageId = useEditorStore((state) => state.workspaceLayersByPageId);
 
   const tab = PRIMARY_TABS.find((item) => item.id === activeTab) ?? PRIMARY_TABS[0];
   const activeSubTab = activeSubTabs[activeTab] ?? tab.subTabs?.[0]?.id;
-  const stateKey = tab.subTabs && activeSubTab ? `${activeTab}/${activeSubTab}` : activeTab;
-  const config = STATE_CONFIG[stateKey] ?? STATE_CONFIG["libraries/images"];
-  const panelFilterKey = tab.subTabs && activeSubTab ? activeSubTab : activeTab;
-
-  function updateTypeFilter(key: string, value: string) {
-    setTypeFilters((current) => ({ ...current, [key]: value }));
-  }
+  const activePageViews = useMemo(() => deriveEditorPagesView(workingTemplate, activePageId), [activePageId, workingTemplate]);
+  const layerViews = useMemo(
+    () => deriveEditorDocumentLayersView(workingTemplate, workspaceLayersByPageId, activePageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId),
+    [activePageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId, workingTemplate, workspaceLayersByPageId],
+  );
+  const objectViews = useMemo(() => workingTemplate.pages.flatMap((page) => deriveEditorObjectsView(workingTemplate, selectedElementIds, page.id)), [selectedElementIds, workingTemplate]);
+  const [layersViewMode, setLayersViewMode] = useState<"list" | "tree">("tree");
+  const [layerPageFilter, setLayerPageFilter] = useState("all");
+  const [layerVisibilityFilter, setLayerVisibilityFilter] = useState("all");
+  const [layerLockFilter, setLayerLockFilter] = useState("all");
+  const [objectTypeFilter, setObjectTypeFilter] = useState("all");
+  const [objectLayerFilter, setObjectLayerFilter] = useState("all");
+  const [objectPageFilter, setObjectPageFilter] = useState("all");
+  const objectTypeOptions = useMemo(() => uniqueSorted(objectViews.map((object) => object.type)), [objectViews]);
+  const objectLayerOptions = useMemo(
+    () =>
+      uniqueBy(
+        objectViews
+          .filter((object) => object.layerId)
+          .map((object) => ({
+            id: object.layerId ?? "",
+            label: object.layerNumber ? `Cq ${object.layerNumber}` : object.layerName,
+          })),
+        (item) => item.id,
+      ),
+    [objectViews],
+  );
 
   function switchTab(nextTab: EditorLeftPanelTab) {
     const next = PRIMARY_TABS.find((item) => item.id === nextTab);
@@ -276,7 +144,75 @@ export function EditorLeftPanel() {
     if (nextSubTab) {
       setActiveSubTab(nextTab, nextSubTab);
     }
-    setTypeFilters({});
+  }
+
+  function handlePageSelect(pageId: string) {
+    setActivePageId(pageId);
+  }
+
+  function handleLayerSelect(layer: EditorLayerView) {
+    setSelectedWorkspaceLayerIdForPage({
+      pageId: layer.pageId,
+      layerId: layer.id,
+    });
+  }
+
+  function handleLayerActivate(layer: EditorLayerView) {
+    setActiveWorkspaceLayerIdForPage({
+      pageId: layer.pageId,
+      layerId: layer.id,
+    });
+    setSelectedWorkspaceLayerIdForPage({
+      pageId: layer.pageId,
+      layerId: layer.id,
+    });
+  }
+
+  function handleAddLayer() {
+    const result = addWorkspaceLayerForPage({ pageId: activePageId });
+    return result.added ? result.layerId : null;
+  }
+
+  function handleRenameLayer(layer: EditorLayerView) {
+    const name = window.prompt("Nom du calque", layer.name);
+    if (name === null) {
+      return;
+    }
+
+    renameWorkspaceLayerForPage({ pageId: layer.pageId, layerId: layer.id, name });
+  }
+
+  function handleDeleteLayers(layers: EditorLayerView[]) {
+    groupLayersByPage(layers).forEach((layerIds, pageId) => {
+      deleteWorkspaceLayersForPage({ pageId, layerIds });
+    });
+  }
+
+  function handleMergeLayers(layers: EditorLayerView[]) {
+    const pageGroups = groupLayersByPage(layers);
+    if (pageGroups.size !== 1) {
+      return;
+    }
+
+    const [entry] = [...pageGroups.entries()];
+    if (!entry) {
+      return;
+    }
+
+    const [pageId, layerIds] = entry;
+    mergeWorkspaceLayersForPage({ pageId, layerIds });
+  }
+
+  function handleMoveLayers(layers: EditorLayerView[], direction: "up" | "down") {
+    groupLayersByPage(layers).forEach((layerIds, pageId) => {
+      moveWorkspaceLayersForPage({ pageId, layerIds, direction });
+    });
+  }
+
+
+  function handleObjectSelect(object: EditorObjectView) {
+    setActivePageId(object.pageId);
+    setSelectedElementIds([object.id]);
   }
 
   return (
@@ -284,55 +220,138 @@ export function EditorLeftPanel() {
       <PrimaryRail activeTab={activeTab} onTabChange={switchTab} />
       {tab.subTabs ? <SubTabRail subTabs={tab.subTabs} activeSubTab={activeSubTab} onSubTabChange={(value) => value && setActiveSubTab(activeTab, value)} /> : null}
 
-      {config.panel === "layers" ? (
-        <LayersControlHeader
-          filter={panelFilters[panelFilterKey] ?? ""}
-          onFilterChange={(value) => setPanelFilter(panelFilterKey, value)}
-          typeFilter={typeFilters[stateKey] ?? ""}
-          onTypeFilterChange={(value) => updateTypeFilter(stateKey, value)}
-          typeFilter2={typeFilters[`${stateKey}-secondary`] ?? ""}
-          onTypeFilterChange2={(value) => updateTypeFilter(`${stateKey}-secondary`, value)}
-          mode={layersViewMode}
-          onModeChange={setLayersViewMode}
-          filterConfig={config.filter}
-        />
-      ) : (
-        <ControlHeader
-          showView={config.showView}
-          viewMode={assetViewMode}
-          onViewModeChange={setAssetViewMode}
-          rightActions={config.rightActions}
-          filter={panelFilters[panelFilterKey] ?? ""}
-          onFilterChange={(value) => setPanelFilter(panelFilterKey, value)}
-          filterConfig={config.filter}
-          typeFilter={typeFilters[stateKey] ?? ""}
-          onTypeFilterChange={(value) => updateTypeFilter(stateKey, value)}
-          typeFilter2={typeFilters[`${stateKey}-secondary`] ?? ""}
-          onTypeFilterChange2={(value) => updateTypeFilter(`${stateKey}-secondary`, value)}
-        />
-      )}
+      {REAL_TABS.has(activeTab) ? (
+        <div className="ef-control-header">
+          <div className="ef-control-row">
+            <div className="ef-control-left">
+              {activeTab === "layers" ? (
+                <div className="ef-view-toggle ef-layer-view-toggle" role="group" aria-label="Mode d’affichage">
+                  <button type="button" className={layersViewMode === "list" ? "is-active" : ""} title="Liste" aria-label="Liste" onClick={() => setLayersViewMode("list")}>
+                    <IconGlyph icon={List} size={14} />
+                  </button>
+                  <button type="button" className={layersViewMode === "tree" ? "is-active" : ""} title="Hiérarchie" aria-label="Hiérarchie" onClick={() => setLayersViewMode("tree")}>
+                    <IconGlyph icon={Layers3} size={14} />
+                  </button>
+                </div>
+              ) : (
+                <span className="ef-control-left-spacer" aria-hidden="true" />
+              )}
+            </div>
+            <div className="ef-control-actions">
+              <ActionButton label="Paramètres" icon={Settings2} />
+            </div>
+          </div>
 
-      <div className="ef-left-panel-scroll">
-        {config.panel === "variables" ? <VariablesPanel filter={panelFilters[panelFilterKey] ?? ""} typeFilter={typeFilters[stateKey] ?? ""} /> : null}
-        {config.panel === "presets" ? <PresetsPanel filter={panelFilters[panelFilterKey] ?? ""} typeFilter={typeFilters[stateKey] ?? ""} /> : null}
-        {config.panel === "images" ? <ImagesPanel viewMode={assetViewMode} filter={panelFilters.images ?? ""} typeFilter={typeFilters[stateKey] ?? ""} /> : null}
-        {config.panel === "shapes" ? <ShapesPanel viewMode={assetViewMode} filter={panelFilters["charts-shapes"] ?? ""} typeFilter={typeFilters[stateKey] ?? ""} /> : null}
-        {config.panel === "icons" ? <IconsPanel viewMode={assetViewMode} filter={panelFilters.icons ?? ""} typeFilter={typeFilters[stateKey] ?? ""} typeFilter2={typeFilters[`${stateKey}-secondary`] ?? ""} /> : null}
-        {config.panel === "emoji" ? <EmojiPanel filter={panelFilters.emoji ?? ""} /> : null}
-        {config.panel === "text-blocks" ? <TextBlocksPanel viewMode={assetViewMode} filter={panelFilters["text-blocks"] ?? ""} typeFilter={typeFilters[stateKey] ?? ""} /> : null}
-        {config.panel === "layers" ? (
+          <div className="ef-control-filter has-none">
+            <SearchBox
+              value={panelFilters[activeTab] ?? ""}
+              placeholder={activeTab === "pages" ? "Filtrer pages…" : activeTab === "layers" ? "Filtrer calques…" : "Filtrer objets…"}
+              onChange={(value) => setPanelFilter(activeTab, value)}
+            />
+            {activeTab === "layers" ? (
+              <div className="ef-layer-filter-selects" aria-label="Filtres calques">
+                <select aria-label="Filtrer par page" value={layerPageFilter} onChange={(event) => setLayerPageFilter(event.target.value)}>
+                  <option value="all">Pg</option>
+                  {activePageViews.map((page) => (
+                    <option key={page.id} value={String(page.index)}>
+                      {page.index}
+                    </option>
+                  ))}
+                </select>
+                <select aria-label="Filtrer visibilité" value={layerVisibilityFilter} onChange={(event) => setLayerVisibilityFilter(event.target.value)}>
+                  <option value="all">Aff.</option>
+                  <option value="visible">Visible</option>
+                  <option value="hidden">Masqué</option>
+                </select>
+                <select aria-label="Filtrer verrouillage" value={layerLockFilter} onChange={(event) => setLayerLockFilter(event.target.value)}>
+                  <option value="all">Ver.</option>
+                  <option value="locked">Verrouillé</option>
+                  <option value="unlocked">Déverrouillé</option>
+                </select>
+              </div>
+            ) : null}
+            {activeTab === "objects" ? (
+              <div className="ef-object-filter-selects" aria-label="Filtres objets">
+                <select aria-label="Filtrer par type" value={objectTypeFilter} onChange={(event) => setObjectTypeFilter(event.target.value)}>
+                  <option value="all">Type</option>
+                  {objectTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <select aria-label="Filtrer par calque" value={objectLayerFilter} onChange={(event) => setObjectLayerFilter(event.target.value)}>
+                  <option value="all">Cq</option>
+                  {objectLayerOptions.map((layer) => (
+                    <option key={layer.id} value={layer.id}>
+                      {layer.label}
+                    </option>
+                  ))}
+                </select>
+                <select aria-label="Filtrer par page" value={objectPageFilter} onChange={(event) => setObjectPageFilter(event.target.value)}>
+                  <option value="all">Pg</option>
+                  {activePageViews.map((page) => (
+                    <option key={page.id} value={String(page.index)}>
+                      {page.index}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className={["ef-left-panel-scroll", activeTab === "layers" ? "is-layers-panel" : "", activeTab === "objects" ? "is-objects-panel" : ""].join(" ")}>
+        {activeTab === "pages" ? (
+          <PagesPanel pages={activePageViews} filter={panelFilters.pages ?? ""} onSelectPage={handlePageSelect} />
+        ) : null}
+        {activeTab === "layers" ? (
           <LayersPanel
-            mode={layersViewMode}
+            layers={layerViews}
+            objects={objectViews}
             filter={panelFilters.layers ?? ""}
-            pageFilter={typeFilters[stateKey] ?? ""}
-            stateFilter={typeFilters[`${stateKey}-secondary`] ?? ""}
+            pageFilter={layerPageFilter}
+            visibilityFilter={layerVisibilityFilter}
+            lockFilter={layerLockFilter}
+            mode={layersViewMode}
+            onAddLayer={handleAddLayer}
+            onActivateLayer={handleLayerActivate}
+            onDeleteLayers={handleDeleteLayers}
+            onMergeLayers={handleMergeLayers}
+            onMoveLayers={handleMoveLayers}
+            onRenameLayer={handleRenameLayer}
+            onReorderLayer={(input) => reorderWorkspaceLayerForPage(input)}
+            onSelectObject={handleObjectSelect}
+            onSelectLayer={handleLayerSelect}
           />
         ) : null}
-        {config.panel === "objects" ? <ObjectsPanel filter={panelFilters.objects ?? ""} typeFilter={typeFilters[stateKey] ?? ""} pageFilter={typeFilters[`${stateKey}-secondary`] ?? ""} /> : null}
-        {config.panel === "pages" ? <PagesPanel filter={panelFilters.pages ?? ""} /> : null}
+        {activeTab === "objects" ? (
+          <ObjectsPanel
+            objects={objectViews}
+            filter={panelFilters.objects ?? ""}
+            layerFilter={objectLayerFilter}
+            pageFilter={objectPageFilter}
+            typeFilter={objectTypeFilter}
+            onSelectObject={handleObjectSelect}
+          />
+        ) : null}
+        {activeTab === "data" ? (
+          activeSubTab === "variables" ? (
+            <VariablesCompactPanel onDragContext={setDragTraceContext} onDragEnd={clearDragTraceContext} />
+          ) : (
+            <UnavailablePanel title={tab.label} subtitle={activeSubTab ? PRIMARY_TABS.find((item) => item.id === activeTab)?.subTabs?.find((item) => item.id === activeSubTab)?.label : undefined} />
+          )
+        ) : null}
+        {activeTab === "libraries" ? (
+          <LibraryPanel
+            subTab={activeSubTab ?? "images"}
+            filter={panelFilters.libraries ?? ""}
+            onDragContext={setDragTraceContext}
+            onDragEnd={clearDragTraceContext}
+          />
+        ) : null}
       </div>
-
-      {config.footer ? <FooterActions actions={config.footer} /> : null}
     </aside>
   );
 }
@@ -354,12 +373,12 @@ function PrimaryRail({
             type="button"
             role="tab"
             aria-selected={active}
-            aria-label={tab.tooltip}
-            title={tab.tooltip}
+            aria-label={tab.label}
+            title={tab.label}
             className={["ef-left-tab", active ? "is-active" : ""].join(" ")}
             onClick={() => onTabChange(tab.id)}
           >
-            <MaterialIcon name={tab.icon} size={20} filled={active} />
+            <IconGlyph icon={tab.icon} size={18} />
           </button>
         );
       })}
@@ -386,12 +405,12 @@ function SubTabRail({
             type="button"
             role="tab"
             aria-selected={active}
-            aria-label={item.tooltip}
-            title={item.tooltip}
+            aria-label={item.label}
+            title={item.label}
             className={["ef-left-subtab", active ? "is-active" : ""].join(" ")}
             onClick={() => onSubTabChange(item.id)}
           >
-            <MaterialIcon name={item.icon} size={18} filled={active} />
+            <IconGlyph icon={item.icon} size={16} />
           </button>
         );
       })}
@@ -399,461 +418,34 @@ function SubTabRail({
   );
 }
 
-function ControlHeader({
-  showView,
-  viewMode,
-  onViewModeChange,
-  rightActions,
+function PagesPanel({
+  pages,
   filter,
-  onFilterChange,
-  filterConfig,
-  typeFilter,
-  onTypeFilterChange,
-  typeFilter2,
-  onTypeFilterChange2,
+  onSelectPage,
 }: {
-  showView: boolean;
-  viewMode: "grid" | "list";
-  onViewModeChange: (mode: "grid" | "list") => void;
-  rightActions: ActionIcon[];
+  pages: EditorPageView[];
   filter: string;
-  onFilterChange: (value: string) => void;
-  filterConfig:
-    | { placeholder: string; typeOptions?: string[]; typeLabel?: string; typeOptions2?: string[]; typeLabel2?: string }
-    | null;
-  typeFilter: string;
-  onTypeFilterChange: (value: string) => void;
-  typeFilter2: string;
-  onTypeFilterChange2: (value: string) => void;
+  onSelectPage: (pageId: string) => void;
 }) {
-  return (
-    <div className="ef-control-header">
-      <div className="ef-control-row">
-        <div className="ef-control-left">
-          {showView ? (
-            <div className="ef-view-toggle" role="group" aria-label="Mode d’affichage">
-              <button type="button" className={viewMode === "grid" ? "is-active" : ""} title="Grille" aria-label="Grille" onClick={() => onViewModeChange("grid")}>
-                <MaterialIcon name="grid_view" size={14} filled={viewMode === "grid"} />
-              </button>
-              <button type="button" className={viewMode === "list" ? "is-active" : ""} title="Liste" aria-label="Liste" onClick={() => onViewModeChange("list")}>
-                <MaterialIcon name="view_list" size={14} filled={viewMode === "list"} />
-              </button>
-            </div>
-          ) : (
-            <span className="ef-control-left-spacer" aria-hidden="true" />
-          )}
-        </div>
-        <div className="ef-control-actions">
-          {rightActions.map((action) => (
-            <IconAction key={action} action={action} />
-          ))}
-        </div>
-      </div>
-
-      <div
-        className={[
-          "ef-control-filter",
-          filterConfig?.typeOptions2 ? "has-two" : filterConfig?.typeOptions ? "has-one" : "has-none",
-        ].join(" ")}
-      >
-        <label className="ef-search-box">
-          <MaterialIcon name="filter_list" size={18} />
-          <input type="search" value={filter} placeholder={filterConfig?.placeholder ?? "Filtrer…"} aria-label={filterConfig?.placeholder ?? "Filtrer"} onChange={(event) => onFilterChange(event.target.value)} />
-        </label>
-        {filterConfig?.typeOptions ? (
-          <select className="ef-filter-select" value={typeFilter} onChange={(event) => onTypeFilterChange(event.target.value)}>
-            <option value="">{filterConfig.typeLabel ?? "TYPE"}</option>
-            {filterConfig.typeOptions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {filterConfig?.typeOptions2 ? (
-          <select className="ef-filter-select" value={typeFilter2} onChange={(event) => onTypeFilterChange2(event.target.value)}>
-            <option value="">{filterConfig.typeLabel2 ?? "TYPE"}</option>
-            {filterConfig.typeOptions2.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function LayersControlHeader({
-  mode,
-  onModeChange,
-  filter,
-  onFilterChange,
-  filterConfig,
-  typeFilter,
-  onTypeFilterChange,
-  typeFilter2,
-  onTypeFilterChange2,
-}: {
-  mode: "list" | "tree";
-  onModeChange: (mode: "list" | "tree") => void;
-  filter: string;
-  onFilterChange: (value: string) => void;
-  filterConfig:
-    | { placeholder: string; typeOptions?: string[]; typeLabel?: string; typeOptions2?: string[]; typeLabel2?: string }
-    | null;
-  typeFilter: string;
-  onTypeFilterChange: (value: string) => void;
-  typeFilter2: string;
-  onTypeFilterChange2: (value: string) => void;
-}) {
-  return (
-    <div className="ef-control-header ef-control-header--layers">
-      <div className="ef-control-row">
-        <div className="ef-control-left">
-          <div className="ef-view-toggle ef-layer-view-toggle" role="group" aria-label="Mode d’affichage">
-            <button type="button" className={mode === "list" ? "is-active" : ""} title="Liste" aria-label="Liste" onClick={() => onModeChange("list")}>
-              <MaterialIcon name="view_list" size={14} filled={mode === "list"} />
-            </button>
-            <button type="button" className={mode === "tree" ? "is-active" : ""} title="Hiérarchie" aria-label="Hiérarchie" onClick={() => onModeChange("tree")}>
-              <MaterialIcon name="schema" size={14} filled={mode === "tree"} />
-            </button>
-          </div>
-        </div>
-        <div className="ef-control-actions">
-          <IconAction action="settings" />
-        </div>
-      </div>
-
-      <div className="ef-control-filter has-two">
-        <label className="ef-search-box">
-          <MaterialIcon name="filter_list" size={18} />
-          <input type="search" value={filter} placeholder={filterConfig?.placeholder ?? "Filtrer…"} aria-label={filterConfig?.placeholder ?? "Filtrer"} onChange={(event) => onFilterChange(event.target.value)} />
-        </label>
-        {filterConfig?.typeOptions ? (
-          <select className="ef-filter-select" value={typeFilter} onChange={(event) => onTypeFilterChange(event.target.value)}>
-            <option value="">{filterConfig.typeLabel ?? "TYPE"}</option>
-            {filterConfig.typeOptions.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {filterConfig?.typeOptions2 ? (
-          <select className="ef-filter-select" value={typeFilter2} onChange={(event) => onTypeFilterChange2(event.target.value)}>
-            <option value="">{filterConfig.typeLabel2 ?? "TYPE"}</option>
-            {filterConfig.typeOptions2.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function IconAction({ action }: { action: ActionIcon }) {
-  return (
-    <button className="ef-square-button ef-icon-28" type="button" title={actionLabels[action]} aria-label={actionLabels[action]}>
-      <MaterialIcon name={actionIconName[action]} size={18} />
-    </button>
-  );
-}
-
-function FooterActions({ actions }: { actions: ActionIcon[] }) {
-  return (
-    <div className="ef-left-panel-footer">
-      {actions.map((action) => (
-        <button key={action} className="ef-footer-icon-action" type="button" title={actionLabels[action]} aria-label={actionLabels[action]}>
-          <MaterialIcon name={footerActionIconName[action]} size={18} />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function VariablesPanel({ filter, typeFilter }: { filter: string; typeFilter: string }) {
-  const rows = useMemo(
-    () =>
-      variables.filter(
-        (item) =>
-          matchesFilter(item, filter, [item.label, item.token, item.type, item.mappedPath, item.sampleValue]) &&
-          (!typeFilter || item.type === typeFilter),
-      ),
-    [filter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "label");
+  const rows = useMemo(() => pages.filter((page) => matchesFilter(page, filter, [page.name, String(page.index), `${page.width}x${page.height}`, String(page.elementCount)])), [filter, pages]);
 
   return (
-    <div className="ef-entity-card-stack">
-      <div className="ef-data-sort-head">
-        <SortHeader label="VARIABLE" dir={dirOf("label")} onClick={() => toggle("label")} />
-        <SortHeader label="TYPE" dir={dirOf("type")} onClick={() => toggle("type")} width={78} align="center" />
-      </div>
-      <div className="ef-entity-card-list ef-entity-card-list-variables">
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-entity-card ef-variable-card" type="button" draggable onDragStart={(event) => setDragPayload(event, "variable", item)} title={`${item.token} → ${item.mappedPath}`}>
-            <span className="ef-entity-card-token">{item.token}</span>
-            <span className="ef-entity-card-type">
-              <Badge value={item.type} colorSet={VAR_TYPE_COLORS[item.type]} width={55} />
+    <div className="ef-page-list">
+      {rows.map((page) => (
+        <button key={page.id} className={["ef-page-card", page.active ? "is-active" : ""].join(" ")} type="button" onClick={() => onSelectPage(page.id)} title={page.name}>
+          <span className="ef-page-preview" aria-hidden="true">
+            <span className="ef-page-preview-fallback">
+              <span>{page.index}</span>
             </span>
-          </button>
-        ))}
-      </div>
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function PresetsPanel({ filter, typeFilter }: { filter: string; typeFilter: string }) {
-  const rows = useMemo(
-    () =>
-      presets.filter(
-        (item) =>
-          matchesFilter(item, filter, [item.label, item.token, item.type, item.mappedPath, item.description]) &&
-          (!typeFilter || item.type === typeFilter),
-      ),
-    [filter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "token");
-
-  return (
-    <div className="ef-entity-card-stack">
-      <div className="ef-data-sort-head">
-        <SortHeader label="PRESET" dir={dirOf("token")} onClick={() => toggle("token")} />
-        <SortHeader label="TYPE" dir={dirOf("type")} onClick={() => toggle("type")} width={78} align="center" />
-      </div>
-      <div className="ef-entity-card-list ef-entity-card-list-presets">
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-entity-card ef-preset-card" type="button" draggable onDragStart={(event) => setDragPayload(event, "preset", item, "data/presets")} onDragEnd={(event) => handleDragEnd(event, "preset", item, "data/presets")} title={`${item.token} - ${item.description}`}>
-            <span className="ef-entity-card-token">{`{${item.token.replace(/[{}]/g, "")}}`}</span>
-            <span className="ef-entity-card-type">
-              <Badge value={item.type} colorSet={PRESET_TYPE_COLORS[item.type]} width={84} />
+          </span>
+          <span className="ef-page-meta">
+            <span className="ef-page-number">{page.index}</span>
+            <strong>{page.name}</strong>
+            <span style={smallMutedText}>
+              {page.width} × {page.height}
             </span>
-          </button>
-        ))}
-      </div>
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function ImagesPanel({
-  viewMode,
-  filter,
-  typeFilter,
-}: {
-  viewMode: "grid" | "list";
-  filter: string;
-  typeFilter: string;
-}) {
-  const rows = useMemo(
-    () => images.filter((item) => matchesFilter(item, filter, [item.name, item.category, ...item.tags]) && (!typeFilter || item.category === typeFilter)),
-    [filter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "name");
-
-  if (viewMode === "list") {
-    return (
-      <div className="ef-list-table">
-        <div className="ef-list-head-row is-image">
-          <SortHeader label="NOM" dir={dirOf("name")} onClick={() => toggle("name")} />
-          <SortHeader label="CAT." dir={dirOf("category")} onClick={() => toggle("category")} width={74} align="center" />
-          <SortHeader label="TAILLE" dir={dirOf("width")} onClick={() => toggle("width")} width={82} align="center" />
-        </div>
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-list-row is-image" type="button" draggable onDragStart={(event) => setDragPayload(event, "image", item, "libraries/images")} onDragEnd={(event) => handleDragEnd(event, "image", item, "libraries/images")}>
-            <Image src={item.src} alt="" width={32} height={32} unoptimized className="object-cover" draggable={false} />
-            <strong>{item.name}</strong>
-            <span>{item.category}</span>
-            <span>{item.width}×{item.height}</span>
-          </button>
-        ))}
-        {rows.length === 0 ? <NoResult /> : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ef-asset-grid ef-asset-grid-2">
-      {sorted.map((item) => (
-        <button key={item.id} className="ef-asset-card is-image" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "image", item, "libraries/images")} onDragEnd={(event) => handleDragEnd(event, "image", item, "libraries/images")}>
-          <Image src={item.src} alt={item.name} width={120} height={120} unoptimized className="object-cover" draggable={false} />
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function ShapesPanel({
-  viewMode,
-  filter,
-  typeFilter,
-}: {
-  viewMode: "grid" | "list";
-  filter: string;
-  typeFilter: string;
-}) {
-  const rows = useMemo(
-    () => shapes.filter((item) => matchesFilter(item, filter, [item.name, item.category, item.type, ...item.tags]) && (!typeFilter || item.category === typeFilter)),
-    [filter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "name");
-
-  if (viewMode === "list") {
-    return (
-      <div className="ef-list-table">
-        <div className="ef-list-head-row is-text-block">
-          <SortHeader label="SHAPE" dir={dirOf("name")} onClick={() => toggle("name")} />
-          <SortHeader label="CAT." dir={dirOf("category")} onClick={() => toggle("category")} width={72} align="center" />
-        </div>
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-list-row is-text-block" type="button" draggable onDragStart={(event) => setDragPayload(event, "shape", item)}>
-            <span className="ef-mini-preview">
-              <Image src={svgToDataUri(item.svg)} alt="" width={18} height={18} unoptimized />
-            </span>
-            <strong>{item.name}</strong>
-            <span>{item.category}</span>
-          </button>
-        ))}
-        {rows.length === 0 ? <NoResult /> : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ef-asset-grid ef-asset-grid-3">
-      {sorted.map((item) => (
-        <button key={item.id} className="ef-asset-card is-shape" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "shape", item)}>
-          <Image src={svgToDataUri(item.svg)} alt={item.name} width={90} height={90} unoptimized />
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function IconsPanel({
-  viewMode,
-  filter,
-  typeFilter,
-  typeFilter2,
-}: {
-  viewMode: "grid" | "list";
-  filter: string;
-  typeFilter: string;
-  typeFilter2: string;
-}) {
-  const rows = useMemo(
-    () =>
-      icons.filter(
-        (item) =>
-          matchesFilter(item, filter, [item.name, item.category, item.variant, ...(item.tags ?? [])]) &&
-          (!typeFilter || item.category === typeFilter) &&
-          (!typeFilter2 || item.variant === typeFilter2),
-      ),
-    [filter, typeFilter, typeFilter2],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "name");
-
-  if (viewMode === "list") {
-    return (
-      <div className="ef-list-table">
-        <div className="ef-list-head-row is-icon">
-          <SortHeader label="ICÔNE" dir={dirOf("name")} onClick={() => toggle("name")} />
-          <SortHeader label="CAT." dir={dirOf("category")} onClick={() => toggle("category")} width={80} align="center" />
-          <SortHeader label="FORMAT" dir={dirOf("variant")} onClick={() => toggle("variant")} width={52} align="center" />
-        </div>
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-list-row is-icon" type="button" draggable onDragStart={(event) => setDragPayload(event, "icon", item)}>
-            <span className="ef-list-preview">{renderIconPreview(item)}</span>
-            <strong>{item.name}</strong>
-            <span>{item.category}</span>
-            <Badge value={item.variant === "mono" ? "SVG" : "PNG"} colorSet={item.variant === "mono" ? VAR_TYPE_COLORS.TEXTE : VAR_TYPE_COLORS.IMAGE} width={40} />
-          </button>
-        ))}
-        {rows.length === 0 ? <NoResult /> : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ef-asset-grid ef-asset-grid-4">
-      {sorted.map((item) => (
-        <button key={item.id} className="ef-asset-card is-icon" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "icon", item)}>
-          {renderIconPreview(item)}
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function EmojiPanel({ filter }: { filter: string }) {
-  const rows = useMemo(
-    () => emojis.filter((item) => matchesFilter(item, filter, [item.emoji, item.name, item.category, ...item.tags])),
-    [filter],
-  );
-
-  return (
-    <div className="ef-emoji-grid">
-      {rows.map((item) => (
-        <button key={item.id} className="ef-emoji-card" type="button" title={item.name} draggable onDragStart={(event) => setDragPayload(event, "emoji", item)}>
-          {item.emoji}
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
-  );
-}
-
-function TextBlocksPanel({
-  viewMode,
-  filter,
-  typeFilter,
-}: {
-  viewMode: "grid" | "list";
-  filter: string;
-  typeFilter: string;
-}) {
-  const rows = useMemo(
-    () =>
-      textBlocks.filter(
-        (item) => matchesFilter(item, filter, [item.name, item.category, item.preview, item.html, ...item.tags]) && (!typeFilter || item.category === typeFilter),
-      ),
-    [filter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "name");
-
-  if (viewMode === "list") {
-    return (
-      <div className="ef-list-table">
-        <div className="ef-list-head-row is-text-block">
-          <SortHeader label="NOM DU BLOC" dir={dirOf("name")} onClick={() => toggle("name")} />
-          <SortHeader label="CAT." dir={dirOf("category")} onClick={() => toggle("category")} width={96} align="center" />
-        </div>
-        {sorted.map((item) => (
-          <button key={item.id} className="ef-list-row is-text-block" type="button" draggable onDragStart={(event) => setDragPayload(event, "text-block", item)}>
-            <span className="ef-mini-preview" dangerouslySetInnerHTML={{ __html: item.preview }} />
-            <strong>{item.name}</strong>
-            <span>{item.category}</span>
-          </button>
-        ))}
-        {rows.length === 0 ? <NoResult /> : null}
-      </div>
-    );
-  }
-
-  return (
-    <div className="ef-text-block-grid">
-      {sorted.map((item) => (
-        <button key={item.id} className="ef-text-block-card" type="button" draggable onDragStart={(event) => setDragPayload(event, "text-block", item)}>
-          <span dangerouslySetInnerHTML={{ __html: item.preview }} />
+            <span style={smallMutedText}>{page.elementCount} élément{page.elementCount > 1 ? "s" : ""}</span>
+          </span>
         </button>
       ))}
       {rows.length === 0 ? <NoResult /> : null}
@@ -862,230 +454,886 @@ function TextBlocksPanel({
 }
 
 function LayersPanel({
-  mode,
+  layers,
+  objects,
   filter,
   pageFilter,
-  stateFilter,
+  visibilityFilter,
+  lockFilter,
+  mode,
+  onAddLayer,
+  onActivateLayer,
+  onDeleteLayers,
+  onMergeLayers,
+  onMoveLayers,
+  onRenameLayer,
+  onReorderLayer,
+  onSelectObject,
+  onSelectLayer,
 }: {
-  mode: "list" | "tree";
+  layers: EditorLayerView[];
+  objects: EditorObjectView[];
   filter: string;
   pageFilter: string;
-  stateFilter: string;
+  visibilityFilter: string;
+  lockFilter: string;
+  mode: "list" | "tree";
+  onAddLayer: () => string | null;
+  onActivateLayer: (layer: EditorLayerView) => void;
+  onDeleteLayers: (layers: EditorLayerView[]) => void;
+  onMergeLayers: (layers: EditorLayerView[]) => void;
+  onMoveLayers: (layers: EditorLayerView[], direction: "up" | "down") => void;
+  onRenameLayer: (layer: EditorLayerView) => void;
+  onReorderLayer: (input: { pageId: string; layerId: string; targetLayerId: string; position: "before" | "after" }) => void;
+  onSelectObject: (object: EditorObjectView) => void;
+  onSelectLayer: (layer: EditorLayerView) => void;
 }) {
+  const [draggedLayerId, setDraggedLayerId] = useState<string | null>(null);
+  const [collapsedPageIds, setCollapsedPageIds] = useState<Set<string>>(() => new Set());
+  const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(() => new Set());
+  const [collapsedGroupIds, setCollapsedGroupIds] = useState<Set<string>>(() => new Set());
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const [lastSelectedLayerId, setLastSelectedLayerId] = useState<string | null>(null);
   const rows = useMemo(
     () =>
-      layers.filter((item) => {
-        const matchesQuery = matchesFilter(item, filter, [item.name, String(item.number), String(item.page), item.visible ? "visible" : "hidden", item.locked ? "locked" : "unlocked"]);
-        const matchesPage = !pageFilter || String(item.page) === pageFilter;
-        const matchesState =
-          !stateFilter ||
-          stateFilter === "all" ||
-          (stateFilter === "active" && item.active) ||
-          (stateFilter === "visible" && item.visible) ||
-          (stateFilter === "hidden" && !item.visible) ||
-          (stateFilter === "locked" && item.locked) ||
-          (stateFilter === "unlocked" && !item.locked);
-        return matchesQuery && matchesPage && matchesState;
-      }),
-    [filter, pageFilter, stateFilter],
+      filterEditorLayersView(layers, {
+        text: filter,
+        page: pageFilter,
+        visibility: visibilityFilter === "visible" || visibilityFilter === "hidden" ? visibilityFilter : "all",
+        lock: lockFilter === "locked" || lockFilter === "unlocked" ? lockFilter : "all",
+      }).map((layer) => ({
+          ...layer,
+          grouped: false,
+        })),
+    [filter, layers, lockFilter, pageFilter, visibilityFilter],
   );
-  const { sorted, toggle, dirOf } = useSort(rows, "number");
-  const pageGroups = useMemo(() => groupLayersByPage(sorted), [sorted]);
-  const [expandedPages, setExpandedPages] = useState<Record<number, boolean>>({});
-  const [expandedLayers, setExpandedLayers] = useState<Record<string, boolean>>({});
+  const { sorted, toggle, dirOf } = useSort(rows, "order");
+  const selectedLayers = sorted.filter((layer) => selectedLayerIds.includes(layer.id));
+  const primarySelectedLayer = selectedLayers[0] ?? null;
+  const selectedPageIds = new Set(selectedLayers.map((layer) => layer.pageId));
+  const selectedSamePage = selectedPageIds.size <= 1;
+  const selectedPageLayers = primarySelectedLayer ? sorted.filter((layer) => layer.pageId === primarySelectedLayer.pageId).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr")) : [];
+  const selectedLayerIdSet = new Set(selectedLayers.map((layer) => layer.id));
+  const layerCountByPageId = sorted.reduce<Map<string, number>>((counts, layer) => {
+    counts.set(layer.pageId, (counts.get(layer.pageId) ?? 0) + 1);
+    return counts;
+  }, new Map());
+  const canDeleteSelectedLayers = selectedLayers.some((layer) => layer.objectCount === 0 && (layerCountByPageId.get(layer.pageId) ?? 0) > 1);
+  const canMergeSelectedLayers = selectedLayers.length >= 2 && selectedSamePage;
+  const canMoveSelectedLayerUp = selectedLayers.length > 0 && selectedSamePage && selectedPageLayers.some((layer, index) => selectedLayerIdSet.has(layer.id) && index > 0 && !selectedLayerIdSet.has(selectedPageLayers[index - 1]?.id ?? ""));
+  const canMoveSelectedLayerDown = selectedLayers.length > 0 && selectedSamePage && selectedPageLayers.some((layer, index) => selectedLayerIdSet.has(layer.id) && index < selectedPageLayers.length - 1 && !selectedLayerIdSet.has(selectedPageLayers[index + 1]?.id ?? ""));
+  const objectsByLayerId = useMemo(() => {
+    const groups = new Map<string, EditorObjectView[]>();
+    objects.forEach((object) => {
+      if (!object.layerId) {
+        return;
+      }
+
+      const layerObjects = groups.get(object.layerId);
+      if (layerObjects) {
+        layerObjects.push(object);
+        return;
+      }
+
+      groups.set(object.layerId, [object]);
+    });
+
+    return groups;
+  }, [objects]);
+  const pageGroups = useMemo(() => {
+    const groups = new Map<string, { pageId: string; pageName: string; pageIndex: number; layers: typeof sorted }>();
+    sorted.forEach((layer) => {
+      const current = groups.get(layer.pageId);
+      if (current) {
+        current.layers.push(layer);
+        return;
+      }
+
+      groups.set(layer.pageId, {
+        pageId: layer.pageId,
+        pageName: layer.pageName,
+        pageIndex: layer.pageIndex,
+        layers: [layer],
+      });
+    });
+
+    return [...groups.values()].sort((a, b) => a.pageIndex - b.pageIndex);
+  }, [sorted]);
+
+  function toggleCollapsed(setter: (value: Set<string>) => void, current: Set<string>, id: string) {
+    const next = new Set(current);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setter(next);
+  }
+
+  function handleLayerDrop(event: DragEvent<HTMLElement>, targetLayer: EditorLayerView) {
+    event.preventDefault();
+    const layerId = event.dataTransfer.getData("application/x-resume-editor-layer") || draggedLayerId;
+    setDraggedLayerId(null);
+    if (!layerId || layerId === targetLayer.id) {
+      return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+    onReorderLayer({
+      pageId: targetLayer.pageId,
+      layerId,
+      targetLayerId: targetLayer.id,
+      position,
+    });
+  }
+
+  function handleLayerClick(event: MouseEvent, layer: EditorLayerView) {
+    onSelectLayer(layer);
+    setLastSelectedLayerId(layer.id);
+
+    if (event.shiftKey && lastSelectedLayerId) {
+      const start = sorted.findIndex((item) => item.id === lastSelectedLayerId);
+      const end = sorted.findIndex((item) => item.id === layer.id);
+      if (start >= 0 && end >= 0) {
+        const [from, to] = start < end ? [start, end] : [end, start];
+        setSelectedLayerIds(sorted.slice(from, to + 1).map((item) => item.id));
+        return;
+      }
+    }
+
+    if (event.metaKey || event.ctrlKey) {
+      setSelectedLayerIds((current) => (current.includes(layer.id) ? current.filter((id) => id !== layer.id) : [...current, layer.id]));
+      return;
+    }
+
+    setSelectedLayerIds([layer.id]);
+  }
+
+  function handleAddLayerClick() {
+    const layerId = onAddLayer();
+    if (!layerId) {
+      return;
+    }
+
+    setSelectedLayerIds([layerId]);
+    setLastSelectedLayerId(layerId);
+  }
 
   return (
     <div className="ef-layers-shell">
-      {mode === "list" ? (
-        <div className="ef-layer-table">
+      <div className="ef-layers-list-scroll">
+        {mode === "list" ? (
+          <div className="ef-layer-table">
           <div className="ef-layer-head">
-            <SortHeader label="N°" dir={dirOf("number")} onClick={() => toggle("number")} width={34} />
+            <SortHeader label="N°" dir={dirOf("number")} onClick={() => toggle("number")} align="center" />
+            <SortHeader label="O" dir={dirOf("order")} onClick={() => toggle("order")} align="center" />
             <SortHeader label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
-            <SortHeader label="Pg" dir={dirOf("page")} onClick={() => toggle("page")} width={30} align="center" />
-            <SortHeader label="V" dir={null} onClick={() => undefined} width={26} align="center" />
-            <SortHeader label="L" dir={null} onClick={() => undefined} width={26} align="center" />
+            <SortHeader label="Pg" dir={dirOf("pageIndex")} onClick={() => toggle("pageIndex")} align="center" />
+            <SortHeader label="A" dir={dirOf("visible")} onClick={() => toggle("visible")} align="center" />
+            <SortHeader label="V" dir={dirOf("locked")} onClick={() => toggle("locked")} align="center" />
           </div>
-          {sorted.map((item) => (
+          {sorted.map((layer) => (
             <button
-              key={item.id}
-              className={["ef-layer-table-row", item.active ? "is-active-layer" : ""].join(" ")}
+              key={layer.id}
+              className={["ef-layer-table-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
               type="button"
               draggable
-              onDragStart={(event) => setDragPayload(event, "layer", item)}
-              title={item.name}
+              data-layer-id={layer.id}
+              data-page-id={layer.pageId}
+              data-object-count={layer.objectCount}
+              onClick={(event) => handleLayerClick(event, layer)}
+              onDoubleClick={() => onActivateLayer(layer)}
+              onDragStart={(event) => {
+                setDraggedLayerId(layer.id);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("application/x-resume-editor-layer", layer.id);
+              }}
+              onDragOver={(event) => {
+                if (draggedLayerId && draggedLayerId !== layer.id) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                }
+              }}
+              onDrop={(event) => handleLayerDrop(event, layer)}
+              onDragEnd={() => setDraggedLayerId(null)}
+              title={layer.name}
             >
-              <span className="ef-layer-handle">
-                <MaterialIcon name="drag_indicator" size={12} />
-              </span>
-              <span>{item.number}</span>
-              <strong>{item.name}</strong>
-              <span>{item.page}</span>
-              <span>{item.visible ? <MaterialIcon name="visibility" size={18} filled /> : <MaterialIcon name="visibility_off" size={18} />}</span>
-              <span>{item.locked ? <MaterialIcon name="lock" size={18} filled /> : <MaterialIcon name="lock_open" size={18} />}</span>
+              <span>{layer.number}</span>
+              <span>{layer.order}</span>
+              <strong>{layer.name}</strong>
+              <span>{layer.pageIndex}</span>
+              <span>{layer.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
+              <span>{layer.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
             </button>
           ))}
           {rows.length === 0 ? <NoResult /> : null}
-        </div>
-      ) : (
-        <div className="ef-layer-tree">
-          {pageGroups.map((group) => {
-            const isExpanded = expandedPages[group.page.number] ?? true;
-            return (
-              <div key={group.page.id} className="ef-layer-tree-page">
-                <button
-                  type="button"
-                  className="ef-layer-tree-page-row"
-                  onClick={() => setExpandedPages((current) => ({ ...current, [group.page.number]: !isExpanded }))}
-                  title={group.page.name}
-                >
-                  <span className="ef-layer-tree-toggle">
-                    <MaterialIcon name={isExpanded ? "expand_more" : "chevron_right"} size={16} />
-                  </span>
-                  <span className="ef-layer-tree-page-icon">
-                    <MaterialIcon name="description" size={15} />
-                  </span>
-                  <strong>
-                    <span className="ef-layer-tree-page-prefix">P{group.page.number}</span> {group.page.name}
-                  </strong>
-                  <span className="ef-layer-tree-page-count">{group.layers.length}</span>
-                </button>
-
-                {isExpanded ? (
-                  <div className="ef-layer-tree-page-body">
-                    {group.layers.map((item) => {
-                      const isLayerExpanded = expandedLayers[item.id] ?? item.active;
-                      const childRows = item.objectIds
-                        .map((objectId) => objects.find((entry) => entry.id === objectId))
-                        .filter((entry): entry is NonNullable<(typeof objects)[number]> => Boolean(entry));
-                      return (
-                        <div key={item.id} className="ef-layer-tree-layer">
-                          <button
-                            type="button"
-                            className={["ef-layer-tree-layer-row", item.active ? "is-active-layer" : ""].join(" ")}
-                            onClick={() => setExpandedLayers((current) => ({ ...current, [item.id]: !isLayerExpanded }))}
-                            draggable
-                            onDragStart={(event) => setDragPayload(event, "layer", item)}
-                            title={item.name}
-                          >
-                            <span className="ef-layer-tree-toggle">
-                              <MaterialIcon name={isLayerExpanded ? "expand_more" : "chevron_right"} size={16} />
-                            </span>
-                            <span className="ef-layer-tree-layer-icon">
-                              <MaterialIcon name="layers" size={15} filled={item.active} />
-                            </span>
-                            <strong>
-                              <span className="ef-layer-tree-layer-prefix">C{item.number}</span> {item.name}
-                            </strong>
-                            <span className="ef-layer-tree-layer-count">{childRows.length || item.objectIds.length}</span>
-                            <span className="ef-layer-tree-visibility">{item.visible ? <MaterialIcon name="visibility" size={18} filled /> : <MaterialIcon name="visibility_off" size={18} />}</span>
-                            <span className="ef-layer-tree-lock">{item.locked ? <MaterialIcon name="lock" size={18} filled /> : <MaterialIcon name="lock_open" size={18} />}</span>
-                          </button>
-
-                          {isLayerExpanded && childRows.length > 0 ? (
-                            <div className="ef-layer-tree-children">
-                              {childRows.map((object) => (
-                                <button
-                                  key={object.id}
-                                  type="button"
-                                  className="ef-layer-tree-child-row"
-                                  draggable
-                                  onDragStart={(event) => setDragPayload(event, "object", object)}
-                                  title={object.name}
-                                >
-                                  <span className="ef-layer-tree-child-dot">
-                                    <MaterialIcon name="radio_button_unchecked" size={14} />
-                                  </span>
-                                  <strong>{treeObjectLabel(object)}</strong>
-                                  <span className="ef-layer-tree-child-type">{treeObjectTypeLabel(object)}</span>
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
+          </div>
+        ) : (
+          <div className="ef-layer-tree">
+            {pageGroups.map((pageGroup) => {
+              const pageCollapsed = collapsedPageIds.has(pageGroup.pageId);
+              return (
+                <div key={pageGroup.pageId} className="ef-layer-tree-page">
+                  <button type="button" className="ef-layer-tree-page-row" title={pageGroup.pageName} onClick={() => toggleCollapsed(setCollapsedPageIds, collapsedPageIds, pageGroup.pageId)}>
+                    <span className="ef-layer-tree-toggle">
+                      <IconGlyph icon={pageCollapsed ? ChevronRight : ChevronDown} size={16} />
+                    </span>
+                    <span className="ef-layer-tree-page-icon">
+                      <IconGlyph icon={FileText} size={15} />
+                    </span>
+                    <strong>
+                      <span className="ef-layer-tree-page-prefix">Page {pageGroup.pageIndex}</span>
+                      <span>{pageGroup.pageName}</span>
+                    </strong>
+                    <span className="ef-layer-tree-page-count">{pageGroup.layers.length}</span>
+                  </button>
+                  {pageCollapsed ? null : (
+                    <div className="ef-layer-tree-page-body">
+                      {pageGroup.layers.map((layer) => {
+                        const layerCollapsed = collapsedLayerIds.has(layer.id);
+                        const layerObjects = objectsByLayerId.get(layer.id) ?? [];
+                        const groupedObjects = groupObjectsForLayer(layerObjects);
+                        return (
+                <div key={layer.id} className="ef-layer-tree-layer">
+                  <button
+                    type="button"
+                              className={["ef-layer-tree-layer-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
+                    draggable
+                    onClick={(event) => handleLayerClick(event, layer)}
+                              onDoubleClick={() => onActivateLayer(layer)}
+                    onDragStart={(event) => {
+                      setDraggedLayerId(layer.id);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("application/x-resume-editor-layer", layer.id);
+                    }}
+                    onDragOver={(event) => {
+                      if (draggedLayerId && draggedLayerId !== layer.id) {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }
+                    }}
+                    onDrop={(event) => handleLayerDrop(event, layer)}
+                    onDragEnd={() => setDraggedLayerId(null)}
+                    title={layer.name}
+                  >
+                              <span className="ef-layer-tree-toggle" onClick={(event) => {
+                                event.stopPropagation();
+                                toggleCollapsed(setCollapsedLayerIds, collapsedLayerIds, layer.id);
+                              }}>
+                                <IconGlyph icon={layerCollapsed ? ChevronRight : ChevronDown} size={14} />
+                              </span>
+                    <span>{layer.number}</span>
+                    <span>{layer.order}</span>
+                    <span>{layer.pageIndex}</span>
+                    <span>{layer.objectCount}</span>
+                    <span className="ef-layer-tree-visibility">{layer.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
+                    <span className="ef-layer-tree-lock">{layer.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
+                    <span>{layer.grouped ? "Oui" : "—"}</span>
+                    <strong>{layer.name}</strong>
+                  </button>
+                            {layerCollapsed ? null : (
+                              <LayerObjectTree
+                                collapsedGroupIds={collapsedGroupIds}
+                                groups={groupedObjects}
+                                layer={layer}
+                                onSelectObject={onSelectObject}
+                                setCollapsedGroupIds={setCollapsedGroupIds}
+                              />
+                            )}
+                </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           {rows.length === 0 ? <NoResult /> : null}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
+      <div className="ef-layers-toolbar" role="group" aria-label="Gestion des calques">
+        <ActionButton label="Ajouter" icon={Plus} onClick={handleAddLayerClick} />
+        <ActionButton label="Modifier" icon={Pencil} disabled={!primarySelectedLayer || selectedLayers.length !== 1} onClick={() => primarySelectedLayer && selectedLayers.length === 1 && onRenameLayer(primarySelectedLayer)} />
+        <ActionButton label="Supprimer" icon={Trash2} disabled={!canDeleteSelectedLayers} onClick={() => onDeleteLayers(selectedLayers)} />
+        <ActionButton label="Fusionner" icon={Merge} disabled={!canMergeSelectedLayers} onClick={() => onMergeLayers(selectedLayers)} />
+        <ActionButton label="Réordonner vers le haut" icon={ArrowUp} disabled={!canMoveSelectedLayerUp} onClick={() => onMoveLayers(selectedLayers, "up")} />
+        <ActionButton label="Réordonner vers le bas" icon={ArrowDown} disabled={!canMoveSelectedLayerDown} onClick={() => onMoveLayers(selectedLayers, "down")} />
+      </div>
     </div>
+  );
+}
+
+type LayerObjectGroup = {
+  id: string;
+  label: string;
+  objects: EditorObjectView[];
+};
+
+function groupObjectsForLayer(objects: EditorObjectView[]) {
+  const groups = new Map<string, LayerObjectGroup>();
+  const direct: EditorObjectView[] = [];
+
+  objects.forEach((object) => {
+    if (!object.groupId) {
+      direct.push(object);
+      return;
+    }
+
+    const group = groups.get(object.groupId);
+    if (group) {
+      group.objects.push(object);
+      return;
+    }
+
+    groups.set(object.groupId, {
+      id: object.groupId,
+      label: object.groupId,
+      objects: [object],
+    });
+  });
+
+  return {
+    direct,
+    groups: [...groups.values()],
+  };
+}
+
+function LayerObjectTree({
+  collapsedGroupIds,
+  groups,
+  onSelectObject,
+  setCollapsedGroupIds,
+}: {
+  collapsedGroupIds: Set<string>;
+  groups: ReturnType<typeof groupObjectsForLayer>;
+  layer: EditorLayerView;
+  onSelectObject: (object: EditorObjectView) => void;
+  setCollapsedGroupIds: (value: Set<string>) => void;
+}) {
+  function toggleGroup(groupId: string) {
+    const next = new Set(collapsedGroupIds);
+    if (next.has(groupId)) {
+      next.delete(groupId);
+    } else {
+      next.add(groupId);
+    }
+    setCollapsedGroupIds(next);
+  }
+
+  const hasObjects = groups.direct.length > 0 || groups.groups.length > 0;
+
+  return (
+    <div className="ef-layer-tree-objects" role="list">
+      {groups.groups.map((group) => {
+        const collapsed = collapsedGroupIds.has(group.id);
+        return (
+          <div key={group.id} className="ef-layer-tree-group">
+            <button type="button" className="ef-layer-tree-group-row" onClick={() => toggleGroup(group.id)} title={group.label}>
+              <span className="ef-layer-tree-object-branch" aria-hidden="true">
+                {collapsed ? "▸" : "▾"}
+              </span>
+              <strong>{group.label}</strong>
+              <span>{group.objects.length}</span>
+              <span>groupé</span>
+            </button>
+            {collapsed
+              ? null
+              : group.objects.map((object) => <LayerTreeObjectRow key={object.id} object={object} onSelectObject={onSelectObject} />)}
+          </div>
+        );
+      })}
+      {groups.direct.map((object) => (
+        <LayerTreeObjectRow key={object.id} object={object} onSelectObject={onSelectObject} />
+      ))}
+      {hasObjects ? null : <div className="ef-layer-tree-empty-object">Aucun objet</div>}
+    </div>
+  );
+}
+
+function LayerTreeObjectRow({
+  object,
+  onSelectObject,
+}: {
+  object: EditorObjectView;
+  onSelectObject: (object: EditorObjectView) => void;
+}) {
+  return (
+    <button type="button" className={["ef-layer-tree-object-row", object.selected ? "is-selected-object" : ""].join(" ")} title={object.name} onClick={() => onSelectObject(object)}>
+      <span className="ef-layer-tree-object-branch" aria-hidden="true">
+        ├
+      </span>
+      <strong>{object.name || object.type}</strong>
+      <span title={object.visible ? "Visible" : "Masqué"} aria-label={object.visible ? "Visible" : "Masqué"}>
+        {object.visible ? <IconGlyph icon={Eye} size={18} /> : <IconGlyph icon={EyeOff} size={18} />}
+      </span>
+      <span title={object.locked ? "Verrouillé" : "Déverrouillé"} aria-label={object.locked ? "Verrouillé" : "Déverrouillé"}>
+        {object.locked ? <IconGlyph icon={Lock} size={18} /> : <IconGlyph icon={LockOpen} size={18} />}
+      </span>
+      <span>{readObjectGroupedState(object)}</span>
+    </button>
   );
 }
 
 function ObjectsPanel({
+  objects,
   filter,
-  typeFilter,
+  layerFilter,
+  onSelectObject,
   pageFilter,
+  typeFilter,
 }: {
+  objects: EditorObjectView[];
   filter: string;
-  typeFilter: string;
+  layerFilter: string;
+  onSelectObject: (object: EditorObjectView) => void;
   pageFilter: string;
+  typeFilter: string;
 }) {
   const rows = useMemo(
     () =>
-      objects.filter((item) => {
-        const matchesQuery = matchesFilter(item, filter, [item.id, item.name, item.type, String(item.page), String(item.layerNumber)]);
-        const matchesType = !typeFilter || item.type === typeFilter;
-        const matchesPage = !pageFilter || String(item.page) === pageFilter;
-        return matchesQuery && matchesType && matchesPage;
+      filterEditorObjectsView(objects, {
+        text: filter,
+        type: typeFilter,
+        layer: layerFilter,
+        page: pageFilter,
       }),
-    [filter, pageFilter, typeFilter],
+    [filter, layerFilter, objects, pageFilter, typeFilter],
   );
-  const { sorted, toggle, dirOf } = useSort(rows, "id");
+  const { sorted, toggle, dirOf } = useSort(rows, "name");
 
   return (
-    <div className="ef-object-table">
-      <div className="ef-object-head">
-        <SortHeader label="ID" dir={dirOf("id")} onClick={() => toggle("id")} width={58} />
-        <SortHeader label="Type" dir={dirOf("type")} onClick={() => toggle("type")} width={66} />
+    <div className="ef-objects-shell">
+      <div className="ef-object-head" role="rowgroup" aria-label="Colonnes objets">
+        <SortHeader label="Type" dir={dirOf("type")} onClick={() => toggle("type")} width={58} />
         <SortHeader label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
-        <SortHeader label="Pg" dir={dirOf("page")} onClick={() => toggle("page")} width={28} align="center" />
-        <SortHeader label="Calq." dir={dirOf("layerNumber")} onClick={() => toggle("layerNumber")} width={40} align="center" />
-        <SortHeader label="Œil" dir={null} onClick={() => undefined} width={28} align="center" />
-        <SortHeader label="Ver." dir={null} onClick={() => undefined} width={28} align="center" />
+        <SortHeader label="Pg" dir={dirOf("pageIndex")} onClick={() => toggle("pageIndex")} width={28} align="center" />
+        <SortHeader label="Cq" dir={dirOf("layerNumber")} onClick={() => toggle("layerNumber")} width={34} align="center" />
+        <SortHeader label="A" dir={null} onClick={() => undefined} width={28} align="center" />
+        <SortHeader label="V" dir={null} onClick={() => undefined} width={28} align="center" />
       </div>
-      {sorted.map((item) => (
-        <button key={item.id} className="ef-object-row" type="button" draggable onDragStart={(event) => setDragPayload(event, "object", item)}>
-          <span>{item.id.replace("object-", "")}</span>
-          <Badge value={item.type} colorSet={OBJECT_TYPE_COLORS[item.type]} width={56} />
-          <strong>{item.name}</strong>
-          <span>{item.page}</span>
-          <span>{item.layerNumber}</span>
-          <span>{item.visible ? <MaterialIcon name="visibility" size={18} filled /> : <MaterialIcon name="visibility_off" size={18} />}</span>
-          <span>{item.locked ? <MaterialIcon name="lock" size={18} filled /> : <MaterialIcon name="lock_open" size={18} />}</span>
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
+      <div className="ef-object-list-scroll">
+        {sorted.map((object) => (
+          <button key={object.id} className={["ef-object-row", object.selected ? "is-active" : ""].join(" ")} type="button" onClick={() => onSelectObject(object)} title={object.name}>
+            <Badge value={object.type} colorSet={OBJECT_TYPE_COLORS[object.type] ?? DEFAULT_OBJECT_TYPE_COLOR} width={44} />
+            <strong>{object.name}</strong>
+            <span>{object.pageIndex}</span>
+            <span>{object.layerNumber ?? "—"}</span>
+            <span>{object.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
+            <span>{object.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
+          </button>
+        ))}
+        {rows.length === 0 ? <NoResult /> : null}
+      </div>
     </div>
   );
 }
 
-function PagesPanel({ filter }: { filter: string }) {
+function readObjectGroupedState(object: EditorObjectView) {
+  if (object.grouped === true) {
+    return "groupé";
+  }
+
+  if (object.grouped === false) {
+    return "non groupé";
+  }
+
+  return "—";
+}
+
+function groupLayersByPage(layers: EditorLayerView[]) {
+  const groups = new Map<string, string[]>();
+  layers.forEach((layer) => {
+    const layerIds = groups.get(layer.pageId);
+    if (layerIds) {
+      layerIds.push(layer.id);
+      return;
+    }
+
+    groups.set(layer.pageId, [layer.id]);
+  });
+  return groups;
+}
+
+function LibraryPanel({
+  subTab,
+  filter,
+  onDragContext,
+  onDragEnd,
+}: {
+  subTab: EditorLeftSubTab;
+  filter: string;
+  onDragContext: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
+  onDragEnd: () => void;
+}) {
+  const items = useMemo(() => buildLibraryItems(subTab), [subTab]);
   const rows = useMemo(
-    () => pages.filter((item) => matchesFilter(item, filter, [item.name, item.orientation, String(item.number), `${item.width}x${item.height}`])),
-    [filter],
+    () => items.filter((item) => matchesFilter(item, filter, [item.label, item.description ?? "", item.kind, item.token ?? "", item.mappedPath ?? ""])),
+    [filter, items],
   );
-  const sorted = [...rows].sort((a, b) => a.number - b.number);
+
+  if (rows.length === 0) {
+    return <NoResult />;
+  }
+
+  if (subTab === "emoji") {
+    return (
+      <div className="ef-emoji-grid">
+        {rows.map((item) => (
+          <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
+        ))}
+      </div>
+    );
+  }
+
+  if (subTab === "text-blocks" || subTab === "variables" || subTab === "presets") {
+    return (
+      <div className="ef-text-block-grid">
+        {rows.map((item) => (
+          <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <div className="ef-page-list">
-      {sorted.map((page) => (
-        <button key={page.id} className={["ef-page-card", page.active ? "is-active" : ""].join(" ")} type="button" draggable onDragStart={(event) => setDragPayload(event, "page", page)} title={page.name}>
-          <span className="ef-page-preview">
-            <Image src={page.previewSvg} alt="" width={170} height={120} unoptimized />
-          </span>
-          <span className="ef-page-meta">
-            <span className="ef-page-number">{page.number}</span>
-            <strong>{page.name}</strong>
-          </span>
-        </button>
+    <div className={["ef-asset-grid", subTab === "icons" ? "ef-asset-grid-4" : "ef-asset-grid-3"].join(" ")}>
+      {rows.map((item) => (
+        <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
       ))}
-      {rows.length === 0 ? <NoResult /> : null}
     </div>
+  );
+}
+
+type LibraryItem = {
+  id: string;
+  label: string;
+  description?: string;
+  kind: string;
+  token?: string;
+  mappedPath?: string;
+  glyph?: string;
+  preview: string;
+  envelope: CanvasCreationEnvelope;
+};
+
+function DraggableLibraryItem({
+  item,
+  onDragContext,
+  onDragEnd,
+}: {
+  item: LibraryItem;
+  onDragContext: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
+  onDragEnd: () => void;
+}) {
+  const context = createLibraryDragContext(item);
+
+  return (
+    <button
+      className={resolveLibraryCardClass(item)}
+      type="button"
+      draggable={true}
+      title={item.description ? `${item.label} · ${item.description}` : item.label}
+      aria-label={item.label}
+      onDragStart={(event) => {
+        onDragContext(context);
+        applyLibraryDragPayload(event, context);
+      }}
+      onDragEnd={() => {
+        queueMicrotask(() => {
+          onDragEnd();
+        });
+      }}
+    >
+      <LibraryPreview item={item} />
+    </button>
+  );
+}
+
+function LibraryPreview({ item }: { item: LibraryItem }) {
+  if (item.kind === "emoji") {
+    return <span aria-hidden="true">{item.glyph ?? "🙂"}</span>;
+  }
+
+  if (item.kind === "text-block" || item.kind === "variable" || item.kind === "preset" || item.kind === "dynamic-preset") {
+    return (
+      <span>
+        {item.label}
+        {item.description ? <small>{item.description}</small> : null}
+      </span>
+    );
+  }
+
+  if (item.kind === "image") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={item.preview} alt="" aria-hidden="true" />
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={item.preview} alt="" aria-hidden="true" />
+  );
+}
+
+function resolveLibraryCardClass(item: LibraryItem) {
+  if (item.kind === "emoji") {
+    return "ef-emoji-card";
+  }
+
+  if (item.kind === "text-block" || item.kind === "variable" || item.kind === "preset" || item.kind === "dynamic-preset") {
+    return "ef-text-block-card";
+  }
+
+  return `ef-asset-card ${item.kind === "image" ? "is-image" : item.kind === "icon" ? "is-icon" : "is-shape"}`;
+}
+
+function createLibraryDragContext(item: LibraryItem) {
+  return {
+    sessionId: `library-drag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type: item.envelope.type,
+    sourcePanel: "libraries",
+    payload: item.envelope.payload,
+  };
+}
+
+function applyLibraryDragPayload(
+  event: DragEvent<HTMLButtonElement>,
+  context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown },
+) {
+  const payload = JSON.stringify({
+    type: context.type,
+    payload: context.payload,
+    sourcePanel: context.sourcePanel,
+  });
+
+  event.dataTransfer.setData("application/x-resume-editor-item", payload);
+  event.dataTransfer.setData("text/plain", context.type);
+  event.dataTransfer.effectAllowed = "copy";
+  event.dataTransfer.setDragImage(createTransparentDragImage(), 0, 0);
+}
+
+function createTransparentDragImage() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const context = canvas.getContext("2d");
+  context?.clearRect(0, 0, 1, 1);
+  return canvas;
+}
+
+function buildLibraryItems(subTab: EditorLeftSubTab): LibraryItem[] {
+  switch (subTab) {
+    case "variables":
+      return [
+        libraryItem("variable-first-name", "[Prénom]", "Champ texte", "variable", createTextTokenPayload("[Prénom]", "candidate.firstName"), "#334155"),
+        libraryItem("variable-last-name", "[Nom]", "Champ texte", "variable", createTextTokenPayload("[Nom]", "candidate.lastName"), "#334155"),
+        libraryItem("variable-email", "[Email]", "Champ texte", "variable", createTextTokenPayload("[Email]", "candidate.email"), "#334155"),
+        libraryItem("variable-phone", "[Téléphone]", "Champ texte", "variable", createTextTokenPayload("[Téléphone]", "candidate.phone"), "#334155"),
+      ];
+    case "presets":
+      return [
+        libraryItem("preset-experiences", "{EXPERIENCES}", "Bloc répété", "preset", createPresetPayload("Expériences", "EXPERIENCES", "candidate.experiences", 3), "#6c5cff"),
+        libraryItem("preset-formations", "{FORMATIONS}", "Bloc répété", "preset", createPresetPayload("Formations", "FORMATIONS", "candidate.education", 2), "#6c5cff"),
+        libraryItem("preset-langues", "{LANGUES}", "Bloc répété", "preset", createPresetPayload("Langues", "LANGUES", "candidate.languages", 3), "#6c5cff"),
+        libraryItem("preset-competences", "{COMPETENCES}", "Bloc répété", "preset", createPresetPayload("Compétences", "COMPETENCES", "candidate.skills", 4), "#6c5cff"),
+      ];
+    case "images":
+      return [
+        libraryItem("image-placeholder", "Image", "Actif image", "image", createImagePayload("Image", createLibraryPreviewSvg("Image", "#2563eb")), "#2563eb"),
+        libraryItem("image-portrait", "Portrait", "Actif image", "image", createImagePayload("Portrait", createLibraryPreviewSvg("Portrait", "#2563eb")), "#2563eb"),
+        libraryItem("image-logo", "Logo", "Actif image", "image", createImagePayload("Logo", createLibraryPreviewSvg("Logo", "#2563eb")), "#2563eb"),
+      ];
+    case "icons":
+      return [
+        libraryItem("icon-mail", "Mail", "Icône", "icon", createIconPayload("Mail", createLibraryPreviewSvg("Mail", "#7c3aed")), "#7c3aed"),
+        libraryItem("icon-phone", "Phone", "Icône", "icon", createIconPayload("Phone", createLibraryPreviewSvg("Phone", "#7c3aed")), "#7c3aed"),
+        libraryItem("icon-link", "Link", "Icône", "icon", createIconPayload("Link", createLibraryPreviewSvg("Link", "#7c3aed")), "#7c3aed"),
+      ];
+    case "emoji":
+      return [
+        libraryItem("emoji-spark", "✨", "Emoji", "emoji", createEmojiPayload("✨", "Spark"), "#ef4444"),
+        libraryItem("emoji-idea", "💡", "Emoji", "emoji", createEmojiPayload("💡", "Idea"), "#ef4444"),
+        libraryItem("emoji-graduation", "🎓", "Emoji", "emoji", createEmojiPayload("🎓", "Graduate"), "#ef4444"),
+        libraryItem("emoji-pin", "📍", "Emoji", "emoji", createEmojiPayload("📍", "Pin"), "#ef4444"),
+      ];
+    case "text-blocks":
+      return [
+        libraryItem("text-contact", "Contact", "Bloc texte", "text-block", createTextBlockPayload("Contact", "Coordonnées et liens"), "#0f172a"),
+        libraryItem("text-experience", "Expérience", "Bloc texte", "text-block", createTextBlockPayload("Expérience", "Postes et missions"), "#0f172a"),
+        libraryItem("text-education", "Formation", "Bloc texte", "text-block", createTextBlockPayload("Formation", "Diplômes et écoles"), "#0f172a"),
+        libraryItem("text-skills", "Compétences", "Bloc texte", "text-block", createTextBlockPayload("Compétences", "Niveaux et outils"), "#0f172a"),
+      ];
+    case "charts-shapes":
+    default:
+      return [
+        libraryItem("shape-rect", "Rectangle", "Forme", "shape", createShapePayload("Rectangle", "rect", createLibraryPreviewSvg("Rectangle", "#0f172a")), "#0f172a"),
+        libraryItem("shape-circle", "Cercle", "Forme", "shape", createShapePayload("Cercle", "circle", createLibraryPreviewSvg("Cercle", "#0f172a")), "#0f172a"),
+        libraryItem("shape-line", "Ligne", "Forme", "shape", createShapePayload("Ligne", "line", createLibraryPreviewSvg("Ligne", "#0f172a")), "#0f172a"),
+        libraryItem("shape-arc", "Arc", "Forme", "shape", createShapePayload("Arc", "arc", createLibraryPreviewSvg("Arc", "#0f172a")), "#0f172a"),
+      ];
+  }
+}
+
+function libraryItem(id: string, label: string, description: string, kind: LibraryItem["kind"], payload: Record<string, unknown>, accent: string): LibraryItem {
+  const envelope: CanvasCreationEnvelope = (() => {
+    switch (kind) {
+      case "variable":
+        return { type: "variable", payload };
+      case "preset":
+        return { type: "preset", payload };
+      case "image":
+        return { type: "image", payload };
+      case "icon":
+        return { type: "icon", payload };
+      case "emoji":
+        return { type: "emoji", payload };
+      case "text-block":
+        return { type: "text-block", payload };
+      default:
+        return { type: "shape", payload };
+    }
+  })();
+
+  return {
+    id,
+    label,
+    description,
+    kind,
+    glyph: kind === "emoji" ? label : undefined,
+    preview: createLibraryPreviewSvg(label, accent),
+    envelope,
+    ...("token" in payload && typeof payload.token === "string" ? { token: payload.token } : {}),
+    ...("mappedPath" in payload && typeof payload.mappedPath === "string" ? { mappedPath: payload.mappedPath } : {}),
+  };
+}
+
+function createTextTokenPayload(label: string, token: string) {
+  return {
+    label,
+    token,
+    sampleValue: label.replaceAll("[", "").replaceAll("]", ""),
+    type: "TEXTE",
+  };
+}
+
+function createPresetPayload(label: string, presetType: string, mappedPath: string, sampleItemsCount: number) {
+  return {
+    label,
+    token: `{${presetType}}`,
+    type: presetType,
+    mappedPath,
+    repeatable: true,
+    sampleItemsCount,
+    description: label,
+  };
+}
+
+function createTextBlockPayload(name: string, description: string) {
+  return {
+    name,
+    label: name,
+    preview: `<p><strong>${name}</strong><br/>${description}</p>`,
+    html: `<p><strong>${name}</strong><br/>${description}</p>`,
+  };
+}
+
+function createImagePayload(name: string, svg: string) {
+  return {
+    name,
+    src: svg,
+    alt: name,
+  };
+}
+
+function createIconPayload(name: string, svg: string) {
+  return {
+    name,
+    svg,
+  };
+}
+
+function createEmojiPayload(emoji: string, name: string) {
+  return {
+    emoji,
+    name,
+  };
+}
+
+function createShapePayload(label: string, type: string, svg: string) {
+  return {
+    label,
+    name: label,
+    type,
+    svg,
+  };
+}
+
+function createLibraryPreviewSvg(label: string, accent: string) {
+  const safeLabel = label.replace(/[<>&"]/g, "");
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 90">
+      <rect x="8" y="8" width="104" height="74" rx="14" fill="white" stroke="${accent}" stroke-width="3" opacity="0.95"/>
+      <text x="60" y="50" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="11" fill="${accent}">${safeLabel}</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+function UnavailablePanel({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="ef-entity-card-stack">
+      <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+        <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>{title}</strong>
+        <span style={smallMutedText}>Section non branchée dans ce lot.</span>
+        {subtitle ? <span style={smallMutedText}>{subtitle}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  icon: Icon,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  icon: IconName;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button className="ef-square-button ef-icon-28" type="button" title={label} aria-label={label} disabled={disabled} onClick={onClick}>
+      <IconGlyph icon={Icon} size={18} />
+    </button>
+  );
+}
+
+function SearchBox({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="ef-search-box">
+      <IconGlyph icon={Search} size={18} />
+      <input type="search" value={value} placeholder={placeholder} aria-label={placeholder} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function IconGlyph({ icon: Icon, size = 18 }: { icon: IconName; size?: number }) {
+  return (
+    <span aria-hidden="true" className="ms">
+      <Icon size={size} strokeWidth={1.85} />
+    </span>
   );
 }
 
@@ -1101,12 +1349,14 @@ function Badge({
   return (
     <span
       className="sidebar-badge"
-      style={{
-        "--badge-bg": colorSet.bg,
-        "--badge-fg": colorSet.fg,
-        "--badge-border": colorSet.border,
-        "--badge-width": `${width}px`,
-      } as CSSProperties}
+      style={
+        {
+          "--badge-bg": colorSet.bg,
+          "--badge-fg": colorSet.fg,
+          "--badge-border": colorSet.border,
+          "--badge-width": `${width}px`,
+        } as CSSProperties
+      }
     >
       {value}
     </span>
@@ -1126,7 +1376,7 @@ function SortHeader({
   width?: number;
   align?: "left" | "center" | "right";
 }) {
-  const icon = dir === "asc" ? "arrow_upward" : dir === "desc" ? "arrow_downward" : "unfold_more";
+  const icon = dir === "asc" ? ArrowUp : dir === "desc" ? ArrowDown : ArrowUpDown;
   return (
     <button
       type="button"
@@ -1135,7 +1385,7 @@ function SortHeader({
       onClick={onClick}
     >
       <span>{label}</span>
-      <MaterialIcon name={icon} size={11} />
+      <IconGlyph icon={icon} size={11} />
     </button>
   );
 }
@@ -1144,45 +1394,29 @@ function NoResult() {
   return <div className="ef-no-result">Aucun résultat</div>;
 }
 
-function groupLayersByPage(rows: EditorLayerMock[]) {
-  return pages
-    .map((page) => ({
-      page,
-      layers: rows.filter((layer) => layer.page === page.number).sort((a, b) => a.number - b.number),
-    }))
-    .filter((group) => group.layers.length > 0);
-}
-
-function treeObjectLabel(item: EditorObjectMock) {
-  return item.name;
-}
-
-function treeObjectTypeLabel(item: EditorObjectMock) {
-  if (item.name.startsWith("Icone-")) {
-    return "ICONE";
-  }
-  switch (item.type) {
-    case "text":
-      return "TEXTE";
-    case "image":
-      return "IMAGE";
-    case "shape":
-      return "FORME";
-    case "chart":
-      return "GRAPHE";
-    case "variable":
-      return "VARIABLE";
-    case "preset":
-      return "PRESET";
-    case "group":
-      return "GROUPE";
-  }
-}
-
 function matchesFilter(item: { id?: string }, filter: string, values: string[]): boolean {
-  if (!filter.trim()) return true;
+  if (!filter.trim()) {
+    return true;
+  }
+
   const query = filter.trim().toLowerCase();
   return [item.id ?? "", ...values].some((value) => value.toLowerCase().includes(query));
+}
+
+function uniqueSorted(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+function uniqueBy<T>(values: T[], keyOf: (value: T) => string) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = keyOf(value);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 }
 
 function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof T & string) {
@@ -1190,7 +1424,10 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
 
   const sorted = useMemo(() => {
     const copy = [...rows];
-    if (!sort.dir) return copy;
+    if (!sort.dir) {
+      return copy;
+    }
+
     copy.sort((a, b) => {
       const va = a[sort.key];
       const vb = b[sort.key];
@@ -1199,6 +1436,7 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
         if (va > vb) return sort.dir === "asc" ? 1 : -1;
         return 0;
       }
+
       const sa = String(va ?? "").toLowerCase();
       const sb = String(vb ?? "").toLowerCase();
       if (sa < sb) return sort.dir === "asc" ? -1 : 1;
@@ -1216,225 +1454,20 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
   return { sorted, toggle, dirOf };
 }
 
-function setDragPayload(event: DragEvent<HTMLElement>, type: string, payload: unknown, sourcePanel?: string) {
-  applyDragPreview(event, type, payload);
-  event.dataTransfer.setData("application/x-resume-editor-item", JSON.stringify({ type, payload, sourcePanel }));
-  event.dataTransfer.effectAllowed = "copy";
-  useEditorStore.getState().setDragTraceContext({
-    sessionId: crypto.randomUUID(),
-    type,
-    sourcePanel,
-    payload,
-  });
-}
-
-function handleDragEnd(event: DragEvent<HTMLElement>, type: string, payload: unknown, sourcePanel?: string) {
-  void event;
-  void type;
-  void payload;
-  void sourcePanel;
-  clearActiveDragPreview();
-  useEditorStore.getState().clearDragTraceContext();
-}
-
-function clearActiveDragPreview() {
-  activeDragPreviewCleanup?.();
-  activeDragPreviewCleanup = null;
-}
-
-function applyDragPreview(event: DragEvent<HTMLElement>, type: string, payload: unknown) {
-  clearActiveDragPreview();
-  const dragImage = document.createElement("div");
-  dragImage.style.position = "fixed";
-  dragImage.style.top = "0";
-  dragImage.style.left = "0";
-  dragImage.style.pointerEvents = "none";
-  dragImage.style.display = "flex";
-  dragImage.style.minWidth = "96px";
-  dragImage.style.minHeight = "96px";
-  dragImage.style.alignItems = "center";
-  dragImage.style.justifyContent = "center";
-  dragImage.style.padding = "10px";
-  dragImage.style.margin = "0";
-  dragImage.style.border = "1px solid rgba(15, 23, 42, 0.14)";
-  dragImage.style.borderRadius = "12px";
-  dragImage.style.background = "#ffffff";
-  dragImage.style.boxShadow = "0 10px 26px rgba(15, 23, 42, 0.18)";
-  dragImage.style.transform = "none";
-  dragImage.style.color = "#0f172a";
-  dragImage.style.fontFamily = "Inter, ui-sans-serif, system-ui, sans-serif";
-  dragImage.style.fontSize = "12px";
-  dragImage.style.lineHeight = "1.2";
-  dragImage.appendChild(buildDragPreviewContent(type, payload));
-  document.body.appendChild(dragImage);
-
-  const rect = dragImage.getBoundingClientRect();
-  event.dataTransfer.setDragImage(dragImage, Math.max(1, rect.width / 2), Math.max(1, rect.height / 2));
-  activeDragPreviewCleanup = () => {
-    dragImage.remove();
-  };
-}
-
-function buildDragPreviewContent(type: string, payload: unknown) {
-  const container = document.createElement("div");
-  container.style.display = "flex";
-  container.style.flexDirection = "column";
-  container.style.alignItems = "center";
-  container.style.justifyContent = "center";
-  container.style.gap = "6px";
-  container.style.minWidth = "72px";
-
-  const visual = buildDragPreviewVisual(type, payload);
-  container.appendChild(visual);
-
-  const label = document.createElement("div");
-  label.style.maxWidth = "150px";
-  label.style.overflow = "hidden";
-  label.style.textOverflow = "ellipsis";
-  label.style.whiteSpace = "nowrap";
-  label.style.fontWeight = "600";
-  label.textContent = buildDragPreviewLabel(type, payload);
-  container.appendChild(label);
-
-  return container;
-}
-
-function buildDragPreviewVisual(type: string, payload: unknown) {
-  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
-  const imageSrc = typeof record?.src === "string" ? record.src : typeof record?.svg === "string" ? svgToDataUri(record.svg) : null;
-
-  if ((type === "image" || type === "shape") && imageSrc) {
-    return buildPreviewImage(imageSrc, 84, 84, 10);
-  }
-
-  if (type === "icon") {
-    if (typeof record?.svg === "string") {
-      return buildPreviewImage(svgToDataUri(record.svg), 84, 84, 10);
-    }
-    const icon = document.createElement("div");
-    icon.style.width = "72px";
-    icon.style.height = "72px";
-    icon.style.borderRadius = "16px";
-    icon.style.display = "flex";
-    icon.style.alignItems = "center";
-    icon.style.justifyContent = "center";
-    icon.style.background = "#eef2ff";
-    icon.style.color = "#1e3a8a";
-    icon.style.fontSize = "28px";
-    icon.style.fontWeight = "700";
-    icon.textContent = typeof record?.name === "string" ? record.name.slice(0, 2).toUpperCase() : "IC";
-    return icon;
-  }
-
-  if (type === "emoji" && typeof record?.emoji === "string") {
-    const emoji = document.createElement("div");
-    emoji.style.width = "72px";
-    emoji.style.height = "72px";
-    emoji.style.display = "flex";
-    emoji.style.alignItems = "center";
-    emoji.style.justifyContent = "center";
-    emoji.style.fontSize = "40px";
-    emoji.textContent = record.emoji;
-    return emoji;
-  }
-
-  const fallback = document.createElement("div");
-  fallback.style.width = "72px";
-  fallback.style.height = "72px";
-  fallback.style.borderRadius = "14px";
-  fallback.style.display = "flex";
-  fallback.style.alignItems = "center";
-  fallback.style.justifyContent = "center";
-  fallback.style.background = "#e2e8f0";
-  fallback.style.color = "#0f172a";
-  fallback.style.fontSize = "13px";
-  fallback.style.fontWeight = "700";
-  fallback.textContent = buildDragPreviewLabel(type, payload).slice(0, 10) || type;
-  return fallback;
-}
-
-function buildPreviewImage(src: string, width: number, height: number, radius: number) {
-  const img = document.createElement("img");
-  img.src = src;
-  img.alt = "";
-  img.width = width;
-  img.height = height;
-  img.draggable = false;
-  img.style.width = `${width}px`;
-  img.style.height = `${height}px`;
-  img.style.objectFit = "cover";
-  img.style.borderRadius = `${radius}px`;
-  img.style.display = "block";
-  img.style.background = "#ffffff";
-  img.style.boxShadow = "0 0 0 1px rgba(15, 23, 42, 0.12) inset";
-  return img;
-}
-
-function buildDragPreviewLabel(type: string, payload: unknown) {
-  if (!payload || typeof payload !== "object") {
-    return type;
-  }
-
-  const record = payload as Record<string, unknown>;
-  return (
-    (typeof record.label === "string" && record.label) ||
-    (typeof record.name === "string" && record.name) ||
-    (typeof record.token === "string" && record.token) ||
-    (typeof record.id === "string" && record.id) ||
-    type
-  );
-}
-
-function svgToDataUri(svg: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-}
-
-function uniqueSorted(values: string[]): string[] {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"));
-}
-
-function renderIconPreview(item: EditorIconMock) {
-  if (item.svg) {
-    return <Image src={svgToDataUri(item.svg)} alt={item.name} width={40} height={40} unoptimized />;
-  }
-  if (item.iconName) {
-    return <MaterialIcon name={item.iconName as MaterialIconName} size={20} />;
-  }
-  return <span className="ef-mono-icon">{item.name.slice(0, 2).toUpperCase()}</span>;
-}
-
-const actionIconName: Record<ActionIcon, MaterialIconName> = {
-  settings: "settings",
-  upload: "upload",
-  add: "add",
-  edit: "edit",
-  delete: "delete",
-  merge: "merge",
-  reorder: "swap_vert",
-  duplicate: "content_copy",
-  move: "drive_file_move",
+const smallMutedText: CSSProperties = {
+  fontSize: 10,
+  lineHeight: 1.2,
+  color: "#8b8b92",
+  letterSpacing: 0,
 };
 
-const footerActionIconName: Record<ActionIcon, MaterialIconName> = {
-  settings: "settings",
-  upload: "upload",
-  add: "add",
-  edit: "edit",
-  delete: "delete",
-  merge: "merge",
-  reorder: "swap_vert",
-  duplicate: "content_copy",
-  move: "drive_file_move",
-};
+const DEFAULT_OBJECT_TYPE_COLOR = { bg: "rgba(71, 85, 105, 0.22)", fg: "#b8c2cf", border: "rgba(148, 163, 184, 0.26)" };
 
-const actionLabels: Record<ActionIcon, string> = {
-  settings: "Paramètres",
-  upload: "Importer",
-  add: "Ajouter",
-  edit: "Modifier",
-  delete: "Supprimer",
-  merge: "Fusionner",
-  reorder: "Réordonner",
-  duplicate: "Dupliquer",
-  move: "Déplacer",
+const OBJECT_TYPE_COLORS: Partial<Record<EditorObjectView["type"], { bg: string; fg: string; border: string }>> = {
+  text: { bg: "rgba(59, 130, 246, 0.14)", fg: "#a9bddb", border: "rgba(96, 165, 250, 0.24)" },
+  "rich-text": { bg: "rgba(59, 130, 246, 0.14)", fg: "#a9bddb", border: "rgba(96, 165, 250, 0.24)" },
+  image: { bg: "rgba(99, 102, 241, 0.14)", fg: "#b9baf0", border: "rgba(129, 140, 248, 0.24)" },
+  shape: { bg: "rgba(168, 85, 247, 0.12)", fg: "#c7b5de", border: "rgba(192, 132, 252, 0.22)" },
+  table: { bg: "rgba(34, 197, 94, 0.12)", fg: "#a9d1b9", border: "rgba(74, 222, 128, 0.22)" },
+  list: { bg: "rgba(245, 158, 11, 0.12)", fg: "#d5b98c", border: "rgba(251, 191, 36, 0.22)" },
 };

@@ -31,4 +31,4 @@ export type RenderNode = {
   props: RenderNodeProps;
 };
 
-export type RenderNodeProps = Record<string, string | number | boolean | null | number[] | RenderNodeProps[]>;
+export type RenderNodeProps = Record<string, unknown>;

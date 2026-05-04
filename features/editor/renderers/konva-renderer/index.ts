@@ -6,7 +6,13 @@ export {
   getKonvaShapeProps,
   getKonvaTextProps,
   isSelectableNode,
+  isSelectionBoxTool,
   isTransformableNode,
+  resolveCanonicalFrameFromProjectedGeometry,
+  resolveDragSelectionIds,
+  resolveSelectionOrderCapabilities,
+  resolveSelectionActionBarPlacement,
+  shouldShowFrameOutline,
 } from "@/features/editor/renderers/konva-renderer/konva-renderer-model";
 
 export type KonvaRendererInput = {

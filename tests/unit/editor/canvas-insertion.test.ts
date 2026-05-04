@@ -237,6 +237,90 @@ describe("canvas insertion", () => {
     });
   });
 
+  it("applies insertion style defaults to newly created palette objects", () => {
+    const result = createCanvasInsertionElement({
+      source: {
+        type: "canvas-tool",
+        payload: {
+          toolId: "rectangle",
+          frame: { x: 40, y: 60, width: 120, height: 80 },
+        },
+      },
+      context: {
+        elementId: "element-defaults",
+        pageId: "page-1",
+        point: { x: 100, y: 100 },
+        styleDefaults: {
+          fill: "#112233",
+          stroke: "#445566",
+          strokeWidth: 3,
+        },
+        layer: {
+          id: "layer-1",
+          pageId: "page-1",
+          name: "Content",
+          order: 1,
+          visible: true,
+          locked: false,
+        },
+      },
+    });
+
+    expect(result.inserted).toBe(true);
+    if (!result.inserted) {
+      return;
+    }
+
+    expect(result.element.style).toMatchObject({
+      fill: "#112233",
+      stroke: "#445566",
+      strokeWidth: 3,
+    });
+  });
+
+  it("applies insertion style defaults to table containers", () => {
+    const result = createCanvasInsertionElement({
+      source: {
+        type: "canvas-tool",
+        payload: {
+          toolId: "table",
+          frame: { x: 80, y: 90, width: 220, height: 140 },
+          rows: 3,
+          columns: 4,
+        },
+      },
+      context: {
+        elementId: "element-table-defaults",
+        pageId: "page-1",
+        point: { x: 100, y: 100 },
+        styleDefaults: {
+          fill: "#fef3c7",
+          stroke: "#92400e",
+          strokeWidth: 2,
+        },
+        layer: {
+          id: "layer-1",
+          pageId: "page-1",
+          name: "Content",
+          order: 1,
+          visible: true,
+          locked: false,
+        },
+      },
+    });
+
+    expect(result.inserted).toBe(true);
+    if (!result.inserted) {
+      return;
+    }
+
+    expect(result.element.style).toMatchObject({
+      fill: "#fef3c7",
+      stroke: "#92400e",
+      strokeWidth: 2,
+    });
+  });
+
   it("resolves center-based arc and pie geometry from three clicks", () => {
     const arcGeometry = resolveArcGeometryDraft(
       "arc",

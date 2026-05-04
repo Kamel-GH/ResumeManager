@@ -15,7 +15,15 @@ export function buildCanonicalRenderTree(boundDocument: BoundDocument): Canonica
       orientation: derivePageOrientation(page.width, page.height),
       children: boundDocument.template.elements
         .filter((element) => element.pageId === page.id && element.visible)
-        .sort((a, b) => a.zIndex - b.zIndex)
+        .sort((a, b) => {
+          const layerOrderA = typeof a.props?.layerOrder === "number" ? a.props.layerOrder : 0;
+          const layerOrderB = typeof b.props?.layerOrder === "number" ? b.props.layerOrder : 0;
+          if (layerOrderA !== layerOrderB) {
+            return layerOrderA - layerOrderB;
+          }
+
+          return a.zIndex - b.zIndex;
+        })
         .map((element) => ({
           id: element.id,
           type: element.type,
