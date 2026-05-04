@@ -38,6 +38,8 @@ import {
   type EditorLayerView,
   type EditorObjectView,
   type EditorPageView,
+} from "@/features/editor/selectors";
+import {
   useEditorStore,
   type EditorLeftPanelTab,
   type EditorLeftSubTab,
