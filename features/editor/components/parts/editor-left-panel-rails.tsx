@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type {
   EditorLeftPanelTab,
@@ -27,7 +28,7 @@ export function EditorLeftPanelPrimaryRail({
   tabs: LeftPanelPrimaryTab[];
   activeTab: EditorLeftPanelTab;
   onTabChange: (tab: EditorLeftPanelTab) => void;
-  renderIcon: (icon: LucideIcon, size: number) => React.ReactNode;
+  renderIcon: (icon: LucideIcon, size: number) => ReactNode;
 }) {
   return (
     <div className="ef-left-tabs" role="tablist" aria-label="Modules éditeur">
@@ -61,7 +62,7 @@ export function EditorLeftPanelSubTabRail({
   subTabs: LeftPanelSubTab[];
   activeSubTab?: EditorLeftSubTab;
   onSubTabChange: (subTab?: EditorLeftSubTab) => void;
-  renderIcon: (icon: LucideIcon, size: number) => React.ReactNode;
+  renderIcon: (icon: LucideIcon, size: number) => ReactNode;
 }) {
   return (
     <div className="ef-left-subtabs" role="tablist" aria-label="Sous-sections">
