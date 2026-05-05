@@ -47,14 +47,16 @@ export function ActionButton({
   icon,
   onClick,
   disabled,
+  title,
 }: {
   label: string;
   icon: LucideIcon;
   onClick?: () => void;
   disabled?: boolean;
+  title?: string;
 }) {
   return (
-    <button className="ef-action-button" type="button" title={label} aria-label={label} onClick={onClick} disabled={disabled}>
+    <button className="ef-action-button" type="button" title={title ?? label} aria-label={title ?? label} onClick={onClick} disabled={disabled}>
       <IconGlyph icon={icon} size={14} />
     </button>
   );

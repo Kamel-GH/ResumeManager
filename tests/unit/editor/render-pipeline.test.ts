@@ -55,6 +55,46 @@ describe("editor render pipeline foundation", () => {
     expect(renderTree.pages).toHaveLength(1);
     expect(renderTree.pages[0]?.children).toHaveLength(1);
     expect(renderTree.pages[0]?.children[0]?.props.bindingId).toBe("candidate.name");
+    expect(boundDocument.resolvedBindings["candidate.name"]).toBe("Ada Lovelace");
+    expect(boundDocument.validation.valid).toBe(true);
+  });
+
+  it("reports missing bindings instead of silently accepting empty data", () => {
+    const template: TemplateSchema = {
+      id: "template-2",
+      name: "Resume template",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Page 1",
+          width: 794,
+          height: 1123,
+          margin: { top: 40, right: 40, bottom: 40, left: 40 },
+        },
+      ],
+      elements: [
+        {
+          id: "element-1",
+          pageId: "page-1",
+          type: "text",
+          frame: { x: 80, y: 96, width: 320, height: 48 },
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          bindingId: "candidate.title",
+        },
+      ],
+    };
+
+    const boundDocument = resolveBindings({ template, data: {} });
+
+    expect(boundDocument.validation.valid).toBe(false);
+    expect(boundDocument.validation.errors[0]).toMatchObject({
+      path: "bindings.candidate.title",
+      message: 'Missing data for binding "candidate.title"',
+    });
+    expect(boundDocument.resolvedBindings["candidate.title"]).toBeNull();
   });
 
   it("projects canonical object order to render tree order without changing layer order", () => {

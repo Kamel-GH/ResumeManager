@@ -15,6 +15,7 @@ import {
   resolveImagePreviewSvgGeometry,
   scaleImageCropZoom,
   resizeImageMaskBounds,
+  defaultImageEditingState,
 } from "@/features/editor/components/image-editing/image-editor-utils";
 
 describe("image editing helpers", () => {
@@ -50,6 +51,13 @@ describe("image editing helpers", () => {
     expect(editing.adjustments.brightness).toBe(1);
     expect(editing.transform.flipX).toBe(true);
     expect(editing.transform.rotation).toBe(90);
+  });
+
+  it("falls back to a cloned default state when the editing payload is missing", () => {
+    const editing = normalizeImageEditingState(null);
+
+    expect(editing).toEqual(defaultImageEditingState);
+    expect(editing).not.toBe(defaultImageEditingState);
   });
 
   it("normalizes mask border controls and maps dash styles consistently", () => {

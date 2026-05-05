@@ -125,6 +125,52 @@ describe("editor view helpers", () => {
     });
   });
 
+  it("assigns elements without layer metadata to the fallback workspace layer", () => {
+    const template: TemplateSchema = {
+      ...useEditorStore.getState().workingTemplate,
+      elements: [
+        {
+          id: "shape-1",
+          pageId: "page-1",
+          type: "shape",
+          frame: { x: 10, y: 10, width: 40, height: 40 },
+          rotation: 0,
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          props: {
+            shape: "rect",
+          },
+        },
+      ] as TemplateElement[],
+    };
+
+    const layers = deriveEditorLayersView(template, {}, "page-1", {});
+
+    expect(layers).toHaveLength(1);
+    expect(layers[0]).toMatchObject({
+      id: "page-1:layer-1",
+      name: "Contenu",
+      objectCount: 1,
+      active: true,
+      visible: true,
+      locked: false,
+      source: "fallback",
+    });
+  });
+
+  it("keeps the active workspace layer as the fallback when the requested layer id is missing", () => {
+    const state = useEditorStore.getState();
+    const layers = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", {
+      "page-1": "missing-layer",
+    });
+
+    expect(layers[0]).toMatchObject({
+      id: "page-1:layer-1",
+      active: true,
+    });
+  });
+
   it("returns the real objects of the active page and marks selected ones", () => {
     const state = useEditorStore.getState();
     const objects = deriveEditorObjectsView(state.workingTemplate, ["text-1"], "page-1");

@@ -12,6 +12,8 @@ export type CsvSource = {
   importedAt: string;
 };
 
+export type CsvSourceSummary = Omit<CsvSource, "rows">;
+
 export type VariableType = "text" | "number" | "boolean" | "date";
 
 export type MappingVariable = {

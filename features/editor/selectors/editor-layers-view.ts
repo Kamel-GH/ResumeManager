@@ -1,5 +1,13 @@
 import type { CanvasWorkspaceLayer } from "@/features/editor/schema/canvas-insertion";
-import type { TemplateElement, TemplateSchema } from "@/features/editor/schema/template-schema";
+import type { TemplateSchema } from "@/features/editor/schema/template-schema";
+import {
+  resolveElementLayerIdentity,
+  resolveLayerSelectionId,
+  resolveStableLayerNumber,
+  resolveWorkspaceLayerFallback,
+} from "@/features/editor/selectors/editor-layer-model";
+
+export { resolveElementLayerIdentity, resolveStableLayerNumber };
 
 export type EditorLayerView = {
   id: string;
@@ -24,14 +32,6 @@ export type EditorLayerViewFilters = {
   lock?: "all" | "locked" | "unlocked";
 };
 
-type ElementLayerIdentity = {
-  key: string;
-  name: string;
-  order: number | null;
-  visible?: boolean;
-  locked?: boolean;
-};
-
 export function deriveEditorLayersView(
   template: TemplateSchema,
   workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]>,
@@ -47,8 +47,27 @@ export function deriveEditorLayersView(
   const pageIndex = template.pages.findIndex((page) => page.id === activePage.id) + 1;
   const pageElements = template.elements.filter((element) => element.pageId === activePage.id);
   const workspaceLayers = [...(workspaceLayersByPageId[activePage.id] ?? [])];
-  const fallbackLayerId = workspaceLayers.length === 1 ? workspaceLayers[0]?.id ?? null : null;
+  const fallbackLayer = resolveWorkspaceLayerFallback(activePage.id, workspaceLayers, activeWorkspaceLayerIdByPageId?.[activePage.id] ?? null);
   const records = new Map<string, EditorLayerView>();
+  const shouldSeedFallbackLayer = workspaceLayers.length === 0 && (pageElements.length === 0 || pageElements.some((element) => !element.props?.layerId));
+
+  if (shouldSeedFallbackLayer) {
+    records.set(fallbackLayer.id, {
+      id: fallbackLayer.id,
+      pageId: activePage.id,
+      pageName: activePage.name,
+      pageIndex,
+      number: resolveStableLayerNumber(fallbackLayer.id, fallbackLayer.order),
+      name: fallbackLayer.name,
+      order: fallbackLayer.order,
+      visible: fallbackLayer.visible,
+      locked: fallbackLayer.locked,
+      active: false,
+      selected: false,
+      objectCount: 0,
+      source: "fallback",
+    });
+  }
 
   workspaceLayers.forEach((layer) => {
     records.set(layer.id, {
@@ -69,7 +88,7 @@ export function deriveEditorLayersView(
   });
 
   pageElements.forEach((element, index) => {
-    const layerIdentity = resolveElementLayerIdentity(element, fallbackLayerId);
+    const layerIdentity = resolveElementLayerIdentity(element, fallbackLayer);
     if (!layerIdentity) {
       return;
     }
@@ -91,8 +110,8 @@ export function deriveEditorLayersView(
       number: resolveStableLayerNumber(layerIdentity.key, layerIdentity.order ?? index + 1),
       name: layerIdentity.name,
       order: layerIdentity.order ?? index + 1,
-      visible: layerIdentity.visible ?? true,
-      locked: layerIdentity.locked ?? false,
+      visible: layerIdentity.visible,
+      locked: layerIdentity.locked,
       active: false,
       selected: false,
       objectCount: 1,
@@ -101,7 +120,6 @@ export function deriveEditorLayersView(
   });
 
   if (records.size === 0) {
-    const fallbackLayer = createDefaultWorkspaceLayer(activePage.id, 1);
     records.set(fallbackLayer.id, {
       id: fallbackLayer.id,
       pageId: activePage.id,
@@ -120,8 +138,8 @@ export function deriveEditorLayersView(
   }
 
   const rows = [...records.values()].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr") || a.id.localeCompare(b.id, "fr"));
-  const resolvedActiveLayerId = resolveActiveLayerId(activePage.id, rows, activeWorkspaceLayerIdByPageId);
-  const resolvedSelectedLayerId = resolveActiveLayerId(activePage.id, rows, selectedWorkspaceLayerIdByPageId);
+  const resolvedActiveLayerId = resolveLayerSelectionId(rows, activeWorkspaceLayerIdByPageId?.[activePage.id] ?? null, fallbackLayer.id);
+  const resolvedSelectedLayerId = resolveLayerSelectionId(rows, selectedWorkspaceLayerIdByPageId?.[activePage.id] ?? null, fallbackLayer.id);
 
   return rows.map((row) => ({
     ...row,
@@ -168,71 +186,6 @@ export function filterEditorLayersView(layers: EditorLayerView[], filters: Edito
   });
 }
 
-export function resolveElementLayerIdentity(element: TemplateElement, fallbackLayerId: string | null): ElementLayerIdentity | null {
-  const layerId = readElementPropString(element, "layerId") ?? fallbackLayerId;
-  const layerName = readElementPropString(element, "layerName") ?? "Contenu";
-  const layerOrder = readElementPropNumber(element, "layerOrder");
-  const layerVisible = readElementPropBoolean(element, "layerVisible");
-  const layerLocked = readElementPropBoolean(element, "layerLocked");
-
-  if (!layerId) {
-    return null;
-  }
-
-  return {
-    key: layerId,
-    name: layerName,
-    order: layerOrder,
-    visible: layerVisible ?? undefined,
-    locked: layerLocked ?? undefined,
-  };
-}
-
-export function resolveStableLayerNumber(layerId: string, fallbackOrder: number) {
-  const match = layerId.match(/layer-(\d+)$/);
-  if (!match) {
-    return fallbackOrder;
-  }
-
-  const value = Number.parseInt(match[1] ?? "", 10);
-  return Number.isFinite(value) && value > 0 ? value : fallbackOrder;
-}
-
-function createDefaultWorkspaceLayer(pageId: string, order: number): CanvasWorkspaceLayer {
-  return {
-    id: `${pageId}:layer-${order}`,
-    pageId,
-    name: order === 1 ? "Contenu" : `Calque ${order}`,
-    order,
-    visible: true,
-    locked: false,
-  };
-}
-
 function resolveEditorPage(template: TemplateSchema, activePageId?: string | null) {
   return template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
-}
-
-function resolveActiveLayerId(pageId: string, rows: EditorLayerView[], layerIdsByPageId?: Record<string, string | null>) {
-  const preferredLayerId = layerIdsByPageId?.[pageId] ?? null;
-  if (preferredLayerId && rows.some((row) => row.id === preferredLayerId)) {
-    return preferredLayerId;
-  }
-
-  return rows[0]?.id ?? null;
-}
-
-function readElementPropString(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function readElementPropNumber(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function readElementPropBoolean(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "boolean" ? value : null;
 }

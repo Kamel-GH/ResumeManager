@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createCsvSource, createVariablesFromCsvSource, inferVariableType, parseCsvText, slugifyVariableKey } from "@/features/data-mapping/lib/csv";
+import { createCsvSource, createCsvSourceSummary, createVariablesFromCsvSource, inferVariableType, parseCsvText, slugifyVariableKey } from "@/features/data-mapping/lib/csv";
 
 describe("data mapping CSV helpers", () => {
   it("parses a CSV file with delimiter detection and typed variables", () => {
@@ -29,6 +29,15 @@ describe("data mapping CSV helpers", () => {
       { key: "actif", label: "Actif", sourceColumn: "Actif", type: "boolean", sampleValue: "oui" },
       { key: "date", label: "Date", sourceColumn: "Date", type: "date", sampleValue: "2024-03-01" },
     ]);
+
+    expect(createCsvSourceSummary(source)).toMatchObject({
+      fileName: "people.csv",
+      delimiter: ";",
+      columns: ["Nom", "Age", "Actif", "Date"],
+      rowCount: 2,
+      columnCount: 4,
+    });
+    expect(createCsvSourceSummary(source)).not.toHaveProperty("rows");
   });
 
   it("normalizes duplicate and empty headers", () => {
@@ -40,6 +49,14 @@ describe("data mapping CSV helpers", () => {
       Titre: "2",
       "Titre (2)": "3",
       "Colonne 4": "4",
+    });
+  });
+
+  it("returns an empty parsed payload for blank CSV content", () => {
+    expect(parseCsvText("\ufeff   \n")).toEqual({
+      delimiter: ",",
+      columns: [],
+      rows: [],
     });
   });
 

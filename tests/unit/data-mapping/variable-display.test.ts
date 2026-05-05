@@ -77,6 +77,21 @@ describe("variable display", () => {
     expect(resolveVariableValue("candidate.unknown", dataset, "fallback")).toBe("fallback");
   });
 
+  it("supports bracket notation and invalid array indexes without crashing", () => {
+    const dataset = {
+      candidate: {
+        experiences: [
+          {
+            company: "OpenAI",
+          },
+        ],
+      },
+    };
+
+    expect(resolveVariableValue("candidate.experiences[0].company", dataset, "")).toBe("OpenAI");
+    expect(resolveVariableValue("candidate.experiences[3].company", dataset, "fallback")).toBe("fallback");
+  });
+
   it("builds a shared drag context for canvas drops", () => {
     const variable = createVariable();
     const context = createVariableDragContext(variable);

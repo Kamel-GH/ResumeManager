@@ -4,11 +4,12 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { createCsvSource, createVariablesFromCsvSource, type ParsedCsv } from "@/features/data-mapping/lib/csv";
-import type { CsvRow, CsvSource, MappingVariable, VariableType } from "@/features/data-mapping/types";
+import { createCsvSource, createCsvSourceSummary, createVariablesFromCsvSource, type ParsedCsv } from "@/features/data-mapping/lib/csv";
+import type { CsvRow, CsvSource, CsvSourceSummary, MappingVariable, VariableType } from "@/features/data-mapping/types";
 
 export type VariablesStoreState = {
   source: CsvSource | null;
+  sourceSummary: CsvSourceSummary | null;
   variables: MappingVariable[];
   selectedVariableId: string | null;
   importCsvSource: (input: { fileName: string; parsed: ParsedCsv }) => void;
@@ -19,10 +20,10 @@ export type VariablesStoreState = {
   updateVariable: (id: string, patch: Partial<Pick<MappingVariable, "key" | "label" | "sourceColumn" | "type" | "enabled">>) => void;
 };
 
-type PersistedVariablesState = Pick<VariablesStoreState, "source" | "variables" | "selectedVariableId">;
+type PersistedVariablesState = Pick<VariablesStoreState, "sourceSummary" | "variables" | "selectedVariableId">;
 
 const emptyState: PersistedVariablesState = {
-  source: null,
+  sourceSummary: null,
   variables: [],
   selectedVariableId: null,
 };
@@ -30,6 +31,7 @@ const emptyState: PersistedVariablesState = {
 export const useVariablesStore = create<VariablesStoreState>()(
   persist(
     (set, get) => ({
+      source: null,
       ...emptyState,
       importCsvSource: ({ fileName, parsed }) => {
         const source = createCsvSource({
@@ -42,12 +44,14 @@ export const useVariablesStore = create<VariablesStoreState>()(
 
         set({
           source,
+          sourceSummary: createCsvSourceSummary(source),
           variables,
           selectedVariableId: variables[0]?.id ?? null,
         });
       },
       clearSource: () =>
         set({
+          source: null,
           ...emptyState,
         }),
       selectVariable: (id) => set({ selectedVariableId: id }),
@@ -109,7 +113,7 @@ export const useVariablesStore = create<VariablesStoreState>()(
       name: "resume-manager:variables-source",
       storage: createJSONStorage(() => localStorage),
       partialize: (state): PersistedVariablesState => ({
-        source: state.source,
+        sourceSummary: state.sourceSummary,
         variables: state.variables,
         selectedVariableId: state.selectedVariableId,
       }),

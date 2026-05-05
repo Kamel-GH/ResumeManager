@@ -1,10 +1,11 @@
 import type { BoundDocument } from "@/features/editor/schema/document-types";
 import type { CanonicalRenderTree } from "@/features/editor/schema/render-tree";
+import type { BindingData } from "@/features/editor/schema/editor-model-types";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 
 export type RenderPipelineInput = {
   template: TemplateSchema;
-  data: Record<string, unknown>;
+  data: BindingData | Record<string, unknown>;
 };
 
 export type RenderPipelineResult = {

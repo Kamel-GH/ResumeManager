@@ -21,6 +21,19 @@ describe("rich text variable drop", () => {
     expect(insertVariableTokenIntoRichTextHtml("", variablePayload)).toContain('data-variable="true"');
   });
 
+  it("leaves the content unchanged when the dragged variable payload cannot be resolved", () => {
+    const html = "<p>Bonjour</p>";
+    const emptyPayload = {
+      label: "",
+      token: "",
+      mappedPath: "",
+      key: "",
+      sourceColumn: "",
+    };
+
+    expect(insertVariableTokenIntoRichTextHtml(html, emptyPayload)).toBe(html);
+  });
+
   it("preserves the existing rich text structure when appending a variable token", () => {
     const html = "<p>Bonjour <strong>monde</strong></p>";
     const nextHtml = insertVariableTokenIntoRichTextHtml(html, variablePayload);
@@ -67,6 +80,35 @@ describe("rich text variable drop", () => {
     expect(result.inserted).toBe(true);
     expect(result.range).toEqual({ from: 4, to: 4 });
     expect(insertContentAt).toHaveBeenCalledWith({ from: 4, to: 4 }, { type: "variable", attrs: expect.objectContaining({ key: "candidate.firstName" }) });
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it("normalizes a reversed out-of-bounds selection before inserting the variable token", () => {
+    const focus = vi.fn();
+    const insertContentAt = vi.fn();
+    const editor = {
+      state: {
+        selection: { from: 2, to: 9 },
+        doc: { content: { size: 12 } },
+        schema: {
+          nodes: {
+            variable: {
+              create: (attrs: Record<string, unknown>) => ({ type: "variable", attrs }),
+            },
+          },
+        },
+      },
+      commands: { focus, insertContentAt },
+    };
+
+    const result = insertVariableTokenIntoRichTextEditor(editor, variablePayload, { from: 19, to: -5 });
+
+    expect(result.inserted).toBe(true);
+    expect(result.range).toEqual({ from: 0, to: 12 });
+    expect(insertContentAt).toHaveBeenCalledWith(
+      { from: 0, to: 12 },
+      { type: "variable", attrs: expect.objectContaining({ id: "candidate.firstName", key: "candidate.firstName", label: "Prénom" }) },
+    );
     expect(focus).toHaveBeenCalledTimes(1);
   });
 });

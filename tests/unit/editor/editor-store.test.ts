@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { modernResumeTemplate } from "@/features/editor/templates/modern-resume-template";
+
 import type { CanvasWorkspaceLayer } from "@/features/editor/schema/canvas-insertion";
 import { CANVAS_ARC_PRESETS, CANVAS_SHAPE_PRESETS, createCanvasArcPresetToolPayload, createCanvasShapePresetPayload } from "@/features/editor/schema/canvas-presets";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
@@ -62,6 +64,49 @@ describe("editor store clipboard", () => {
     expect(pastedElements[0]?.pageId).toBe("page-1");
     expect(pastedElements[0]?.frame.x).toBe(22);
     expect(pastedElements[0]?.frame.y).toBe(22);
+  });
+
+  it("resets the working template and document state for a new document", () => {
+    useEditorStore.getState().addWorkspaceLayerForPage({ pageId: "page-1" });
+    useEditorStore.getState().setSelectedElementIds(["shape-1"]);
+    useEditorStore.getState().setEditingImageElementId("shape-1");
+    useEditorStore.getState().appendOperationLogs([
+      {
+        id: "op-1",
+        timestamp: Date.now(),
+        action: "style",
+        pageId: "page-1",
+        elementId: "shape-1",
+        before: {
+          id: "shape-1",
+          pageId: "page-1",
+          rotation: 0,
+          frame: { x: 0, y: 0, width: 10, height: 10 },
+        },
+        after: {
+          id: "shape-1",
+          pageId: "page-1",
+          rotation: 0,
+          frame: { x: 0, y: 0, width: 10, height: 10 },
+        },
+      },
+    ]);
+
+    useEditorStore.getState().resetWorkingTemplate();
+
+    const state = useEditorStore.getState();
+    expect(state.workingTemplate).toEqual(modernResumeTemplate);
+    expect(state.activePageId).toBe(modernResumeTemplate.pages[0]?.id ?? "page-1");
+    expect(state.activeCanvasTool).toBe("pointer");
+    expect(state.selectedElementIds).toEqual([]);
+    expect(state.selectionProjection).toBeNull();
+    expect(state.canvasClipboard).toBeNull();
+    expect(state.operationLogs).toEqual([]);
+    expect(state.undoStack).toEqual([]);
+    expect(state.redoStack).toEqual([]);
+    expect(state.editingRichTextElementId).toBeNull();
+    expect(state.editingImageElementId).toBeNull();
+    expect(state.workspaceLayersByPageId["page-1"]).toHaveLength(1);
   });
 
   it("copies without mutating the template or changing the selection", () => {

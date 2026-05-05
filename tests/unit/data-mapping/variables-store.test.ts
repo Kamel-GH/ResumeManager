@@ -11,6 +11,7 @@ describe("variables store", () => {
     localStorageMock.clear();
     useVariablesStore.setState({
       source: null,
+      sourceSummary: null,
       variables: [],
       selectedVariableId: null,
     });
@@ -20,6 +21,7 @@ describe("variables store", () => {
     localStorageMock.clear();
     useVariablesStore.setState({
       source: null,
+      sourceSummary: null,
       variables: [],
       selectedVariableId: null,
     });
@@ -36,6 +38,8 @@ Grace;London`),
     const state = useVariablesStore.getState();
     expect(state.source?.fileName).toBe("resume.csv");
     expect(state.source?.columns).toEqual(["Nom", "Ville"]);
+    expect(state.sourceSummary?.fileName).toBe("resume.csv");
+    expect(state.sourceSummary?.columns).toEqual(["Nom", "Ville"]);
     expect(state.variables.map((variable) => variable.label)).toEqual(["Nom", "Ville"]);
     expect(state.selectedVariableId).toBe(state.variables[0]?.id ?? null);
   });
@@ -48,7 +52,7 @@ Grace;London`),
 
     const addResult = useVariablesStore.getState().addVariable();
     const stateAfterAdd = useVariablesStore.getState();
-    const lastVariable = stateAfterAdd.variables.at(-1);
+    const lastVariable = stateAfterAdd.variables.find((variable) => variable.id === stateAfterAdd.selectedVariableId);
 
     expect(addResult).toBeUndefined();
     expect(lastVariable?.label).toBe("Variable 3");
@@ -79,6 +83,22 @@ Grace;London`),
     expect(useVariablesStore.getState().variables.find((variable) => variable.id === lastVariable.id)?.sampleValue).toBe("");
   });
 
+  it("clears the imported source and resets the selection state", () => {
+    useVariablesStore.getState().importCsvSource({
+      fileName: "resume.csv",
+      parsed: parseCsvText(`Nom,Age\nAda,36`),
+    });
+
+    useVariablesStore.getState().clearSource();
+
+    expect(useVariablesStore.getState()).toMatchObject({
+      source: null,
+      sourceSummary: null,
+      variables: [],
+      selectedVariableId: null,
+    });
+  });
+
   it("removes variables and keeps the selection on a surviving row", () => {
     useVariablesStore.getState().importCsvSource({
       fileName: "resume.csv",
@@ -100,6 +120,29 @@ Grace;London`),
     const after = useVariablesStore.getState();
     expect(after.variables.some((variable) => variable.id === removedId)).toBe(false);
     expect(after.selectedVariableId).toBe(expectedNextSelection);
+  });
+
+  it("persists metadata without storing the raw CSV rows", () => {
+    useVariablesStore.getState().importCsvSource({
+      fileName: "resume.csv",
+      parsed: parseCsvText(`Nom,Age\nAda,36`),
+    });
+
+    const persisted = JSON.parse(localStorageMock.getItem("resume-manager:variables-source") ?? "{}") as {
+      state?: {
+        sourceSummary?: { fileName?: string; rowCount?: number; columnCount?: number; columns?: string[] };
+        variables?: unknown[];
+        selectedVariableId?: string | null;
+      };
+    };
+
+    expect(persisted.state?.sourceSummary).toMatchObject({
+      fileName: "resume.csv",
+      rowCount: 1,
+      columnCount: 2,
+      columns: ["Nom", "Age"],
+    });
+    expect(JSON.stringify(persisted)).not.toContain('"rows"');
   });
 });
 

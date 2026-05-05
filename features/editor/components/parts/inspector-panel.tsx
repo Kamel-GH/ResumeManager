@@ -35,6 +35,10 @@ import { formatOperationAction, formatOperationSnapshot, formatOperationSnapshot
 
 const tabs = ["Style", "Texte", "Données", "Effets"];
 
+function cn(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 export function InspectorPanel() {
   const activePageId = useEditorStore((state) => state.activePageId);
   const workingTemplate = useEditorStore((state) => state.workingTemplate);
@@ -95,7 +99,14 @@ export function InspectorPanel() {
       <div className="ef-inspector-head">
         <div className="ef-inspector-tabs">
           {tabs.map((tab, index) => (
-            <button key={tab} className={["ef-inspector-tab", index === 0 ? "is-active" : ""].join(" ")}>
+            <button
+              key={tab}
+              type="button"
+              className={cn("ef-inspector-tab", index === 0 ? "is-active" : "")}
+              title={`${tab} · non branché`}
+              aria-label={`${tab} · non branché`}
+              disabled
+            >
               {tab}
             </button>
           ))}
@@ -198,7 +209,7 @@ export function InspectorPanel() {
         <DataRow label="Source" value="[Nom]" select />
         <DataRow label="Fallback" value="Prénom Nom" />
         <DataRow label="Visibilité" value="Toujours visible" select />
-        <button className="ef-field ef-add-rule">
+        <button className="ef-field ef-add-rule" type="button" disabled title="Ajouter une règle de visibilité non branché" aria-label="Ajouter une règle de visibilité non branché">
           <span className="ef-plus-mark">+</span>
           Ajouter une règle
         </button>
@@ -265,7 +276,7 @@ function InspectorSection({ title, children, open }: { title: string; children?:
 
 function SelectBox({ value }: { value: string }) {
   return (
-    <button className="ef-field ef-select-field">
+    <button className="ef-field ef-select-field" type="button" disabled title="Sélecteur non branché" aria-label="Sélecteur non branché">
       <span className="ef-truncate">{value}</span>
       <ChevronDown size={11} aria-hidden="true" />
     </button>
@@ -301,7 +312,7 @@ function StyleColorField({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="ef-field ef-style-color-field" disabled={disabled}>
+        <Button type="button" variant="outline" className="ef-field ef-style-color-field" disabled={disabled} aria-label={label} title={label}>
           <span className="ef-style-color-chip" style={resolveEditorColorChipStyle(value, false)} />
           <span className="ef-style-color-label">{label}</span>
           <span className="ef-style-color-value">{displayValue}</span>
@@ -403,7 +414,7 @@ function RichTextInspector({ element, onEdit }: { element: TemplateElement; onEd
         <span className="text-[10px] text-slate-400">Mode</span>
         <span className="text-[10px] font-medium text-slate-600">{displayMode}</span>
       </div>
-      <button type="button" className="ef-inspector-edit-button" onClick={onEdit}>
+      <button type="button" className="ef-inspector-edit-button" onClick={onEdit} title="Ouvrir l’éditeur de texte" aria-label="Ouvrir l’éditeur de texte">
         <Edit2 size={12} aria-hidden="true" />
         Éditer le texte
       </button>
@@ -432,7 +443,7 @@ function ImageInspector({ element, onEdit }: { element: TemplateElement; onEdit:
         <span className="text-[10px] text-slate-400">Source</span>
         <span className="text-[10px] text-slate-500 ef-truncate">{srcDisplay}</span>
       </div>
-      <button type="button" className="ef-inspector-edit-button" onClick={onEdit}>
+      <button type="button" className="ef-inspector-edit-button" onClick={onEdit} title="Ouvrir l’éditeur d’image" aria-label="Ouvrir l’éditeur d’image">
         <ImageIcon size={12} aria-hidden="true" />
         Éditer l'image
       </button>
@@ -442,7 +453,7 @@ function ImageInspector({ element, onEdit }: { element: TemplateElement; onEdit:
 
 function IconBox({ icon: Icon }: { icon: LucideIcon }) {
   return (
-    <button className="ef-icon-box ef-value-field">
+    <button className="ef-icon-box ef-value-field" type="button" disabled title="Sélecteur d’icône non branché" aria-label="Sélecteur d’icône non branché">
       <Icon size={13} aria-hidden="true" />
     </button>
   );
@@ -452,7 +463,14 @@ function IconStrip({ icons, activeIndex }: { icons: LucideIcon[]; activeIndex?: 
   return (
     <div className="ef-icon-strip" style={{ gridTemplateColumns: `repeat(${icons.length}, minmax(0, 1fr))` }}>
       {icons.map((Icon, index) => (
-        <button key={index} className={["ef-icon-button", index === activeIndex ? "is-active" : ""].join(" ")}>
+        <button
+          key={index}
+          className={cn("ef-icon-button", index === activeIndex ? "is-active" : "")}
+          type="button"
+          disabled
+          title="Alignement non branché"
+          aria-label="Alignement non branché"
+        >
           <Icon size={13} aria-hidden="true" />
         </button>
       ))}
@@ -477,7 +495,7 @@ function DataRow({ label, value, select }: { label: string; value: string; selec
   return (
     <label className="ef-data-row">
       <span>{label}</span>
-      <span className="ef-field ef-select-field ef-font-medium">
+      <span className="ef-field ef-select-field ef-font-medium" aria-disabled={select ? "true" : undefined} title={select ? "Sélecteur non branché" : undefined}>
         {value}
         {select ? <ChevronDown size={11} aria-hidden="true" /> : null}
       </span>

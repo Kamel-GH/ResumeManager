@@ -67,6 +67,7 @@ import {
   type RichTextVariableRegistry,
 } from "@/features/editor/lib/rich-text-variable";
 import { createRichTextVariableNodeViewExtension, RichTextVariableDatasetContext, RichTextVariableDisplayModeContext, RichTextVariableRegistryContext } from "@/features/editor/components/parts/rich-text-variable-node-view";
+import { useRichTextLinkEditor } from "@/features/editor/lib/rich-text-link";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 import { insertVariableTokenIntoRichTextEditor } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
 
@@ -297,6 +298,7 @@ export function RichTextBlockEditor({ blockId, contentStyle, initialHtml, initia
     },
     immediatelyRender: false,
   });
+  const linkEditor = useRichTextLinkEditor(editor);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -768,8 +770,26 @@ export function RichTextBlockEditor({ blockId, contentStyle, initialHtml, initia
 
                 {/* ─── Lien ─── */}
                 <RichTextToolbarPopover label="Lien" icon={<LinkIcon size={15} aria-hidden="true" />} active={editor?.isActive("link")}>
-                  <RichTextEditorToolbarButton label={editor?.isActive("link") ? "Modifier le lien" : "Ajouter un lien"} active={editor?.isActive("link")} onClick={() => setEditorLink(editor)} icon={<LinkIcon size={15} aria-hidden="true" />} />
-                  <RichTextEditorToolbarButton label="Supprimer le lien" disabled={!editor?.isActive("link")} onClick={() => editor?.chain().focus().unsetLink().run()} icon={<Eraser size={15} aria-hidden="true" />} />
+                  <label className="ef-rich-text-editor-popover-field">
+                    URL du lien
+                    <input
+                      type="text"
+                      className="ef-rich-text-editor-popover-input"
+                      value={linkEditor.href}
+                      placeholder="https://exemple.com"
+                      onChange={(event) => linkEditor.setHref(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          linkEditor.apply();
+                        }
+                      }}
+                    />
+                  </label>
+                  <div className="ef-rich-text-editor-popover-grid">
+                    <RichTextEditorToolbarButton label="Appliquer" onClick={linkEditor.apply} icon={<LinkIcon size={15} aria-hidden="true" />} />
+                    <RichTextEditorToolbarButton label="Supprimer le lien" disabled={!linkEditor.hasLink && linkEditor.href.trim().length === 0} onClick={linkEditor.clear} icon={<Eraser size={15} aria-hidden="true" />} />
+                  </div>
                 </RichTextToolbarPopover>
 
                 {/* ─── Tableau ─── */}
@@ -1011,23 +1031,4 @@ function RichTextToolbarPopover({ active, children, icon, label }: { active?: bo
       </PopoverContent>
     </Popover>
   );
-}
-
-function setEditorLink(editor: Editor | null) {
-  if (!editor) {
-    return;
-  }
-
-  const previousUrl = editor.getAttributes("link").href as string | undefined;
-  const url = window.prompt("URL du lien", previousUrl ?? "https://");
-  if (url === null) {
-    return;
-  }
-
-  if (!url.trim()) {
-    editor.chain().focus().unsetLink().run();
-    return;
-  }
-
-  editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
 }

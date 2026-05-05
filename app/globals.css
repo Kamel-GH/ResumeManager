@@ -79,6 +79,26 @@ select {
   --editor-blue: #38bdf8;
   --editor-guide: #67e8f9;
   --editor-margin-guide: #d946ef;
+  --editor-focus-ring: rgb(245 166 35 / 26%);
+  --editor-focus-ring-outer: rgb(15 23 42 / 66%);
+}
+
+.editor-fidelity :where(button, a[href], input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 2px var(--editor-focus-ring),
+    0 0 0 4px var(--editor-focus-ring-outer);
+}
+
+.editor-fidelity :is(.ef-rich-text-canonical-content, .ef-rich-text-editor-content, .ef-rte-editor-content, .ef-rtp-editor-content):focus-visible {
+  outline: 2px solid rgb(245 166 35 / 44%);
+  outline-offset: 2px;
+}
+
+.editor-fidelity :is(.ef-topbar-search, .ef-zoom-control, .ef-search-box, .ef-layer-search):focus-within {
+  border-color: rgb(245 166 35 / 42%);
+  box-shadow: 0 0 0 2px rgb(245 166 35 / 12%);
 }
 
 .editor-fidelity.ef-shell {
@@ -273,7 +293,9 @@ select {
 }
 
 .editor-fidelity .ef-topbar-button:hover,
-.editor-fidelity .ef-topbar-icon-button:hover {
+.editor-fidelity .ef-topbar-button:focus-visible,
+.editor-fidelity .ef-topbar-icon-button:hover,
+.editor-fidelity .ef-topbar-icon-button:focus-visible {
   background: #202b3f;
 }
 
@@ -419,6 +441,10 @@ select {
   background: #172235;
 }
 
+.editor-fidelity .ef-sidebar-item:focus-visible {
+  background: #172235;
+}
+
 .editor-fidelity .ef-sidebar-label {
   max-width: 100%;
   white-space: nowrap;
@@ -450,6 +476,10 @@ select {
 }
 
 .editor-fidelity .ef-sidebar-logout:hover {
+  background: #172235;
+}
+
+.editor-fidelity .ef-sidebar-logout:focus-visible {
   background: #172235;
 }
 
@@ -553,7 +583,9 @@ select {
 }
 
 .editor-fidelity .ef-page-tab:hover,
-.editor-fidelity .ef-page-add:hover {
+.editor-fidelity .ef-page-tab:focus-visible,
+.editor-fidelity .ef-page-add:hover,
+.editor-fidelity .ef-page-add:focus-visible {
   background: #f1f5f9;
 }
 
@@ -652,7 +684,6 @@ select {
 .editor-fidelity .ef-layer-search input {
   min-width: 0;
   width: 100%;
-  outline: 0;
   background: transparent;
   color: var(--editor-text);
 }
@@ -986,10 +1017,9 @@ select {
   border-radius: 6px;
 }
 
-.editor-fidelity .ef-inline-input:focus,
-.editor-fidelity .ef-inline-select:focus {
+.editor-fidelity .ef-inline-input:focus-visible,
+.editor-fidelity .ef-inline-select:focus-visible {
   border-color: #6c4cff;
-  outline: none;
   box-shadow: 0 0 0 2px rgb(108 76 255 / 12%);
 }
 
@@ -1451,7 +1481,6 @@ select {
   color: var(--editor-text);
   font-size: 11px;
   font-weight: 600;
-  outline: none;
 }
 
 .editor-fidelity .ef-style-number-unit {

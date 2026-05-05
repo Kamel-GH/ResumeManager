@@ -1,4 +1,5 @@
 import type { Rect, TemplateElementId, TemplateId, TemplatePageId } from "@/features/editor/types";
+import type { EditorNodeProps } from "@/features/editor/schema/editor-model-types";
 
 export type TemplateSchema = {
   id: TemplateId;
@@ -56,4 +57,4 @@ export type TemplateElementStyle = {
   dash?: number[];
 };
 
-export type TemplateElementProps = Record<string, unknown>;
+export type TemplateElementProps = EditorNodeProps;

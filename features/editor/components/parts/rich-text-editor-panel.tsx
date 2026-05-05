@@ -21,6 +21,7 @@ import {
   Plus, Quote, Rows3, Search, Strikethrough,
   Table2, TableCellsMerge, TableCellsSplit, Tag,
   Trash2, Type, Underline as UnderlineIcon, X,
+  Link as LinkIcon,
 } from "lucide-react";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -49,6 +50,7 @@ import {
   RichTextVariableDisplayModeContext,
   RichTextVariableRegistryContext,
 } from "@/features/editor/components/parts/rich-text-variable-node-view";
+import { useRichTextLinkEditor } from "@/features/editor/lib/rich-text-link";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 import { insertVariableTokenIntoRichTextEditor } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
 import { resolveCanvasObjectStylePreview } from "@/features/editor/schema/canvas-mutation";
@@ -403,6 +405,7 @@ export function RichTextEditorPanel({
     },
     immediatelyRender: false,
   });
+  const linkEditor = useRichTextLinkEditor(editor);
 
   // Reset on blockId change
   useEffect(() => {
@@ -1015,12 +1018,25 @@ export function RichTextEditorPanel({
                       <RtpActionBtn label="Saut de page"          disabled onClick={() => {}}                                       icon={<Plus  size={13} />} />
                     </div>
                     <div className="ef-rtp-popover-section">Lien</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn
-                        label={editor?.isActive("link") ? "Modifier le lien" : "Insérer un lien"}
-                        onClick={() => promptLink(editor)}
-                        icon={<Code2 size={13} />}
+                    <label className="ef-rtp-popover-field">
+                      URL du lien
+                      <input
+                        type="text"
+                        className="ef-rtp-popover-input"
+                        value={linkEditor.href}
+                        placeholder="https://exemple.com"
+                        onChange={(event) => linkEditor.setHref(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            linkEditor.apply();
+                          }
+                        }}
                       />
+                    </label>
+                    <div className="ef-rtp-popover-grid">
+                      <RtpActionBtn label="Appliquer" onClick={linkEditor.apply} icon={<LinkIcon size={13} />} />
+                      <RtpActionBtn label="Supprimer le lien" disabled={!linkEditor.hasLink && linkEditor.href.trim().length === 0} onClick={linkEditor.clear} icon={<Eraser size={13} />} />
                     </div>
                     <div className="ef-rtp-popover-section">Médias</div>
                     <div className="ef-rtp-popover-grid">
@@ -1410,15 +1426,6 @@ function viewToInsertionTarget(rawView: unknown): import("@/features/editor/rend
       },
     },
   };
-}
-
-function promptLink(editor: Editor | null) {
-  if (!editor) return;
-  const prev = editor.getAttributes("link").href as string | undefined;
-  const url = window.prompt("URL du lien", prev ?? "https://");
-  if (url === null) return;
-  if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
-  editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────────

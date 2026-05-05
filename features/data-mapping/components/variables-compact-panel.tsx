@@ -24,10 +24,15 @@ type VariablesCompactPanelProps = {
   onDragEnd?: () => void;
 };
 
+function classNames(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCompactPanelProps) {
   const activePageId = useEditorStore((state) => state.activePageId);
   const appendOperationLogs = useEditorStore((state) => state.appendOperationLogs);
   const source = useVariablesStore((state) => state.source);
+  const sourceSummary = useVariablesStore((state) => state.sourceSummary);
   const variables = useVariablesStore((state) => state.variables);
   const selectedVariableId = useVariablesStore((state) => state.selectedVariableId);
   const selectVariable = useVariablesStore((state) => state.selectVariable);
@@ -40,7 +45,7 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
           <Database size={14} aria-hidden="true" />
           <div>
             <p className="ef-data-variables-kicker">Mapping source de données</p>
-            <h3 className="ef-data-variables-title">{source ? source.fileName : "Variables CSV"}</h3>
+            <h3 className="ef-data-variables-title">{source?.fileName ?? sourceSummary?.fileName ?? "Variables CSV"}</h3>
           </div>
         </div>
 
@@ -48,7 +53,7 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
           <Button asChild variant="outline" size="sm" className="ef-data-variables-open-link">
             <Link href="/editor/mapping">
               <ExternalLink size={13} aria-hidden="true" />
-              Module
+              Ouvrir Variables
             </Link>
           </Button>
           <Button
@@ -57,7 +62,7 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
             size="icon-sm"
             className="ef-data-variables-reset"
             onClick={() => clearSource()}
-            disabled={!source && variables.length === 0}
+            disabled={!source && !sourceSummary && variables.length === 0}
             title="Réinitialiser"
             aria-label="Réinitialiser"
           >
@@ -82,7 +87,7 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
                 draggable={true}
                 aria-pressed={active}
                 aria-label={tooltip}
-                className={["ef-data-variable-card", active ? "is-active" : ""].join(" ")}
+                className={classNames("ef-data-variable-card", active ? "is-active" : "")}
                 onClick={() => selectVariable(variable.id)}
                 onDoubleClick={(event) => {
                   event.preventDefault();
@@ -118,10 +123,10 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
               >
                 <span className="ef-data-variable-card-inner">
                   <span className="ef-data-variable-label">{displayLabel}</span>
-                  <span className={["ef-data-variable-badge", `is-${kind.toLowerCase()}`].join(" ")}>{kind}</span>
-                </span>
-              </button>
-            );
+                <span className={classNames("ef-data-variable-badge", `is-${kind.toLowerCase()}`)}>{kind}</span>
+              </span>
+            </button>
+          );
           })}
         </div>
       ) : (

@@ -23,9 +23,14 @@ import { useEditorStore } from "@/features/editor/stores/editor-store";
 
 const variableColumnHelper = createColumnHelper<MappingVariable>();
 
+function classNames(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
 export function VariablesScreen() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const source = useVariablesStore((state) => state.source);
+  const sourceSummary = useVariablesStore((state) => state.sourceSummary);
   const variables = useVariablesStore((state) => state.variables);
   const selectedVariableId = useVariablesStore((state) => state.selectedVariableId);
   const importCsvSource = useVariablesStore((state) => state.importCsvSource);
@@ -41,16 +46,16 @@ export function VariablesScreen() {
 
   const sourceStats = useMemo(
     () => [
-      { label: "Source", value: source?.fileName ?? "CSV non chargé" },
-      { label: "Colonnes", value: source ? String(source.columnCount) : "0" },
-      { label: "Lignes", value: source ? String(source.rowCount) : "0" },
+      { label: "Source", value: source?.fileName ?? sourceSummary?.fileName ?? "CSV non chargé" },
+      { label: "Colonnes", value: source ? String(source.columnCount) : sourceSummary ? String(sourceSummary.columnCount) : "0" },
+      { label: "Lignes", value: source ? String(source.rowCount) : sourceSummary ? String(sourceSummary.rowCount) : "0" },
       { label: "Variables", value: String(variables.length) },
     ],
-    [source, variables.length],
+    [source, sourceSummary, variables.length],
   );
 
   const previewRows = useMemo(() => source?.rows.slice(0, 10) ?? [], [source]);
-  const previewColumns = useMemo(() => source?.columns ?? [], [source]);
+  const previewColumns = useMemo(() => source?.columns ?? sourceSummary?.columns ?? [], [source, sourceSummary]);
 
   const variableColumns = useMemo(
     () => [
@@ -58,10 +63,11 @@ export function VariablesScreen() {
         header: "Actif",
         cell: ({ row }) => (
           <button
-            className={["ef-variable-toggle", row.original.enabled ? "is-active" : ""].join(" ")}
+            className={classNames("ef-variable-toggle", row.original.enabled ? "is-active" : "")}
             type="button"
             aria-label={row.original.enabled ? "Désactiver la variable" : "Activer la variable"}
             title={row.original.enabled ? "Désactiver" : "Activer"}
+            aria-pressed={row.original.enabled}
             onClick={() => updateVariable(row.original.id, { enabled: !row.original.enabled })}
           >
             {row.original.enabled ? "On" : "Off"}
@@ -230,16 +236,18 @@ export function VariablesScreen() {
               <Database size={15} aria-hidden="true" />
               <h2 className="ef-variables-card-title">Source CSV</h2>
             </div>
-            {source ? <span className="ef-badge">{source.delimiter === ";" ? "Point-virgule" : source.delimiter === "\t" ? "Tabulation" : "CSV"}</span> : null}
+            {source || sourceSummary ? (
+              <span className="ef-badge">{(source ?? sourceSummary)?.delimiter === ";" ? "Point-virgule" : (source ?? sourceSummary)?.delimiter === "\t" ? "Tabulation" : "CSV"}</span>
+            ) : null}
           </div>
           <div className="ef-variables-card-body">
-            {source ? (
+            {source || sourceSummary ? (
               <>
                 <div className="ef-file-dropzone">
                   <div>
-                    <strong>{source.fileName}</strong>
+                    <strong>{source?.fileName ?? sourceSummary?.fileName}</strong>
                     <p className="ef-variables-muted">
-                      {source.columnCount} colonnes · {source.rowCount} lignes
+                      {(source ?? sourceSummary)?.columnCount} colonnes · {(source ?? sourceSummary)?.rowCount} lignes
                     </p>
                   </div>
                   <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
@@ -248,7 +256,7 @@ export function VariablesScreen() {
                 </div>
 
                 <div className="ef-variables-column-list" aria-label="Colonnes détectées">
-                  {source.columns.map((column) => (
+                  {(source?.columns ?? sourceSummary?.columns ?? []).map((column) => (
                     <span key={column} className="ef-source-chip" title={column}>
                       {column}
                     </span>
@@ -326,7 +334,7 @@ export function VariablesScreen() {
               <Database size={15} aria-hidden="true" />
               <h2 className="ef-variables-card-title">Aperçu des données CSV</h2>
             </div>
-            <span className="ef-badge">{source ? `${source.rowCount} lignes` : "Vide"}</span>
+            <span className="ef-badge">{source ? `${source.rowCount} lignes` : sourceSummary ? `${sourceSummary.rowCount} lignes` : "Vide"}</span>
           </div>
 
           {previewRows.length > 0 ? (

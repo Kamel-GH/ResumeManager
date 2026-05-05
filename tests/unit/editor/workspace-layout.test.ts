@@ -98,8 +98,8 @@ describe("workspace layout", () => {
     expect(layout.height).toBe(180 + 56 * 2);
   });
 
-  it("forces the effective ruler mode to page for the simplified workspace", () => {
-    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "global" })).toBe("page");
+  it("preserves the configured effective ruler mode", () => {
+    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "global" })).toBe("global");
     expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "page" })).toBe("page");
   });
 

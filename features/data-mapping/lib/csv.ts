@@ -1,4 +1,4 @@
-import type { CsvDelimiter, CsvRow, CsvSource, MappingVariable, VariableType } from "@/features/data-mapping/types";
+import type { CsvDelimiter, CsvRow, CsvSource, CsvSourceSummary, MappingVariable, VariableType } from "@/features/data-mapping/types";
 
 const DELIMITER_CANDIDATES: CsvDelimiter[] = [",", ";", "\t", "|"];
 const BOOLEAN_VALUES = new Set(["true", "false", "yes", "no", "oui", "non"]);
@@ -39,6 +39,11 @@ export function createCsvSource(input: {
     columnCount: input.columns.length,
     importedAt: new Date().toISOString(),
   };
+}
+
+export function createCsvSourceSummary(source: CsvSource): CsvSourceSummary {
+  const { rows: _rows, ...summary } = source;
+  return summary;
 }
 
 export function createVariablesFromCsvSource(source: CsvSource): MappingVariable[] {

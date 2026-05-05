@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
 import { resolveBindings } from "@/features/editor/binding/binding-engine";
 import { buildCanonicalRenderTree } from "@/features/editor/layout-engine/layout-engine";
@@ -10,6 +11,12 @@ import { SvgRenderer } from "@/features/editor/renderers/svg-renderer/svg-render
 import { KonvaCanvasRenderer } from "@/features/editor/renderers/konva-renderer";
 import { projectKonvaSelection } from "@/features/editor/schema/selection-projection";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
+import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
+import type { BindingData } from "@/features/editor/schema/editor-model-types";
+
+const EMPTY_PREVIEW_DATA: BindingData = {};
+const PREVIEW_RENDERER_PARAM = "renderer";
+const PREVIEW_RENDERER_SVG = "svg";
 
 export function EditorRenderTreePreview({
   draftCanvasCreation,
@@ -26,10 +33,13 @@ export function EditorRenderTreePreview({
   const activeCanvasTool = useEditorStore((state) => state.activeCanvasTool);
   const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
   const workingTemplate = useEditorStore((state) => state.workingTemplate);
+  const searchParams = useSearchParams();
+  const previewData: BindingData = useVariablesStore((state) => state.source?.rows[0] ?? EMPTY_PREVIEW_DATA);
   const setSelectionProjection = useEditorStore((state) => state.setSelectionProjection);
   const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
-  const renderTree = useMemo(() => buildCanonicalRenderTree(resolveBindings({ template: workingTemplate, data: {} })), [workingTemplate]);
-  const useKonvaWorkspace = true;
+  const renderTree = useMemo(() => buildCanonicalRenderTree(resolveBindings({ template: workingTemplate, data: previewData })), [previewData, workingTemplate]);
+  const previewRenderer = searchParams.get(PREVIEW_RENDERER_PARAM);
+  const useKonvaWorkspace = previewRenderer ? previewRenderer !== PREVIEW_RENDERER_SVG : process.env.NEXT_PUBLIC_EDITOR_RENDERER !== "svg";
   const selectionProjection = useMemo(() => projectKonvaSelection(renderTree, activePageId, selectedElementIds), [activePageId, renderTree, selectedElementIds]);
   const handleSelectElement = useMemo(
     () => (elementIds: string[], options?: { additive?: boolean }) => {

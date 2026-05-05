@@ -1,4 +1,5 @@
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
+import type { BindingData } from "@/features/editor/schema/editor-model-types";
 
 export type TemplateDocument = {
   schema: TemplateSchema;
@@ -14,7 +15,7 @@ export type TemplateDocumentMetadata = {
 
 export type BoundDocument = {
   template: TemplateSchema;
-  resolvedBindings: Record<string, unknown>;
+  resolvedBindings: BindingData;
   validation: BoundDocumentValidation;
 };
 

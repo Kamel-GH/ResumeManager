@@ -7,25 +7,29 @@ import { usePathname } from "next/navigation";
 
 const SIDEBAR_ICON_SIZE = 20;
 
-const globalNavItems: { label: string; icon: LucideIcon; href?: string }[] = [
+function cn(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
+}
+
+const globalNavItems: { label: string; icon: LucideIcon; href?: string; disabled?: boolean }[] = [
   { label: "Éditeur", icon: LayoutDashboard, href: "/editor" },
   { label: "Variables", icon: Database, href: "/editor/mapping" },
-  { label: "Templates", icon: FileText },
-  { label: "Candidats", icon: UserRound },
-  { label: "Admin", icon: Shield },
-  { label: "Réglages", icon: Settings },
+  { label: "Templates", icon: FileText, disabled: true },
+  { label: "Candidats", icon: UserRound, disabled: true },
+  { label: "Admin", icon: Shield, disabled: true },
+  { label: "Réglages", icon: Settings, disabled: true },
 ];
 
 export function EditorSidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="ef-sidebar">
+    <nav className="ef-sidebar" aria-label="Navigation du studio">
       <div className="ef-sidebar-nav">
         {globalNavItems.map((item) => {
           const Icon = item.icon;
           const active = item.href ? pathname === item.href : false;
-          const className = ["ef-sidebar-item", active ? "is-active" : ""].join(" ").trim();
+          const className = cn("ef-sidebar-item", active ? "is-active" : "", item.disabled ? "is-disabled" : "");
 
           return item.href ? (
             <Link key={item.label} className={className} href={item.href} title={item.label} aria-label={item.label} aria-current={active ? "page" : undefined}>
@@ -33,7 +37,14 @@ export function EditorSidebar() {
               <span className="ef-sidebar-label">{item.label}</span>
             </Link>
           ) : (
-            <button key={item.label} className={className} type="button" title={item.label} aria-label={item.label}>
+            <button
+              key={item.label}
+              className={className}
+              type="button"
+              title={`${item.label} · Bientôt disponible`}
+              aria-label={`${item.label} · Bientôt disponible`}
+              disabled={item.disabled ?? false}
+            >
               <Icon size={SIDEBAR_ICON_SIZE} strokeWidth={2} aria-hidden="true" />
               <span className="ef-sidebar-label">{item.label}</span>
             </button>
@@ -42,10 +53,10 @@ export function EditorSidebar() {
       </div>
 
       <div className="ef-sidebar-bottom">
-        <button className="ef-sidebar-avatar" type="button" title="Profil utilisateur" aria-label="Profil utilisateur">
+        <button className="ef-sidebar-avatar" type="button" title="Profil utilisateur non branché" aria-label="Profil utilisateur non branché" disabled>
           KM
         </button>
-        <button className="ef-sidebar-logout" type="button" title="Déconnexion" aria-label="Déconnexion">
+        <button className="ef-sidebar-logout" type="button" title="Déconnexion non branchée" aria-label="Déconnexion non branchée" disabled>
           <LogOut size={SIDEBAR_ICON_SIZE} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>

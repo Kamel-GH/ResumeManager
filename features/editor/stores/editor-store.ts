@@ -1,12 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { StoreApi } from "zustand";
 import type { JSONContent } from "@tiptap/core";
 
 import { modernResumeTemplate } from "@/features/editor/templates/modern-resume-template";
 import {
-  createCanvasInsertionElement,
-  type CanvasCreationEnvelope,
   type CanvasDropEnvelope,
   type CanvasToolEnvelope,
   type CanvasToolId,
@@ -39,8 +36,26 @@ import {
 import { parseRichTextHtmlToJson, serializeRichTextJsonToHtml, type RichTextVariableDisplayMode } from "@/features/editor/lib/rich-text-variable";
 import { defaultWorkspaceSettings, type EditorWorkspaceSettings } from "@/features/editor/schema/workspace-layout";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
-import type { TemplateElement, TemplateElementType } from "@/features/editor/schema/template-schema";
+import type { TemplateElement, TemplateElementProps, TemplateElementType } from "@/features/editor/schema/template-schema";
 import type { KonvaSelectionProjection } from "@/features/editor/schema/selection-projection";
+import {
+  appendOperationLogs,
+  clampEditorViewportZoom,
+  clampFrameToPage,
+  hasCanvasGeometryChanged,
+  pushUndoCheckpoint,
+  readElementPropString,
+  resolveNextTemplatePageId,
+  resolveNextTemplatePageNumber,
+  resolveNextWorkspaceLayerId,
+  stripRichTextHtml,
+} from "@/features/editor/stores/editor-store-helpers";
+import {
+  createInitialWorkspaceLayers,
+  createDefaultWorkspaceLayer,
+  insertCanvasSource,
+  updateWorkspaceLayerState,
+} from "@/features/editor/stores/editor-store-layer-actions";
 
 export type EditorPanelId = "pages" | "layers" | "assets" | "data" | "inspector";
 export type EditorLeftPanelTab = "data" | "libraries" | "layers" | "objects" | "pages";
@@ -143,7 +158,7 @@ export type EditorStoreState = {
   }) => { updated: true; elementId: string } | { updated: false; reason: string };
   updateRichTextContainerProps: (input: {
     elementId: string;
-    props: Record<string, unknown>;
+    props: Partial<TemplateElementProps>;
   }) => { updated: true; elementId: string } | { updated: false; reason: string };
   updateImageElementEditing: (input: { elementId: string; imageEditing: TemplateElement["props"] }) => { updated: true; elementId: string } | { updated: false; reason: string };
   setWorkspaceSettings: (patch: Partial<EditorWorkspaceSettings>) => void;
@@ -156,6 +171,7 @@ export type EditorStoreState = {
   setPanelDisplayMode: (mode: EditorPanelDisplayMode) => void;
   setAssetViewMode: (mode: EditorAssetViewMode) => void;
   setPanelFilter: (key: EditorLeftPanelTab | EditorLeftSubTab, value: string) => void;
+  resetWorkingTemplate: () => void;
   editingRichTextElementId: string | null;
   editingImageElementId: string | null;
   setEditingRichTextElementId: (id: string | null) => void;
@@ -174,32 +190,6 @@ const defaultPanelPreferences: EditorPanelPreferences = {
   assetViewMode: "grid",
   filters: {},
 };
-
-function createInitialWorkspaceLayers(template: TemplateSchema) {
-  const workspaceLayersByPageId: Record<string, CanvasWorkspaceLayer[]> = {};
-  const activeWorkspaceLayerIdByPageId: Record<string, string | null> = {};
-  const selectedWorkspaceLayerIdByPageId: Record<string, string | null> = {};
-
-  template.pages.forEach((page) => {
-    const layer = createDefaultWorkspaceLayer(page.id, 1);
-    workspaceLayersByPageId[page.id] = [layer];
-    activeWorkspaceLayerIdByPageId[page.id] = layer.id;
-    selectedWorkspaceLayerIdByPageId[page.id] = layer.id;
-  });
-
-  return { workspaceLayersByPageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId };
-}
-
-function createDefaultWorkspaceLayer(pageId: string, order: number): CanvasWorkspaceLayer {
-  return {
-    id: `${pageId}:layer-${order}`,
-    pageId,
-    name: order === 1 ? "Contenu" : `Calque ${order}`,
-    order,
-    visible: true,
-    locked: false,
-  };
-}
 
 export const useEditorStore = create<EditorStoreState>()(
   persist(
@@ -1617,6 +1607,29 @@ export const useEditorStore = create<EditorStoreState>()(
             },
           },
         })),
+      resetWorkingTemplate: () =>
+        set(() => {
+          const nextTemplate = structuredClone(modernResumeTemplate);
+          const { workspaceLayersByPageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId } = createInitialWorkspaceLayers(nextTemplate);
+
+          return {
+            activePageId: nextTemplate.pages[0]?.id ?? "page-1",
+            activeCanvasTool: "pointer",
+            dragTraceContext: null,
+            canvasClipboard: null,
+            selectedElementIds: [],
+            selectionProjection: null,
+            operationLogs: [],
+            workingTemplate: nextTemplate,
+            workspaceLayersByPageId,
+            activeWorkspaceLayerIdByPageId,
+            selectedWorkspaceLayerIdByPageId,
+            undoStack: [],
+            redoStack: [],
+            editingRichTextElementId: null,
+            editingImageElementId: null,
+          };
+        }),
       setEditingRichTextElementId: (id) => set({ editingRichTextElementId: id }),
       setEditingImageElementId: (id) => set({ editingImageElementId: id }),
     }),
@@ -1645,363 +1658,3 @@ export const useEditorStore = create<EditorStoreState>()(
     },
   ),
 );
-
-function resolveNextWorkspaceLayerId(pageId: string, layers: CanvasWorkspaceLayer[]) {
-  const existing = new Set(layers.map((layer) => layer.id));
-  let index = layers.length + 1;
-  let id = `${pageId}:layer-${index}`;
-  while (existing.has(id)) {
-    index += 1;
-    id = `${pageId}:layer-${index}`;
-  }
-  return id;
-}
-
-function resolveNextTemplatePageNumber(pages: TemplateSchema["pages"]) {
-  const existingNumbers = pages
-    .map((page) => /(?:^|\D)(\d+)$/.exec(page.id)?.[1] ?? /(?:^|\D)(\d+)$/.exec(page.name)?.[1])
-    .map((value) => (value ? Number.parseInt(value, 10) : Number.NaN))
-    .filter(Number.isFinite);
-  const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : pages.length;
-  return maxNumber + 1;
-}
-
-function resolveNextTemplatePageId(pages: TemplateSchema["pages"], startNumber: number) {
-  const existingIds = new Set(pages.map((page) => page.id));
-  let pageNumber = startNumber;
-  let pageId = `page-${pageNumber}`;
-  while (existingIds.has(pageId)) {
-    pageNumber += 1;
-    pageId = `page-${pageNumber}`;
-  }
-
-  return pageId;
-}
-
-function clampEditorViewportZoom(zoom: number) {
-  if (!Number.isFinite(zoom)) {
-    return 1;
-  }
-
-  return Math.min(EDITOR_VIEWPORT_MAX_ZOOM, Math.max(EDITOR_VIEWPORT_MIN_ZOOM, zoom));
-}
-
-function resolveStableLayerNumber(layerId: string, fallback: number) {
-  const match = /(?:^|:)(?:layer|calque)[^\d]*(\d+)$/i.exec(layerId);
-  if (!match) {
-    return fallback;
-  }
-
-  const number = Number.parseInt(match[1] ?? "", 10);
-  return Number.isFinite(number) ? number : fallback;
-}
-
-function updateWorkspaceLayerState(
-  set: StoreApi<EditorStoreState>["setState"],
-  input: { pageId: string; layerId: string; patch: Partial<Pick<CanvasWorkspaceLayer, "visible" | "locked">> },
-) {
-  let outcome: { updated: true; layerId: string } | { updated: false; reason: string } = {
-    updated: false,
-    reason: "calque_introuvable",
-  };
-
-  set((state) => {
-    const currentLayers = state.workspaceLayersByPageId[input.pageId] ?? [];
-    const target = currentLayers.find((layer) => layer.id === input.layerId);
-    if (!target) {
-      return state;
-    }
-
-    const nextLayers = currentLayers.map((layer) => (layer.id === input.layerId ? { ...layer, ...input.patch } : layer));
-    const nextTemplate: TemplateSchema = {
-      ...state.workingTemplate,
-      elements: state.workingTemplate.elements.map((element): TemplateElement => {
-        if (element.pageId !== input.pageId || element.props?.layerId !== input.layerId) {
-          return element;
-        }
-
-        return {
-          ...element,
-          props: {
-            ...element.props,
-            ...(input.patch.visible !== undefined ? { layerVisible: input.patch.visible } : {}),
-            ...(input.patch.locked !== undefined ? { layerLocked: input.patch.locked } : {}),
-          },
-        };
-      }),
-    };
-
-    outcome = {
-      updated: true,
-      layerId: input.layerId,
-    };
-
-    return {
-      workingTemplate: nextTemplate,
-      workspaceLayersByPageId: {
-        ...state.workspaceLayersByPageId,
-        [input.pageId]: nextLayers,
-      },
-    };
-  });
-
-  return outcome;
-}
-
-function insertCanvasSource(
-  set: StoreApi<EditorStoreState>["setState"],
-  input: { pageId: string; point: { x: number; y: number }; source: CanvasCreationEnvelope; frame?: { x: number; y: number; width: number; height: number } },
-) {
-  let outcome: { inserted: true; elementId: string; pageId: string; layerId: string } | { inserted: false; reason: string; sourceType: string } = {
-    inserted: false,
-    reason: "unresolved",
-    sourceType: input.source.type,
-  };
-
-  set((state) => {
-    const template = structuredClone(state.workingTemplate);
-    const pages = template.pages;
-    const targetPage = pages.find((page) => page.id === input.pageId) ?? pages[0] ?? null;
-
-    if (!targetPage) {
-      outcome = {
-        inserted: false,
-        reason: "page_introuvable",
-        sourceType: input.source.type,
-      };
-      return state;
-    }
-
-    const layersByPageId = { ...state.workspaceLayersByPageId };
-    const activeLayerByPageId = { ...state.activeWorkspaceLayerIdByPageId };
-    const pageLayers = [...(layersByPageId[targetPage.id] ?? [])];
-    const existingActiveLayer =
-      pageLayers.find((layer) => !layer.locked && layer.visible && layer.id === activeLayerByPageId[targetPage.id]) ??
-      pageLayers.find((layer) => !layer.locked && layer.visible) ??
-      null;
-    const activeLayer = existingActiveLayer ?? createDefaultWorkspaceLayer(targetPage.id, pageLayers.length + 1);
-    const createdLayer = existingActiveLayer === null;
-
-    const elementId = `el-${crypto.randomUUID()}`;
-    const insertion = createCanvasInsertionElement({
-      source: input.source,
-      context: {
-        elementId,
-        pageId: targetPage.id,
-        point: input.point,
-        frame: input.frame,
-        layer: activeLayer,
-        styleDefaults: {
-          fill: state.defaultFillColor,
-          stroke: state.defaultStrokeColor,
-        },
-      },
-    });
-
-    if (!insertion.inserted) {
-      outcome = {
-        inserted: false,
-        reason: insertion.reason,
-        sourceType: insertion.sourceType,
-      };
-      return {
-        workspaceLayersByPageId: layersByPageId,
-        activeWorkspaceLayerIdByPageId: activeLayerByPageId,
-      };
-    }
-
-    const nextZIndex = template.elements.reduce((max, element) => Math.max(max, element.zIndex), 0) + 1;
-    insertion.element.zIndex = nextZIndex;
-    insertion.element.frame = clampFrameToPage(insertion.element.frame, targetPage.width, targetPage.height);
-    template.elements.push(insertion.element);
-    if (createdLayer) {
-      pageLayers.push(activeLayer);
-    }
-    layersByPageId[targetPage.id] = pageLayers;
-    activeLayerByPageId[targetPage.id] = activeLayer.id;
-
-    outcome = {
-      inserted: true,
-      elementId: insertion.element.id,
-      pageId: targetPage.id,
-      layerId: activeLayer.id,
-    };
-
-    const logs = [buildInsertOperationLog({ element: insertion.element, pageId: targetPage.id })];
-
-    return {
-      workingTemplate: template,
-      selectedElementIds: [insertion.element.id],
-      activePageId: targetPage.id,
-      workspaceLayersByPageId: layersByPageId,
-      activeWorkspaceLayerIdByPageId: activeLayerByPageId,
-      undoStack: pushUndoCheckpoint(state),
-      redoStack: [],
-      operationLogs: appendOperationLogs(state.operationLogs, logs),
-    };
-  });
-
-  return outcome;
-}
-
-function resolveEditorPage(template: TemplateSchema, activePageId?: string | null) {
-  return template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
-}
-
-function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
-  const pageElements = template.elements.filter((element) => element.pageId === pageId);
-  if (pageElements.length === 0) {
-    return null;
-  }
-
-  const explicitLayerIds = new Set(
-    pageElements
-      .map((element) => readElementPropString(element, "layerId") ?? readElementPropString(element, "layerName"))
-      .filter((value): value is string => Boolean(value)),
-  );
-
-  if (explicitLayerIds.size === 1) {
-    return explicitLayerIds.values().next().value ?? null;
-  }
-
-  const pageLayers = pageElements.length > 0 ? [createDefaultWorkspaceLayer(pageId, 1)] : [];
-  return pageLayers.length === 1 ? pageLayers[0].id : null;
-}
-
-function resolveElementLayerIdentity(
-  element: TemplateElement,
-  fallbackLayerId: string | null,
-): { key: string; name: string; order: number | null; visible: boolean | null; locked: boolean | null } | null {
-  const layerId = readElementPropString(element, "layerId");
-  const layerName = readElementPropString(element, "layerName");
-  const resolvedKey = layerId ?? layerName ?? fallbackLayerId;
-  if (!resolvedKey) {
-    return null;
-  }
-
-  return {
-    key: resolvedKey,
-    name: layerName ?? layerId ?? "Contenu",
-    order: readElementPropNumber(element, "layerOrder"),
-    visible: readElementPropBoolean(element, "layerVisible"),
-    locked: readElementPropBoolean(element, "layerLocked"),
-  };
-}
-
-function resolveElementLabel(element: TemplateElement) {
-  const explicitLabel = readElementPropString(element, "label") ?? readElementPropString(element, "name") ?? readElementPropString(element, "text") ?? readElementPropString(element, "alt");
-  if (explicitLabel) {
-    return explicitLabel;
-  }
-
-  switch (element.type) {
-    case "text":
-      return "Texte";
-    case "rich-text":
-      return "Rich text";
-    case "image":
-      return "Image";
-    case "shape":
-      return readElementPropString(element, "shape") ?? "Forme";
-    case "table":
-      return "Tableau";
-    case "list":
-      return "Liste";
-    default:
-      return element.id;
-  }
-}
-
-function readElementPropString(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
-function stripRichTextHtml(html: string) {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .split("\n")
-    .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
-    .join("\n");
-}
-
-function readElementPropBoolean(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "boolean" ? value : null;
-}
-
-function readElementPropNumber(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function hasCanvasGeometryChanged(before: TemplateElement, after: TemplateElement, patch: CanvasObjectGeometryPatch) {
-  return (
-    !areFramesEqual(before.frame, after.frame) ||
-    !areNumbersEqual(before.rotation ?? 0, after.rotation ?? 0) ||
-    !areOptionalNumberArraysEqual(readElementNumberArray(before, "points"), patch.points ? readElementNumberArray(after, "points") : readElementNumberArray(before, "points"))
-  );
-}
-
-function areFramesEqual(a: TemplateElement["frame"], b: TemplateElement["frame"]) {
-  return areNumbersEqual(a.x, b.x) && areNumbersEqual(a.y, b.y) && areNumbersEqual(a.width, b.width) && areNumbersEqual(a.height, b.height);
-}
-
-function areNumbersEqual(a: number, b: number) {
-  return Math.abs(a - b) < 0.0001;
-}
-
-function readElementNumberArray(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return Array.isArray(value) && value.every((item) => typeof item === "number") ? value : null;
-}
-
-function areOptionalNumberArraysEqual(a: number[] | null, b: number[] | null) {
-  if (!a && !b) {
-    return true;
-  }
-
-  if (!a || !b || a.length !== b.length) {
-    return false;
-  }
-
-  return a.every((value, index) => areNumbersEqual(value, b[index] ?? Number.NaN));
-}
-
-function clampFrameToPage(frame: TemplateSchema["elements"][number]["frame"], pageWidth: number, pageHeight: number) {
-  const width = Math.min(frame.width, pageWidth);
-  const height = Math.min(frame.height, pageHeight);
-  return {
-    x: clampNumber(frame.x, 0, Math.max(0, pageWidth - width)),
-    y: clampNumber(frame.y, 0, Math.max(0, pageHeight - height)),
-    width,
-    height,
-  };
-}
-
-function clampNumber(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function appendOperationLogs(existing: EditorOperationLogEntry[], next: EditorOperationLogEntry[]) {
-  if (next.length === 0) {
-    return existing;
-  }
-
-  const merged = [...existing, ...next];
-  const limit = 150;
-  return merged.length > limit ? merged.slice(merged.length - limit) : merged;
-}
-
-function pushUndoCheckpoint(state: Pick<EditorStoreState, "undoStack" | "workingTemplate">): TemplateSchema[] {
-  const next = [...state.undoStack, structuredClone(state.workingTemplate)];
-  const limit = 50;
-  return next.length > limit ? next.slice(next.length - limit) : next;
-}

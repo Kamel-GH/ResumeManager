@@ -1,6 +1,7 @@
 "use client";
 
 import { generateHTML, generateJSON, mergeAttributes, Node, nodeInputRule, nodePasteRule, type JSONContent } from "@tiptap/core";
+import Link from "@tiptap/extension-link";
 import StarterKit from "@tiptap/starter-kit";
 import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
@@ -259,6 +260,30 @@ export function resolveRichTextVariableNodeAttrsFromPayload(payload: RichTextVar
   return buildRichTextVariableNodeAttrsFromSource(payload, registry);
 }
 
+export function normalizeRichTextVariableNodeAttrs(attrs: unknown): RichTextVariableNodeAttrs {
+  const record = attrs && typeof attrs === "object" ? (attrs as Record<string, unknown>) : {};
+  const id = typeof record.id === "string" ? record.id : typeof record.key === "string" ? record.key : "";
+  const key = typeof record.key === "string" ? record.key : id;
+  const label = normalizeBracketedLabel(typeof record.label === "string" ? record.label : key);
+  const fallback = normalizeBracketedLabel(typeof record.fallback === "string" ? record.fallback : label || key);
+  const source = typeof record.source === "string" ? record.source : resolveRichTextVariableSource(key, null);
+
+  return {
+    id,
+    key,
+    label,
+    fallback,
+    source,
+    bold: record.bold === true ? true : null,
+    italic: record.italic === true ? true : null,
+    underline: record.underline === true ? true : null,
+    strike: record.strike === true ? true : null,
+    color: typeof record.color === "string" ? record.color : null,
+    fontSize: typeof record.fontSize === "string" ? record.fontSize : null,
+    fontFamily: typeof record.fontFamily === "string" ? record.fontFamily : null,
+  };
+}
+
 export const RichTextVariableNode = Node.create({
   name: VARIABLE_NODE_NAME,
   group: "inline",
@@ -391,6 +416,11 @@ function buildRichTextBaseExtensions(
   return [
     StarterKit,
     Underline,
+    Link.configure({
+      autolink: false,
+      linkOnPaste: true,
+      openOnClick: false,
+    }),
     TextStyleKit.configure({
       backgroundColor: {
         types: ["textStyle"],
@@ -1218,27 +1248,7 @@ function serializeFallbackTextStyle(attrs: unknown) {
 }
 
 function normalizeFallbackVariableNodeAttrs(attrs: unknown): RichTextVariableNodeAttrs {
-  const record = attrs && typeof attrs === "object" ? (attrs as Record<string, unknown>) : {};
-  const id = typeof record.id === "string" ? record.id : typeof record.key === "string" ? record.key : "";
-  const key = typeof record.key === "string" ? record.key : id;
-  const label = normalizeBracketedLabel(typeof record.label === "string" ? record.label : key);
-  const fallback = normalizeBracketedLabel(typeof record.fallback === "string" ? record.fallback : label || key);
-  const source = typeof record.source === "string" ? record.source : resolveRichTextVariableSource(key, null);
-
-  return {
-    id,
-    key,
-    label,
-    fallback,
-    source,
-    bold: record.bold === true ? true : null,
-    italic: record.italic === true ? true : null,
-    underline: record.underline === true ? true : null,
-    strike: record.strike === true ? true : null,
-    color: typeof record.color === "string" ? record.color : null,
-    fontSize: typeof record.fontSize === "string" ? record.fontSize : null,
-    fontFamily: typeof record.fontFamily === "string" ? record.fontFamily : null,
-  };
+  return normalizeRichTextVariableNodeAttrs(attrs);
 }
 
 function decodeHtmlEntities(text: string) {

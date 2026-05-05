@@ -1,5 +1,12 @@
-import type { TemplateElement, TemplateElementType, TemplateSchema } from "@/features/editor/schema/template-schema";
-import { resolveElementLayerIdentity, resolveStableLayerNumber } from "@/features/editor/selectors/editor-layers-view";
+import type { TemplateElementType, TemplateSchema } from "@/features/editor/schema/template-schema";
+import {
+  readElementPropBoolean,
+  readElementPropString,
+  resolveElementLabel,
+  resolveElementLayerIdentity,
+  resolveSingleLayerIdForPage,
+  resolveStableLayerNumber,
+} from "@/features/editor/schema/canvas-layer-object-model";
 
 export type EditorObjectView = {
   id: string;
@@ -82,41 +89,4 @@ export function filterEditorObjectsView(objects: EditorObjectView[], filters: Ed
     const matchesPage = !filters.page || filters.page === "all" || String(object.pageIndex) === filters.page || object.pageId === filters.page;
     return matchesText && matchesType && matchesLayer && matchesPage;
   });
-}
-
-function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
-  const layerIds = new Set(
-    template.elements
-      .filter((element) => element.pageId === pageId)
-      .map((element) => readElementPropString(element, "layerId"))
-      .filter(Boolean),
-  );
-  return layerIds.size === 1 ? [...layerIds][0] ?? null : null;
-}
-
-function resolveElementLabel(element: TemplateElement) {
-  const explicitName = readElementPropString(element, "name") ?? readElementPropString(element, "label") ?? readElementPropString(element, "title");
-  if (explicitName) {
-    return explicitName;
-  }
-
-  const text = readElementPropString(element, "text") ?? readElementPropString(element, "html");
-  if (text) {
-    const clean = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    if (clean) {
-      return clean.length > 36 ? `${clean.slice(0, 33)}…` : clean;
-    }
-  }
-
-  return `${element.type} ${element.id}`;
-}
-
-function readElementPropString(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function readElementPropBoolean(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "boolean" ? value : null;
 }

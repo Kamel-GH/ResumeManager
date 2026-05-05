@@ -116,8 +116,7 @@ export function buildActiveWorkspaceLayout(pages: WorkspacePageSource[], activeP
 }
 
 export function resolveEffectiveRulerMode(settings: Pick<EditorWorkspaceSettings, "rulerMode">): RulerMode {
-  void settings;
-  return "page";
+  return settings.rulerMode;
 }
 
 export function derivePageOrientation(width: number, height: number): "portrait" | "landscape" | "square" {

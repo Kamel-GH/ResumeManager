@@ -79,7 +79,9 @@
 }
 
 .editor-fidelity .ef-navigation-button:hover:not(:disabled),
-.editor-fidelity .ef-navigation-zoom-value:hover {
+.editor-fidelity .ef-navigation-button:focus-visible:not(:disabled),
+.editor-fidelity .ef-navigation-zoom-value:hover,
+.editor-fidelity .ef-navigation-zoom-value:focus-visible {
   border-color: rgb(255 255 255 / 11%);
   background: rgb(255 255 255 / 7%);
   color: #f2c17d;
@@ -131,7 +133,8 @@
   backdrop-filter: blur(8px);
 }
 
-.editor-fidelity .ef-rich-text-edit-button:hover {
+.editor-fidelity .ef-rich-text-edit-button:hover,
+.editor-fidelity .ef-rich-text-edit-button:focus-visible {
   border-color: rgb(245 166 35 / 48%);
   background: rgb(31 34 40 / 96%);
   color: #f5a623;
@@ -153,7 +156,8 @@
   backdrop-filter: blur(8px);
 }
 
-.editor-fidelity .ef-image-edit-button:hover {
+.editor-fidelity .ef-image-edit-button:hover,
+.editor-fidelity .ef-image-edit-button:focus-visible {
   border-color: rgb(245 166 35 / 48%);
   background: rgb(31 34 40 / 96%);
   color: #f5a623;
@@ -1164,7 +1168,6 @@
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
-  outline: none;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -1885,11 +1888,10 @@
   color: #e5e7eb;
   font-family: "Inter", system-ui, sans-serif;
   font-size: 11px;
-  outline: none;
 }
 
-.ef-palette-color-input:focus,
-.ef-style-color-input:focus {
+.ef-palette-color-input:focus-visible,
+.ef-style-color-input:focus-visible {
   border-color: rgb(245 166 35 / 85%);
   box-shadow: 0 0 0 1px rgb(245 166 35 / 16%);
 }
@@ -2120,10 +2122,9 @@
   padding: 0 8px;
   font-family: inherit;
   font-size: 11px;
-  outline: none;
 }
 
-.ef-rte-prop-input:focus {
+.ef-rte-prop-input:focus-visible {
   border-color: rgb(245 166 35 / 70%);
   box-shadow: 0 0 0 1px rgb(245 166 35 / 14%);
 }
@@ -2138,7 +2139,6 @@
   padding: 0 8px;
   font-family: inherit;
   font-size: 11px;
-  outline: none;
 }
 
 .ef-rte-prop-range {
@@ -2538,7 +2538,8 @@
 .ef-rtp-editor-content {
   width: 100%;
   min-height: 100%;
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   white-space: normal;
   overflow-wrap: anywhere;
   font-family: "Inter", system-ui, sans-serif;
@@ -2791,10 +2792,9 @@
   font-family: inherit;
   font-size: 11px;
   text-align: center;
-  outline: none;
 }
 
-.ef-rtp-input:focus {
+.ef-rtp-input:focus-visible {
   border-color: rgb(245 166 35 / 70%);
   box-shadow: 0 0 0 1px rgb(245 166 35 / 14%);
 }
@@ -2809,7 +2809,6 @@
   padding: 0 8px;
   font-family: inherit;
   font-size: 11px;
-  outline: none;
   cursor: pointer;
 }
 
@@ -2944,7 +2943,6 @@
   padding: 0 8px;
   font: inherit;
   font-size: 11px;
-  outline: none;
   cursor: pointer;
 }
 
@@ -2958,7 +2956,6 @@
   padding: 0 8px;
   font: inherit;
   font-size: 11px;
-  outline: none;
 }
 
 .ef-rtp-popover-input:disabled {
@@ -3087,14 +3084,13 @@
   color: #e5e7eb;
   font: inherit;
   font-size: 11px;
-  outline: none;
 }
 
 .ef-rtp-var-search::placeholder {
   color: #475569;
 }
 
-.ef-rtp-var-search:focus {
+.ef-rtp-var-search:focus-visible {
   border-color: rgb(245 166 35 / 60%);
   box-shadow: 0 0 0 1px rgb(245 166 35 / 12%);
 }

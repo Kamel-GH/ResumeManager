@@ -63,6 +63,8 @@ import {
   type EditorLeftPanelTab,
   type EditorLeftSubTab,
 } from "@/features/editor/stores/editor-store";
+import { cx } from "@/features/editor/lib/classnames";
+import { promptTextValue } from "@/features/editor/lib/prompt-text";
 
 
 const PRIMARY_TABS: LeftPanelPrimaryTab[] = [
@@ -93,6 +95,10 @@ const PRIMARY_TABS: LeftPanelPrimaryTab[] = [
 ];
 
 const REAL_TABS = new Set<EditorLeftPanelTab>(["pages", "layers", "objects"]);
+
+function promptLayerRename(currentName: string) {
+  return promptTextValue("Nom du calque", currentName);
+}
 
 export function EditorLeftPanel() {
   const activeTab = useEditorStore((state) => state.panelPreferences.activeLeftTab);
@@ -187,8 +193,8 @@ export function EditorLeftPanel() {
   }
 
   function handleRenameLayer(layer: EditorLayerView) {
-    const name = window.prompt("Nom du calque", layer.name);
-    if (name === null) {
+    const name = promptLayerRename(layer.name);
+    if (!name) {
       return;
     }
 
@@ -263,7 +269,7 @@ export function EditorLeftPanel() {
               )}
             </div>
             <div className="ef-control-actions">
-              <ActionButton label="Paramètres" icon={Settings2} />
+              <ActionButton label="Paramètres" icon={Settings2} disabled />
             </div>
           </div>
 
@@ -327,7 +333,7 @@ export function EditorLeftPanel() {
         </div>
       ) : null}
 
-      <div className={["ef-left-panel-scroll", activeTab === "layers" ? "is-layers-panel" : "", activeTab === "objects" ? "is-objects-panel" : ""].join(" ")}>
+      <div className={cx("ef-left-panel-scroll", activeTab === "layers" && "is-layers-panel", activeTab === "objects" && "is-objects-panel")}>
         {activeTab === "pages" ? (
           <EditorLeftPagesPanel pages={activePageViews} filter={panelFilters.pages ?? ""} onSelectPage={handlePageSelect} />
         ) : null}
@@ -564,7 +570,7 @@ function LayersPanel({
           {sorted.map((layer) => (
             <button
               key={layer.id}
-              className={["ef-layer-table-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
+              className={cx("ef-layer-table-row", selectedLayerIds.includes(layer.id) && "is-selected-layer", layer.active && "is-active-layer", draggedLayerId === layer.id && "is-dragging")}
               type="button"
               draggable
               data-layer-id={layer.id}
@@ -626,7 +632,7 @@ function LayersPanel({
                 <div key={layer.id} className="ef-layer-tree-layer">
                   <button
                     type="button"
-                              className={["ef-layer-tree-layer-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
+                              className={cx("ef-layer-tree-layer-row", selectedLayerIds.includes(layer.id) && "is-selected-layer", layer.active && "is-active-layer", draggedLayerId === layer.id && "is-dragging")}
                     draggable
                     onClick={(event) => handleLayerClick(event, layer)}
                               onDoubleClick={() => onActivateLayer(layer)}
@@ -753,7 +759,7 @@ function LayerTreeObjectRow({
   onSelectObject: (object: EditorObjectView) => void;
 }) {
   return (
-    <button type="button" className={["ef-layer-tree-object-row", object.selected ? "is-selected-object" : ""].join(" ")} title={object.name} onClick={() => onSelectObject(object)}>
+    <button type="button" className={cx("ef-layer-tree-object-row", object.selected && "is-selected-object")} title={object.name} onClick={() => onSelectObject(object)}>
       <span className="ef-layer-tree-object-branch" aria-hidden="true">
         ├
       </span>
@@ -811,7 +817,7 @@ function LibraryPanel({
   }
 
   return (
-    <div className={["ef-asset-grid", subTab === "icons" ? "ef-asset-grid-4" : "ef-asset-grid-3"].join(" ")}>
+    <div className={cx("ef-asset-grid", subTab === "icons" ? "ef-asset-grid-4" : "ef-asset-grid-3")}>
       {rows.map((item) => (
         <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
       ))}

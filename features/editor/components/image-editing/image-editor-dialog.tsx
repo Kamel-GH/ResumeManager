@@ -9,7 +9,6 @@ import type { ImageEditingState, ImageEditorTab, ImageFilterPreset, ImageMaskBou
 import {
   buildImageCssFilter,
   buildImageMaskPathData,
-  defaultImageEditingState,
   normalizeImageEditingState,
   resolveImageMaskBorderPresentation,
   resolveImageMaskFrame,
@@ -17,6 +16,7 @@ import {
 } from "./image-editor-utils";
 import { ImageCropManipulator } from "./image-crop-manipulator";
 import { ImageMaskManipulator } from "./image-mask-manipulator";
+import { useResettableDraftState } from "./use-resettable-draft-state";
 
 type ImageEditorDialogProps = {
   node: RenderNode;
@@ -66,9 +66,10 @@ const maskBorderStyleOptions: Array<{ id: ImageEditingState["mask"]["border"]["s
 ];
 
 export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialogProps) {
-  const initialEditing = useMemo(() => normalizeImageEditingState(node.props.imageEditing), [node.props.imageEditing]);
+  const initialEditingSignature = JSON.stringify(node.props.imageEditing ?? null);
+  const initialEditing = useMemo(() => normalizeImageEditingState(node.props.imageEditing), [initialEditingSignature]);
   const [activeTab, setActiveTab] = useState<ImageEditorTab>("crop");
-  const [draft, setDraft] = useState<ImageEditingState>(initialEditing);
+  const { draft, setDraft, resetDraft } = useResettableDraftState(initialEditing, initialEditingSignature);
   const source = typeof node.props.src === "string" ? node.props.src : "";
   const previewClipId = useMemo(() => `ef-image-editor-preview-clip-${node.id}`, [node.id]);
   const previewFrameWidth = Number.isFinite(node.frame.width) && node.frame.width > 0 ? node.frame.width : 1;
@@ -99,7 +100,6 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
     },
     [],
   );
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -200,7 +200,7 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
           <button type="button" className="ef-image-editor-secondary" onClick={onCancel}>
             Annuler
           </button>
-          <button type="button" className="ef-image-editor-secondary" onClick={() => setDraft(structuredClone(defaultImageEditingState))}>
+          <button type="button" className="ef-image-editor-secondary" onClick={resetDraft}>
             <RotateCcw size={14} aria-hidden="true" />
             Réinitialiser
           </button>
