@@ -30,6 +30,11 @@ import { useMemo, useState, type CSSProperties, type DragEvent, type MouseEvent 
 import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
 import { VariablesCompactPanel } from "@/features/data-mapping/components/variables-compact-panel";
 import {
+  EditorLeftPanelPrimaryRail,
+  EditorLeftPanelSubTabRail,
+  type LeftPanelPrimaryTab,
+} from "@/features/editor/components/parts/editor-left-panel-rails";
+import {
   deriveEditorDocumentLayersView,
   deriveEditorObjectsView,
   deriveEditorPagesView,
@@ -42,19 +47,13 @@ import {
 import {
   useEditorStore,
   type EditorLeftPanelTab,
-  type EditorLeftSubTab,
 } from "@/features/editor/stores/editor-store";
 
 type IconName = LucideIcon;
 type SortDir = "asc" | "desc" | null;
 type ColorSet = { bg: string; fg: string; border: string };
 
-const PRIMARY_TABS: Array<{
-  id: EditorLeftPanelTab;
-  label: string;
-  icon: IconName;
-  subTabs: Array<{ id: EditorLeftSubTab; label: string; icon: IconName }> | null;
-}> = [
+const PRIMARY_TABS: LeftPanelPrimaryTab[] = [
   {
     id: "data",
     label: "Données",
@@ -219,8 +218,20 @@ export function EditorLeftPanel() {
 
   return (
     <aside className="ef-left-panel-v2" aria-label="Volet gauche">
-      <PrimaryRail activeTab={activeTab} onTabChange={switchTab} />
-      {tab.subTabs ? <SubTabRail subTabs={tab.subTabs} activeSubTab={activeSubTab} onSubTabChange={(value) => value && setActiveSubTab(activeTab, value)} /> : null}
+      <EditorLeftPanelPrimaryRail
+        tabs={PRIMARY_TABS}
+        activeTab={activeTab}
+        onTabChange={switchTab}
+        renderIcon={(icon, size) => <IconGlyph icon={icon} size={size} />}
+      />
+      {tab.subTabs ? (
+        <EditorLeftPanelSubTabRail
+          subTabs={tab.subTabs}
+          activeSubTab={activeSubTab}
+          onSubTabChange={(value) => value && setActiveSubTab(activeTab, value)}
+          renderIcon={(icon, size) => <IconGlyph icon={icon} size={size} />}
+        />
+      ) : null}
 
       {REAL_TABS.has(activeTab) ? (
         <div className="ef-control-header">
@@ -355,68 +366,6 @@ export function EditorLeftPanel() {
         ) : null}
       </div>
     </aside>
-  );
-}
-
-function PrimaryRail({
-  activeTab,
-  onTabChange,
-}: {
-  activeTab: EditorLeftPanelTab;
-  onTabChange: (tab: EditorLeftPanelTab) => void;
-}) {
-  return (
-    <div className="ef-left-tabs" role="tablist" aria-label="Modules éditeur">
-      {PRIMARY_TABS.map((tab) => {
-        const active = tab.id === activeTab;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={tab.label}
-            title={tab.label}
-            className={["ef-left-tab", active ? "is-active" : ""].join(" ")}
-            onClick={() => onTabChange(tab.id)}
-          >
-            <IconGlyph icon={tab.icon} size={18} />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function SubTabRail({
-  subTabs,
-  activeSubTab,
-  onSubTabChange,
-}: {
-  subTabs: NonNullable<(typeof PRIMARY_TABS)[number]["subTabs"]>;
-  activeSubTab?: EditorLeftSubTab;
-  onSubTabChange: (subTab?: EditorLeftSubTab) => void;
-}) {
-  return (
-    <div className="ef-left-subtabs" role="tablist" aria-label="Sous-sections">
-      {subTabs.map((item) => {
-        const active = item.id === activeSubTab;
-        return (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            aria-label={item.label}
-            title={item.label}
-            className={["ef-left-subtab", active ? "is-active" : ""].join(" ")}
-            onClick={() => onSubTabChange(item.id)}
-          >
-            <IconGlyph icon={item.icon} size={16} />
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
