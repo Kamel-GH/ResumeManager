@@ -5,13 +5,9 @@ import {
   ChevronRight,
   Circle,
   Database,
-  Eye,
-  EyeOff,
   FileText,
   Layers3,
   LibraryBig,
-  Lock,
-  LockOpen,
   Merge,
   Pencil,
   Plus,
@@ -30,9 +26,9 @@ import {
   type LeftPanelPrimaryTab,
 } from "@/features/editor/components/parts/editor-left-panel-rails";
 import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
+import { EditorLeftObjectsPanel } from "@/features/editor/components/parts/editor-left-panel-objects";
 import {
   ActionButton,
-  Badge,
   IconGlyph,
   NoResult,
   SearchBox,
@@ -44,7 +40,6 @@ import {
   deriveEditorObjectsView,
   deriveEditorPagesView,
   filterEditorLayersView,
-  filterEditorObjectsView,
   type EditorLayerView,
   type EditorObjectView,
 } from "@/features/editor/selectors";
@@ -341,7 +336,7 @@ export function EditorLeftPanel() {
           />
         ) : null}
         {activeTab === "objects" ? (
-          <ObjectsPanel
+          <EditorLeftObjectsPanel
             objects={objectViews}
             filter={panelFilters.objects ?? ""}
             layerFilter={objectLayerFilter}
@@ -793,86 +788,6 @@ function LayerTreeObjectRow({
   );
 }
 
-function ObjectsPanel({
-  objects,
-  filter,
-  layerFilter,
-  onSelectObject,
-  pageFilter,
-  typeFilter,
-}: {
-  objects: EditorObjectView[];
-  filter: string;
-  layerFilter: string;
-  onSelectObject: (object: EditorObjectView) => void;
-  pageFilter: string;
-  typeFilter: string;
-}) {
-  const rows = useMemo(
-    () =>
-      filterEditorObjectsView(objects, {
-        text: filter,
-        type: typeFilter,
-        layer: layerFilter,
-        page: pageFilter,
-      }),
-    [filter, layerFilter, objects, pageFilter, typeFilter],
-  );
-  const { sorted, toggle, dirOf } = useSort(rows, "name");
-
-  return (
-    <div className="ef-objects-shell">
-      <div className="ef-object-head" role="rowgroup" aria-label="Colonnes objets">
-        <SortHeader label="Type" dir={dirOf("type")} onClick={() => toggle("type")} width={58} />
-        <SortHeader label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
-        <SortHeader label="Pg" dir={dirOf("pageIndex")} onClick={() => toggle("pageIndex")} width={28} align="center" />
-        <SortHeader label="Cq" dir={dirOf("layerNumber")} onClick={() => toggle("layerNumber")} width={34} align="center" />
-        <SortHeader label="A" dir={null} onClick={() => undefined} width={28} align="center" />
-        <SortHeader label="V" dir={null} onClick={() => undefined} width={28} align="center" />
-      </div>
-      <div className="ef-object-list-scroll">
-        {sorted.map((object) => (
-          <button key={object.id} className={["ef-object-row", object.selected ? "is-active" : ""].join(" ")} type="button" onClick={() => onSelectObject(object)} title={object.name}>
-            <Badge value={object.type} colorSet={OBJECT_TYPE_COLORS[object.type] ?? DEFAULT_OBJECT_TYPE_COLOR} width={44} />
-            <strong>{object.name}</strong>
-            <span>{object.pageIndex}</span>
-            <span>{object.layerNumber ?? "—"}</span>
-            <span>{object.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
-            <span>{object.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
-          </button>
-        ))}
-        {rows.length === 0 ? <NoResult /> : null}
-      </div>
-    </div>
-  );
-}
-
-function readObjectGroupedState(object: EditorObjectView) {
-  if (object.grouped === true) {
-    return "groupé";
-  }
-
-  if (object.grouped === false) {
-    return "non groupé";
-  }
-
-  return "—";
-}
-
-function groupLayersByPage(layers: EditorLayerView[]) {
-  const groups = new Map<string, string[]>();
-  layers.forEach((layer) => {
-    const layerIds = groups.get(layer.pageId);
-    if (layerIds) {
-      layerIds.push(layer.id);
-      return;
-    }
-
-    groups.set(layer.pageId, [layer.id]);
-  });
-  return groups;
-}
-
 function LibraryPanel({
   subTab,
   filter,
@@ -1259,13 +1174,3 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
   return { sorted, toggle, dirOf };
 }
 
-const DEFAULT_OBJECT_TYPE_COLOR = { bg: "rgba(71, 85, 105, 0.22)", fg: "#b8c2cf", border: "rgba(148, 163, 184, 0.26)" };
-
-const OBJECT_TYPE_COLORS: Partial<Record<EditorObjectView["type"], { bg: string; fg: string; border: string }>> = {
-  text: { bg: "rgba(59, 130, 246, 0.14)", fg: "#a9bddb", border: "rgba(96, 165, 250, 0.24)" },
-  "rich-text": { bg: "rgba(59, 130, 246, 0.14)", fg: "#a9bddb", border: "rgba(96, 165, 250, 0.24)" },
-  image: { bg: "rgba(99, 102, 241, 0.14)", fg: "#b9baf0", border: "rgba(129, 140, 248, 0.24)" },
-  shape: { bg: "rgba(168, 85, 247, 0.12)", fg: "#c7b5de", border: "rgba(192, 132, 252, 0.22)" },
-  table: { bg: "rgba(34, 197, 94, 0.12)", fg: "#a9d1b9", border: "rgba(74, 222, 128, 0.22)" },
-  list: { bg: "rgba(245, 158, 11, 0.12)", fg: "#d5b98c", border: "rgba(251, 191, 36, 0.22)" },
-};
