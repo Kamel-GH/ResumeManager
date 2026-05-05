@@ -20,7 +20,7 @@ import {
   Trash2,
   List,
 } from "lucide-react";
-import { useMemo, useState, type CSSProperties, type DragEvent, type MouseEvent } from "react";
+import { useMemo, useState, type DragEvent, type MouseEvent } from "react";
 
 import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
 import { VariablesCompactPanel } from "@/features/data-mapping/components/variables-compact-panel";
@@ -37,7 +37,7 @@ import {
   NoResult,
   SearchBox,
   SortHeader,
-  smallMutedText,
+  UnavailablePanel,
 } from "@/features/editor/components/parts/editor-left-panel-common";
 import {
   deriveEditorDocumentLayersView,
@@ -1199,18 +1199,6 @@ function createLibraryPreviewSvg(label: string, accent: string) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-function UnavailablePanel({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <div className="ef-entity-card-stack">
-      <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-        <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>{title}</strong>
-        <span style={smallMutedText}>Section non branchée dans ce lot.</span>
-        {subtitle ? <span style={smallMutedText}>{subtitle}</span> : null}
-      </div>
-    </div>
-  );
-}
-
 function matchesFilter(item: { id?: string }, filter: string, values: string[]): boolean {
   if (!filter.trim()) {
     return true;
@@ -1270,13 +1258,6 @@ function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof
 
   return { sorted, toggle, dirOf };
 }
-
-const smallMutedText: CSSProperties = {
-  fontSize: 10,
-  lineHeight: 1.2,
-  color: "#8b8b92",
-  letterSpacing: 0,
-};
 
 const DEFAULT_OBJECT_TYPE_COLOR = { bg: "rgba(71, 85, 105, 0.22)", fg: "#b8c2cf", border: "rgba(148, 163, 184, 0.26)" };
 

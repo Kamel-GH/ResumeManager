@@ -121,3 +121,30 @@ export function Badge({
     </span>
   );
 }
+
+export function UnavailablePanel({
+  title,
+  subtitle,
+}: {
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="ef-entity-card-stack">
+      <div
+        className="ef-no-result"
+        style={{
+          minHeight: 132,
+          flexDirection: "column",
+          gap: 6,
+          padding: 16,
+          textAlign: "center",
+        }}
+      >
+        <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>{title}</strong>
+        <span style={smallMutedText}>Section non branchée dans ce lot.</span>
+        {subtitle ? <span style={smallMutedText}>{subtitle}</span> : null}
+      </div>
+    </div>
+  );
+}
