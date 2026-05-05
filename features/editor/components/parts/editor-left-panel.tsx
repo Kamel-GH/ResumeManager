@@ -23,7 +23,6 @@ import {
   Shapes,
   Trash2,
   List,
-  type LucideIcon,
 } from "lucide-react";
 import { useMemo, useState, type CSSProperties, type DragEvent, type MouseEvent } from "react";
 
@@ -49,7 +48,6 @@ import {
   type EditorLeftPanelTab,
 } from "@/features/editor/stores/editor-store";
 
-type IconName = LucideIcon;
 type SortDir = "asc" | "desc" | null;
 type ColorSet = { bg: string; fg: string; border: string };
 
