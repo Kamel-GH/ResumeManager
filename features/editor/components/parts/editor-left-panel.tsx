@@ -33,6 +33,7 @@ import {
   EditorLeftPanelSubTabRail,
   type LeftPanelPrimaryTab,
 } from "@/features/editor/components/parts/editor-left-panel-rails";
+import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
 import {
   deriveEditorDocumentLayersView,
   deriveEditorObjectsView,
@@ -41,7 +42,6 @@ import {
   filterEditorObjectsView,
   type EditorLayerView,
   type EditorObjectView,
-  type EditorPageView,
 } from "@/features/editor/selectors";
 import {
   useEditorStore,
@@ -315,7 +315,7 @@ export function EditorLeftPanel() {
 
       <div className={["ef-left-panel-scroll", activeTab === "layers" ? "is-layers-panel" : "", activeTab === "objects" ? "is-objects-panel" : ""].join(" ")}>
         {activeTab === "pages" ? (
-          <PagesPanel pages={activePageViews} filter={panelFilters.pages ?? ""} onSelectPage={handlePageSelect} />
+          <EditorLeftPagesPanel pages={activePageViews} filter={panelFilters.pages ?? ""} onSelectPage={handlePageSelect} />
         ) : null}
         {activeTab === "layers" ? (
           <LayersPanel
@@ -364,41 +364,6 @@ export function EditorLeftPanel() {
         ) : null}
       </div>
     </aside>
-  );
-}
-
-function PagesPanel({
-  pages,
-  filter,
-  onSelectPage,
-}: {
-  pages: EditorPageView[];
-  filter: string;
-  onSelectPage: (pageId: string) => void;
-}) {
-  const rows = useMemo(() => pages.filter((page) => matchesFilter(page, filter, [page.name, String(page.index), `${page.width}x${page.height}`, String(page.elementCount)])), [filter, pages]);
-
-  return (
-    <div className="ef-page-list">
-      {rows.map((page) => (
-        <button key={page.id} className={["ef-page-card", page.active ? "is-active" : ""].join(" ")} type="button" onClick={() => onSelectPage(page.id)} title={page.name}>
-          <span className="ef-page-preview" aria-hidden="true">
-            <span className="ef-page-preview-fallback">
-              <span>{page.index}</span>
-            </span>
-          </span>
-          <span className="ef-page-meta">
-            <span className="ef-page-number">{page.index}</span>
-            <strong>{page.name}</strong>
-            <span style={smallMutedText}>
-              {page.width} × {page.height}
-            </span>
-            <span style={smallMutedText}>{page.elementCount} élément{page.elementCount > 1 ? "s" : ""}</span>
-          </span>
-        </button>
-      ))}
-      {rows.length === 0 ? <NoResult /> : null}
-    </div>
   );
 }
 
