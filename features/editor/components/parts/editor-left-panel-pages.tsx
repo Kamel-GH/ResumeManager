@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, type CSSProperties } from "react";
+import { useMemo } from "react";
 
 import type { EditorPageView } from "@/features/editor/selectors";
+import { NoResult, smallMutedText } from "@/features/editor/components/parts/editor-left-panel-common";
 
 export function EditorLeftPagesPanel({
   pages,
@@ -63,8 +64,3 @@ function NoResult() {
     </div>
   );
 }
-
-const smallMutedText: CSSProperties = {
-  color: "rgba(148, 163, 184, 0.86)",
-  fontSize: 11,
-};

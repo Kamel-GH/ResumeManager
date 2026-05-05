@@ -1,9 +1,6 @@
 "use client";
 
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
   ChevronDown,
   ChevronRight,
   Circle,
@@ -18,7 +15,6 @@ import {
   Merge,
   Pencil,
   Plus,
-  Search,
   Settings2,
   Shapes,
   Trash2,
@@ -35,6 +31,15 @@ import {
 } from "@/features/editor/components/parts/editor-left-panel-rails";
 import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
 import {
+  ActionButton,
+  Badge,
+  IconGlyph,
+  NoResult,
+  SearchBox,
+  SortHeader,
+  smallMutedText,
+} from "@/features/editor/components/parts/editor-left-panel-common";
+import {
   deriveEditorDocumentLayersView,
   deriveEditorObjectsView,
   deriveEditorPagesView,
@@ -48,8 +53,6 @@ import {
   type EditorLeftPanelTab,
 } from "@/features/editor/stores/editor-store";
 
-type SortDir = "asc" | "desc" | null;
-type ColorSet = { bg: string; fg: string; border: string };
 
 const PRIMARY_TABS: LeftPanelPrimaryTab[] = [
   {
@@ -1206,106 +1209,6 @@ function UnavailablePanel({ title, subtitle }: { title: string; subtitle?: strin
       </div>
     </div>
   );
-}
-
-function ActionButton({
-  label,
-  icon: Icon,
-  disabled = false,
-  onClick,
-}: {
-  label: string;
-  icon: IconName;
-  disabled?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button className="ef-square-button ef-icon-28" type="button" title={label} aria-label={label} disabled={disabled} onClick={onClick}>
-      <IconGlyph icon={Icon} size={18} />
-    </button>
-  );
-}
-
-function SearchBox({
-  value,
-  placeholder,
-  onChange,
-}: {
-  value: string;
-  placeholder: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="ef-search-box">
-      <IconGlyph icon={Search} size={18} />
-      <input type="search" value={value} placeholder={placeholder} aria-label={placeholder} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  );
-}
-
-function IconGlyph({ icon: Icon, size = 18 }: { icon: IconName; size?: number }) {
-  return (
-    <span aria-hidden="true" className="ms">
-      <Icon size={size} strokeWidth={1.85} />
-    </span>
-  );
-}
-
-function Badge({
-  value,
-  colorSet,
-  width = 56,
-}: {
-  value: string;
-  colorSet: ColorSet;
-  width?: number;
-}) {
-  return (
-    <span
-      className="sidebar-badge"
-      style={
-        {
-          "--badge-bg": colorSet.bg,
-          "--badge-fg": colorSet.fg,
-          "--badge-border": colorSet.border,
-          "--badge-width": `${width}px`,
-        } as CSSProperties
-      }
-    >
-      {value}
-    </span>
-  );
-}
-
-function SortHeader({
-  label,
-  dir,
-  onClick,
-  width,
-  align = "left",
-}: {
-  label: string;
-  dir: SortDir;
-  onClick: () => void;
-  width?: number;
-  align?: "left" | "center" | "right";
-}) {
-  const icon = dir === "asc" ? ArrowUp : dir === "desc" ? ArrowDown : ArrowUpDown;
-  return (
-    <button
-      type="button"
-      className={["sidebar-sort-header", dir ? "is-sorted" : "", align === "center" ? "sidebar-sort-header--center" : "", align === "right" ? "sidebar-sort-header--right" : ""].join(" ")}
-      style={width ? ({ "--sort-width": `${width}px` } as CSSProperties) : undefined}
-      onClick={onClick}
-    >
-      <span>{label}</span>
-      <IconGlyph icon={icon} size={11} />
-    </button>
-  );
-}
-
-function NoResult() {
-  return <div className="ef-no-result">Aucun résultat</div>;
 }
 
 function matchesFilter(item: { id?: string }, filter: string, values: string[]): boolean {
