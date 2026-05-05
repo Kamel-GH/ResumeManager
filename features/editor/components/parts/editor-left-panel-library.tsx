@@ -2,7 +2,7 @@
 
 import type { DragEvent } from "react";
 
-import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
+import type { CanvasCreationEnvelope, CanvasDropEnvelope } from "@/features/editor/schema/canvas-insertion";
 import type { EditorLeftSubTab } from "@/features/editor/stores/editor-store";
 import { matchesFilter } from "@/features/editor/components/parts/editor-left-panel-utils";
 
@@ -70,11 +70,14 @@ function DraggableLibraryItem({
 
 function createLibraryDragContext(item: LibraryItem): CanvasCreationEnvelope {
   return {
-    source: "left-panel-library",
-    kind: item.kind,
-    label: item.label,
-    payload: item.payload,
-  } as CanvasCreationEnvelope;
+    type: item.kind,
+    payload: {
+      source: "left-panel-library",
+      kind: item.kind,
+      label: item.label,
+      ...item.payload,
+    },
+  } satisfies CanvasDropEnvelope;
 }
 
 function buildLibraryItems(subTab: EditorLeftSubTab): LibraryItem[] {
