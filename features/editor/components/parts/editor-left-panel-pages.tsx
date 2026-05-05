@@ -57,10 +57,3 @@ function matchesFilter<T>(
   );
 }
 
-function NoResult() {
-  return (
-    <div className="ef-empty-state">
-      Aucun résultat.
-    </div>
-  );
-}

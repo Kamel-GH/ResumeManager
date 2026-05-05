@@ -1,13 +1,19 @@
 "use client";
 
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronDown,
   ChevronRight,
   Circle,
   Database,
+  Eye,
+  EyeOff,
   FileText,
   Layers3,
   LibraryBig,
+  Lock,
+  LockOpen,
   Merge,
   Pencil,
   Plus,
@@ -28,6 +34,15 @@ import {
 import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
 import { EditorLeftObjectsPanel } from "@/features/editor/components/parts/editor-left-panel-objects";
 import {
+  groupLayersByPage,
+  groupObjectsForLayer,
+  matchesFilter,
+  readObjectGroupedState,
+  uniqueBy,
+  uniqueSorted,
+  useSort,
+} from "@/features/editor/components/parts/editor-left-panel-utils";
+import {
   ActionButton,
   IconGlyph,
   NoResult,
@@ -46,6 +61,7 @@ import {
 import {
   useEditorStore,
   type EditorLeftPanelTab,
+  type EditorLeftSubTab,
 } from "@/features/editor/stores/editor-store";
 
 
@@ -677,41 +693,6 @@ function LayersPanel({
   );
 }
 
-type LayerObjectGroup = {
-  id: string;
-  label: string;
-  objects: EditorObjectView[];
-};
-
-function groupObjectsForLayer(objects: EditorObjectView[]) {
-  const groups = new Map<string, LayerObjectGroup>();
-  const direct: EditorObjectView[] = [];
-
-  objects.forEach((object) => {
-    if (!object.groupId) {
-      direct.push(object);
-      return;
-    }
-
-    const group = groups.get(object.groupId);
-    if (group) {
-      group.objects.push(object);
-      return;
-    }
-
-    groups.set(object.groupId, {
-      id: object.groupId,
-      label: object.groupId,
-      objects: [object],
-    });
-  });
-
-  return {
-    direct,
-    groups: [...groups.values()],
-  };
-}
-
 function LayerObjectTree({
   collapsedGroupIds,
   groups,
@@ -1113,64 +1094,3 @@ function createLibraryPreviewSvg(label: string, accent: string) {
   `;
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
-
-function matchesFilter(item: { id?: string }, filter: string, values: string[]): boolean {
-  if (!filter.trim()) {
-    return true;
-  }
-
-  const query = filter.trim().toLowerCase();
-  return [item.id ?? "", ...values].some((value) => value.toLowerCase().includes(query));
-}
-
-function uniqueSorted(values: string[]) {
-  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
-}
-
-function uniqueBy<T>(values: T[], keyOf: (value: T) => string) {
-  const seen = new Set<string>();
-  return values.filter((value) => {
-    const key = keyOf(value);
-    if (seen.has(key)) {
-      return false;
-    }
-    seen.add(key);
-    return true;
-  });
-}
-
-function useSort<T extends Record<string, unknown>>(rows: T[], initialKey: keyof T & string) {
-  const [sort, setSort] = useState<{ key: keyof T & string; dir: SortDir }>({ key: initialKey, dir: "asc" });
-
-  const sorted = useMemo(() => {
-    const copy = [...rows];
-    if (!sort.dir) {
-      return copy;
-    }
-
-    copy.sort((a, b) => {
-      const va = a[sort.key];
-      const vb = b[sort.key];
-      if (typeof va === "number" && typeof vb === "number") {
-        if (va < vb) return sort.dir === "asc" ? -1 : 1;
-        if (va > vb) return sort.dir === "asc" ? 1 : -1;
-        return 0;
-      }
-
-      const sa = String(va ?? "").toLowerCase();
-      const sb = String(vb ?? "").toLowerCase();
-      if (sa < sb) return sort.dir === "asc" ? -1 : 1;
-      if (sa > sb) return sort.dir === "asc" ? 1 : -1;
-      return 0;
-    });
-    return copy;
-  }, [rows, sort]);
-
-  const toggle = (key: keyof T & string) =>
-    setSort((state) => (state.key === key ? { key, dir: state.dir === "asc" ? "desc" : state.dir === "desc" ? null : "asc" } : { key, dir: "asc" }));
-
-  const dirOf = (key: keyof T & string) => (sort.key === key ? sort.dir : null);
-
-  return { sorted, toggle, dirOf };
-}
-
