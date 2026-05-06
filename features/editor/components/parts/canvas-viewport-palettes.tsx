@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode, type RefObject } from "react";
-import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Grid3X3, GripVertical, Hand, Pentagon, Plus, RotateCcw, Ruler, Magnet, Square, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Grid3X3, GripVertical, Hand, Pentagon, Plus, RotateCcw, Ruler, Magnet, Settings2, Square, X, ZoomIn, ZoomOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ import {
 } from "@/features/editor/schema/workspace-layout";
 import type { TemplateElement } from "@/features/editor/schema/template-schema";
 import { EDITOR_VIEWPORT_MAX_ZOOM, EDITOR_VIEWPORT_MIN_ZOOM, useEditorStore } from "@/features/editor/stores/editor-store";
+import { WorkspaceSettingsDialog } from "@/features/editor/components/parts/canvas-workspace-settings-dialog";
 
 type PaletteOrientation = "vertical" | "horizontal";
 
@@ -386,12 +387,14 @@ export function CanvasNavigationPalette({
   snapEnabled: boolean;
   zoom: number;
 }) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const zoomPercent = Math.round(zoom * 100);
   const isFirstPage = activePageIndex <= 0;
   const isLastPage = activePageIndex >= pageCount - 1;
 
   return (
-    <div className="ef-navigation-palette" aria-label="Navigation canvas">
+    <>
+      <div className="ef-navigation-palette" aria-label="Navigation canvas">
       <div className="ef-navigation-group" aria-label="Zoom">
         <NavigationPaletteButton icon={ZoomOut} label="Zoom -" onClick={onZoomOut} disabled={zoom <= EDITOR_VIEWPORT_MIN_ZOOM} />
         <button className="ef-navigation-zoom-value" type="button" onClick={onResetZoom} title="Zoom 100 %" aria-label="Zoom 100 %">
@@ -403,6 +406,7 @@ export function CanvasNavigationPalette({
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Pan">
         <NavigationPaletteButton icon={Hand} label="Mode Pan" onClick={onTogglePan} active={isPanActive} />
+        <NavigationPaletteButton icon={Settings2} label="Réglages de page" onClick={() => setSettingsOpen(true)} />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Aides au placement">
@@ -419,7 +423,10 @@ export function CanvasNavigationPalette({
         <NavigationPaletteButton icon={ChevronRight} label="Page suivante" onClick={onNextPage} disabled={isLastPage} />
         <NavigationPaletteButton icon={Plus} label="Ajouter une page" onClick={onAddPage} />
       </div>
-    </div>
+      </div>
+
+      <WorkspaceSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </>
   );
 }
 
@@ -468,7 +475,7 @@ export function HorizontalRuler({
         <span
           key={`h-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-h"
-          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x"), height: tick.isMajor ? 11 : 6 }}
+          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x"), height: tick.grade === "major" ? 11 : tick.grade === "fine" ? 4 : 6 }}
         />
       ))}
       {ticks.filter((tick) => tick.label).map((tick) => (
@@ -497,7 +504,7 @@ export function VerticalRuler({
         <span
           key={`v-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-v"
-          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y"), width: tick.isMajor ? 11 : 6 }}
+          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y"), width: tick.grade === "major" ? 11 : tick.grade === "fine" ? 4 : 6 }}
         />
       ))}
       {ticks.filter((tick) => tick.label).map((tick) => (

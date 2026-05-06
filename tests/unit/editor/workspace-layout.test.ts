@@ -81,6 +81,7 @@ describe("workspace layout", () => {
     expect(defaultWorkspaceSettings.rulersVisible).toBe(true);
     expect(defaultWorkspaceSettings.gridEnabled).toBe(true);
     expect(defaultWorkspaceSettings.snapEnabled).toBe(true);
+    expect(defaultWorkspaceSettings.measurementUnit).toBe("px");
   });
 
   it("builds a workspace layout for the active page only", () => {
@@ -133,8 +134,8 @@ describe("workspace layout", () => {
     });
 
     expect(ticks.horizontal[0]).toMatchObject({ position: 0, workspacePosition: 0, label: "0" });
-    expect(ticks.horizontal.at(-1)).toMatchObject({ position: layout.width, workspacePosition: layout.width, label: String(layout.width) });
-    expect(ticks.vertical.at(-1)).toMatchObject({ position: layout.height, workspacePosition: layout.height, label: String(layout.height) });
+    expect(ticks.horizontal.at(-1)).toMatchObject({ position: layout.width, workspacePosition: layout.width, label: undefined });
+    expect(ticks.vertical.at(-1)).toMatchObject({ position: layout.height, workspacePosition: layout.height, label: undefined });
   });
 
   it("builds page ruler ticks with page-local labels and workspace positions", () => {
@@ -156,19 +157,19 @@ describe("workspace layout", () => {
     expect(page).toBeDefined();
     expect(ticks.horizontal[0]).toMatchObject({ position: 0, workspacePosition: page?.x, label: "0" });
     expect(ticks.vertical[0]).toMatchObject({ position: 0, workspacePosition: page?.y, label: "0" });
-    expect(ticks.horizontal.at(-1)).toMatchObject({ position: page?.width, workspacePosition: page ? page.x + page.width : undefined, label: String(page?.width) });
+    expect(ticks.horizontal.at(-1)).toMatchObject({ position: page?.width, workspacePosition: page ? page.x + page.width : undefined, label: undefined });
   });
 
   it("keeps base ruler tick generation compatible with workspace offsets", () => {
     expect(buildRulerTicks(100, 100, 50, 24)).toEqual([
-      { isMajor: true, label: "0", position: 0, workspacePosition: 24 },
-      { isMajor: false, label: undefined, position: 50, workspacePosition: 74 },
-      { isMajor: true, label: "100", position: 100, workspacePosition: 124 },
+      { isMajor: true, grade: "major", label: "0", position: 0, workspacePosition: 24 },
+      { isMajor: false, grade: "minor", label: undefined, position: 50, workspacePosition: 74 },
+      { isMajor: true, grade: "major", label: "100", position: 100, workspacePosition: 124 },
     ]);
   });
 
   it("projects ruler ticks through viewport zoom and pan", () => {
-    const tick = { isMajor: true, label: "100", position: 100, workspacePosition: 124 };
+    const tick = { isMajor: true, grade: "major" as const, label: "100", position: 100, workspacePosition: 124 };
     const viewport = { zoom: 2, panX: 10, panY: -6 };
 
     expect(projectRulerTickToViewportPosition(tick, viewport, "x")).toBe(258);

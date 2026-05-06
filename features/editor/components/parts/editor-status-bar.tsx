@@ -14,7 +14,7 @@ export function EditorStatusBar() {
       <span>Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {workingTemplate.pages.length}</span>
       <span className="ef-text-center">Template Schema - Binding Engine - Layout Engine - Canonical Render Tree - Renderers</span>
       <span className="ef-text-right">
-        Zoom {Math.round(zoom * 100)}% - {workspaceSettings.marginsVisible ? "Marges affichées" : "Marges masquées"} - {workspaceSettings.snapEnabled ? "Magnétisme actif" : "Magnétisme inactif"}
+        Zoom {Math.round(zoom * 100)}% - Unité {workspaceSettings.measurementUnit} - {workspaceSettings.marginsVisible ? "Marges affichées" : "Marges masquées"} - {workspaceSettings.snapEnabled ? "Magnétisme actif" : "Magnétisme inactif"}
       </span>
     </footer>
   );

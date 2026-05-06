@@ -1351,6 +1351,27 @@ describe("editor store clipboard", () => {
     expect(state.activeWorkspaceLayerIdByPageId[result.pageId]).toBe(`${result.pageId}:layer-1`);
   });
 
+  it("updates the active page margins in the working template", () => {
+    const result = useEditorStore.getState().setTemplatePageMargin({
+      pageId: "page-1",
+      margin: {
+        left: 48,
+        right: 36,
+        top: 24,
+        bottom: 30,
+      },
+    });
+
+    expect(result.updated).toBe(true);
+    const page = useEditorStore.getState().workingTemplate.pages.find((entry) => entry.id === "page-1");
+    expect(page?.margin).toEqual({
+      left: 48,
+      right: 36,
+      top: 24,
+      bottom: 30,
+    });
+  });
+
   it("updates only rich text content while preserving the block container", () => {
     useEditorStore.setState((state) => ({
       workingTemplate: {

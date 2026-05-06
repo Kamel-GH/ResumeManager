@@ -29,6 +29,7 @@ import {
   resolveCanvasObjectStylePreview,
   type CanvasObjectStyleValues,
 } from "@/features/editor/schema/canvas-mutation";
+import { formatMeasurementNumber } from "@/features/editor/lib/measurement";
 import type { TemplateElement } from "@/features/editor/schema/template-schema";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 import { formatOperationAction, formatOperationSnapshot, formatOperationSnapshotOrDeleted } from "@/features/editor/schema/editor-operation-log";
@@ -42,6 +43,7 @@ function cn(...parts: Array<string | false | null | undefined>) {
 export function InspectorPanel() {
   const activePageId = useEditorStore((state) => state.activePageId);
   const workingTemplate = useEditorStore((state) => state.workingTemplate);
+  const workspaceSettings = useEditorStore((state) => state.workspaceSettings);
   const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
   const selectionProjection = useEditorStore((state) => state.selectionProjection);
   const operationLogs = useEditorStore((state) => state.operationLogs);
@@ -51,6 +53,7 @@ export function InspectorPanel() {
   const setEditingRichTextElementId = useEditorStore((state) => state.setEditingRichTextElementId);
   const selectedObject = selectionProjection?.object ?? null;
   const selectedPage = selectionProjection?.page ?? null;
+  const measurementUnit = workspaceSettings.measurementUnit;
   const selectionSummary =
     selectionProjection ?? {
       selectionTypeLabel: "Page",
@@ -186,13 +189,13 @@ export function InspectorPanel() {
 
       <InspectorSection title="Disposition" open>
         <div className="ef-grid-position">
-          <SplitBox values={["X", String(Math.round(selectedObject?.frame.x ?? 0)), "px"]} />
-          <SplitBox values={["Y", String(Math.round(selectedObject?.frame.y ?? 0)), "px"]} />
+          <SplitBox values={["X", formatMeasurementNumber(selectedObject?.frame.x ?? 0, measurementUnit), measurementUnit]} />
+          <SplitBox values={["Y", formatMeasurementNumber(selectedObject?.frame.y ?? 0, measurementUnit), measurementUnit]} />
           <span className="ef-lock-cell">
             <Lock size={13} aria-hidden="true" />
           </span>
-          <SplitBox values={["L", String(Math.round(selectedObject?.frame.width ?? selectedPage?.width ?? 0)), "px"]} />
-          <SplitBox values={["H", String(Math.round(selectedObject?.frame.height ?? selectedPage?.height ?? 0)), "px"]} />
+          <SplitBox values={["L", formatMeasurementNumber(selectedObject?.frame.width ?? selectedPage?.width ?? 0, measurementUnit), measurementUnit]} />
+          <SplitBox values={["H", formatMeasurementNumber(selectedObject?.frame.height ?? selectedPage?.height ?? 0, measurementUnit), measurementUnit]} />
         </div>
 
         <div className="ef-grid-transform">

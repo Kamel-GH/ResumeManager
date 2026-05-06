@@ -103,6 +103,9 @@ export function CanvasViewport() {
         mode: effectiveRulerMode,
         majorStep: rulerMajorStep,
         minorStep: rulerMinorStep,
+        fineStep: workspaceSettings.rulerFineStep,
+        measurementUnit: workspaceSettings.measurementUnit,
+        zoom: viewport.zoom,
       }),
     [
       activePage?.id,
@@ -110,7 +113,10 @@ export function CanvasViewport() {
       effectiveRulerMode,
       rulerMajorStep,
       rulerMinorStep,
+      workspaceSettings.rulerFineStep,
+      viewport.zoom,
       workspaceLayout,
+      workspaceSettings.measurementUnit,
     ],
   );
   const [isDropActive, setIsDropActive] = useState(false);

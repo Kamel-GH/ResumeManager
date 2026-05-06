@@ -36,7 +36,7 @@ import {
 import { parseRichTextHtmlToJson, serializeRichTextJsonToHtml, type RichTextVariableDisplayMode } from "@/features/editor/lib/rich-text-variable";
 import { defaultWorkspaceSettings, type EditorWorkspaceSettings } from "@/features/editor/schema/workspace-layout";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
-import type { TemplateElement, TemplateElementProps, TemplateElementType } from "@/features/editor/schema/template-schema";
+import type { PageMargin, TemplateElement, TemplateElementProps, TemplateElementType } from "@/features/editor/schema/template-schema";
 import type { KonvaSelectionProjection } from "@/features/editor/schema/selection-projection";
 import {
   appendOperationLogs,
@@ -109,6 +109,7 @@ export type EditorStoreState = {
   viewport: EditorViewportState;
   setActivePageId: (pageId: string) => void;
   addTemplatePage: () => { added: true; pageId: string } | { added: false; reason: string };
+  setTemplatePageMargin: (input: { pageId: string; margin: Partial<PageMargin> }) => { updated: true; pageId: string } | { updated: false; reason: string };
   setActiveWorkspaceLayerIdForPage: (input: { pageId: string; layerId: string | null }) => void;
   setSelectedWorkspaceLayerIdForPage: (input: { pageId: string; layerId: string | null }) => void;
   addWorkspaceLayerForPage: (input: { pageId: string }) => { added: true; layerId: string } | { added: false; reason: string };
@@ -276,6 +277,53 @@ export const useEditorStore = create<EditorStoreState>()(
             selectedWorkspaceLayerIdByPageId: {
               ...state.selectedWorkspaceLayerIdByPageId,
               [pageId]: defaultLayer.id,
+            },
+          };
+        });
+
+        return outcome;
+      },
+      setTemplatePageMargin: ({ pageId, margin }) => {
+        let outcome: { updated: true; pageId: string } | { updated: false; reason: string } = {
+          updated: false,
+          reason: "page_introuvable",
+        };
+
+        set((state) => {
+          const currentPage = state.workingTemplate.pages.find((page) => page.id === pageId);
+          if (!currentPage) {
+            return state;
+          }
+
+          const nextMargin = {
+            top: Math.max(0, Number.isFinite(margin.top ?? currentPage.margin.top) ? (margin.top ?? currentPage.margin.top) : 0),
+            right: Math.max(0, Number.isFinite(margin.right ?? currentPage.margin.right) ? (margin.right ?? currentPage.margin.right) : 0),
+            bottom: Math.max(0, Number.isFinite(margin.bottom ?? currentPage.margin.bottom) ? (margin.bottom ?? currentPage.margin.bottom) : 0),
+            left: Math.max(0, Number.isFinite(margin.left ?? currentPage.margin.left) ? (margin.left ?? currentPage.margin.left) : 0),
+          };
+
+          if (
+            currentPage.margin.top === nextMargin.top &&
+            currentPage.margin.right === nextMargin.right &&
+            currentPage.margin.bottom === nextMargin.bottom &&
+            currentPage.margin.left === nextMargin.left
+          ) {
+            outcome = {
+              updated: false,
+              reason: "aucun_changement",
+            };
+            return state;
+          }
+
+          outcome = {
+            updated: true,
+            pageId,
+          };
+
+          return {
+            workingTemplate: {
+              ...state.workingTemplate,
+              pages: state.workingTemplate.pages.map((page) => (page.id === pageId ? { ...page, margin: nextMargin } : page)),
             },
           };
         });

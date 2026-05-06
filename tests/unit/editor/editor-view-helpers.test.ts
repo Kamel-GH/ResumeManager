@@ -374,6 +374,8 @@ function createTestStoreState(): Partial<EditorStoreState> {
       pagePadding: 64,
       rulerMajorStep: 100,
       rulerMinorStep: 10,
+      rulerFineStep: 4,
+      measurementUnit: "px",
     },
     openPanels: {
       pages: true,
