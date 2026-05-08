@@ -1,0 +1,59 @@
+{
+  "verbose": true,
+
+  "deadCode": false,
+
+  "failOn": "warning",
+
+  "customRulesOnly": true,
+
+  "adoptExistingLintConfig": true,
+
+  "respectInlineDisables": true,
+
+  "share": false,
+
+  "ignore": {
+    "files": [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.turbo/**",
+      "**/coverage/**",
+      "**/.git/**",
+
+      "**/*.png",
+      "**/*.jpg",
+      "**/*.jpeg",
+      "**/*.gif",
+      "**/*.webp",
+      "**/*.svg",
+
+      "**/*.ico",
+      "**/*.pdf",
+
+      "**/*.md",
+
+      "_Old/**",
+
+      "design-references/**",
+
+      "docs/vendor/**",
+
+      "tests/**",
+
+      "src/data/editorMockData.ts",
+
+      "features/editor/components/editor-mock-data.ts",
+
+      "features/editor/templates/**",
+
+      "tsconfig.tsbuildinfo"
+    ],
+
+    "rules": ["react/no-danger", "jsx-a11y/no-autofocus"]
+  },
+
+  "textComponents": ["Text", "Typography", "Label", "Paragraph", "Heading"]
+}

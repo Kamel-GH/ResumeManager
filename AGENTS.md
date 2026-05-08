@@ -1,91 +1,149 @@
-# AGENTS.md — Root Instructions V4.1
+# AGENTS.md — Root Instructions V5.0
 
 This file is the global operating charter for Codex on this project.
-It is intentionally directive. It does not replace the module-specific `AGENTS.md` files, `STACK_IMPOSEE.md`, or `TARGET_REPO_TREE_v4.md`; it coordinates them.
 
-## Mandatory reference files
+It defines:
+
+- architecture rules;
+- execution rules;
+- product priorities;
+- rendering principles;
+- stack governance;
+- performance constraints;
+- React quality expectations;
+- module coordination.
+
+It does not replace:
+
+- module-specific `AGENTS.md` files;
+- `STACK_IMPOSEE.md`;
+- `TARGET_REPO_TREE_v4.md`.
+
+It coordinates them.
+
+---
+
+# Mandatory reference files
 
 Before any significant implementation, Codex must read and apply:
 
-- `AGENTS.md` — global rules and execution protocol
-- `STACK_IMPOSEE.md` — official technical stack and forbidden alternatives
-- `TARGET_REPO_TREE_v4.md` — target repository architecture
-- `features/editor/AGENTS.md` — editor/canvas/template rules
-- `features/data-mapping/AGENTS.md` — variables, bindings and mapping rules
-- `features/ai/AGENTS.md` — AI, LLM, prompt and field-level AI rules
-- `features/admin/AGENTS.md` — administration, settings, logs, monitoring and operations rules
+- `AGENTS.md`
+- `STACK_IMPOSEE.md`
+- `TARGET_REPO_TREE_v4.md`
+- `features/editor/AGENTS.md`
+- `features/data-mapping/AGENTS.md`
+- `features/ai/AGENTS.md`
+- `features/admin/AGENTS.md`
 
-If a task touches a module with a local `AGENTS.md`, the local file must be read and followed in addition to this root file.
+If a task touches a module with a local `AGENTS.md`, the local file must also be followed.
 
-## Product priority
+---
 
-The absolute core of the product is the **Canvas / Template Editor**.
+# Product priority
 
-All other modules exist to support, configure, enrich, secure, monitor or exploit the editor:
+The absolute core of the product is the:
+
+# Canvas / Template Editor
+
+All other modules exist to:
+
+- support;
+- configure;
+- enrich;
+- secure;
+- monitor;
+- exploit;
+- orchestrate
+
+the editor ecosystem.
+
+Priority order:
 
 1. Canvas / Template Editor
-2. Dynamic data, variables, bindings, presets and mapping
+2. Dynamic data / variables / bindings / mapping
 3. WYSIWYG rendering and export pipeline
-4. Field-level AI and prompt-governed content generation
-5. Assets, libraries, objects, pages, layers and reusable blocks
-6. Candidate, user and template management
-7. Admin, settings, auth, payments, logs, notifications and operations
+4. Field-level AI generation
+5. Assets / libraries / layers / reusable blocks
+6. Candidates / users / templates
+7. Admin / operations / logs / monitoring / auth / payments
 
-Any architecture decision must serve this product hierarchy.
+All architecture decisions must serve this hierarchy.
 
-## Non-negotiable product rules
+---
 
-The generated screens and validated specifications are the source of truth.
+# Non-negotiable product rules
+
+Validated screens and specifications are the source of truth.
 
 Codex must not:
 
 - reinterpret the design freely;
-- simplify screens without explicit approval;
-- remove visible features, controls, panels, modals, popovers, table columns or settings;
-- change wording unless explicitly asked;
-- replace a specified component with an approximate equivalent;
-- introduce an alternative design direction;
-- treat admin, candidates or dashboards as the core product instead of the editor;
-- introduce libraries outside `STACK_IMPOSEE.md` without explicit approval;
-- use beta, alpha, rc, canary or experimental dependencies/APIs unless explicitly validated.
+- simplify validated screens;
+- remove controls or features silently;
+- introduce alternative UX directions;
+- replace specified components arbitrarily;
+- treat dashboards/admin as the primary product;
+- introduce non-approved libraries;
+- use beta/canary/rc dependencies without validation.
 
-If something is ambiguous, use the most conservative interpretation, preserve fidelity to the screens, report the ambiguity, and ask only if the issue blocks implementation.
+When ambiguity exists:
 
-## Official stack policy
+- preserve fidelity;
+- use the most conservative interpretation;
+- document ambiguity;
+- ask only if blocking.
 
-`STACK_IMPOSEE.md` is the single source of truth for the technical stack.
+---
+
+# Official stack policy
+
+`STACK_IMPOSEE.md` is the single source of truth for the stack.
 
 Rules:
 
-- Do not duplicate the stack inside other files except as a short reminder.
-- Do not introduce competing libraries for a need already covered by the stack.
-- If a dependency is missing, first check whether the official stack already covers the need.
-- If a new dependency is genuinely required, propose it explicitly with rationale, alternatives considered, risks and impact.
-- The stack filename must remain generic: `STACK_IMPOSEE.md`, so it can evolve without updating this file each time.
+- Do not duplicate the full stack elsewhere.
+- Do not introduce competing libraries.
+- Reuse the approved stack first.
+- Propose new dependencies explicitly with:
+  - rationale;
+  - alternatives;
+  - risks;
+  - impact.
 
-Important current decisions include:
+---
 
-- Auth: Better Auth
-- Canvas/editor: Konva + react-konva
-- Editor state: Zustand
-- Rich text: Tiptap
-- Tables: TanStack Table + TanStack Virtual
-- Visual lists/assets: React Virtuoso
-- Drag and drop: dnd-kit
-- Upload: Uppy
-- Storage: S3-compatible via AWS SDK v3
-- PDF/document generation: pdfme
-- Charts: visx
-- Toasts: Sonner
-- Icons: lucide-react
-- Command palette: cmdk
-- Error boundary: react-error-boundary
-- Error tracking: Sentry
-- Structured logging: Pino
-- Database: PostgreSQL + Prisma
-- Tests: Vitest + Playwright
+# Important approved stack decisions
 
-Explicitly non-retained libraries must not be used unless the stack file changes:
+- Next.js App Router
+- React 19
+- Better Auth
+- Zustand
+- Konva + react-konva
+- Tiptap
+- TanStack Table
+- TanStack Virtual
+- React Virtuoso
+- dnd-kit
+- Uppy
+- AWS SDK v3
+- pdfme
+- visx
+- Sonner
+- lucide-react
+- cmdk
+- react-error-boundary
+- Sentry
+- Pino
+- PostgreSQL
+- Prisma
+- Vitest
+- Playwright
+
+---
+
+# Forbidden / non-retained libraries
+
+Do not introduce:
 
 - Recharts
 - TOAST UI Image Editor
@@ -93,73 +151,195 @@ Explicitly non-retained libraries must not be used unless the stack file changes
 - Polotno
 - Pintura
 
-## Target architecture policy
+unless the stack file changes explicitly.
 
-`TARGET_REPO_TREE_v4.md` is the target architecture reference, not an instruction to scaffold everything immediately.
+---
+
+# Target architecture policy
+
+`TARGET_REPO_TREE_v4.md` is the target architecture reference.
 
 Rules:
 
-- Do not create the full tree blindly.
-- Compare the current repo with the target tree before creating files.
-- Create only folders and files required for the current lot.
-- Prefer incremental convergence toward the target architecture.
-- Do not create empty structural folders without immediate purpose.
-- If a structural migration is needed, propose it as a dedicated structural lot.
-- Do not mix large structural moves with feature implementation unless unavoidable.
+- Do not scaffold the entire tree blindly.
+- Compare current vs target architecture before creating files.
+- Converge incrementally.
+- Avoid empty structural folders.
+- Separate structural migrations from feature lots.
 
-The target architecture is feature-first:
+---
 
-- `app/` = Next.js routes, layouts, pages and API entrypoints
-- `features/` = domain modules and product logic
-- `components/` = shared UI, layout primitives and reusable presentation components
-- `lib/` = cross-cutting clients, helpers, integrations and constants
+# Feature-first architecture
+
+- `app/` = routes / layouts / entrypoints
+- `features/` = domain logic
+- `components/` = shared UI
+- `lib/` = cross-cutting helpers
 - `hooks/` = shared hooks only
-- `stores/` = app-level/global stores only
+- `stores/` = global stores only
 - `schemas/` = shared schemas only
-- `types/` = global shared types only
-- `prisma/` = database schema, migrations and seed
-- `tests/` = unit, integration and e2e tests
+- `types/` = shared global types only
+- `prisma/` = DB layer
+- `tests/` = tests
 
-Feature-specific logic must remain inside its feature folder.
-Shared UI must remain in `components/`.
-Do not duplicate the same responsibility across `components`, `features`, `lib`, `stores` and `schemas`.
+Feature-specific logic must remain inside feature folders.
 
-## Required nested AGENTS paths
+Avoid duplicated responsibilities across:
 
-The module-specific instruction files must live at:
+- features
+- components
+- stores
+- schemas
+- lib
+
+---
+
+# Required nested AGENTS paths
+
+Mandatory locations:
 
 - `features/editor/AGENTS.md`
 - `features/data-mapping/AGENTS.md`
 - `features/ai/AGENTS.md`
 - `features/admin/AGENTS.md`
 
-Do not move them to `src/features`, `src/components`, `app/*`, or any other location unless the target architecture is explicitly changed.
+Do not relocate them unless architecture changes explicitly.
 
-## WYSIWYG rendering and export policy
+---
 
-The project must support strict WYSIWYG rendering and export from the template/canvas composition.
+# React quality policy
 
-The canonical pipeline is:
+The project is validated with:
+
+- React Doctor
+- ESLint
+- TypeScript
+
+Rules:
+
+- Avoid duplicated derived state.
+- Avoid cascading setState.
+- Avoid unstable object references.
+- Avoid unnecessary useEffect.
+- Avoid unnecessary useMemo.
+- Avoid inline component declarations.
+- Avoid unnecessary rerenders.
+- Avoid broad subscriptions.
+- Avoid storing large render trees in React state.
+- Prefer stable callbacks.
+- Prefer selectors.
+- Prefer localized rendering.
+- Prefer derived state.
+- Prefer immutable updates.
+- Prefer render isolation boundaries.
+
+Before completing significant React/editor work, run:
+
+```bash
+pnpm lint
+pnpm doctor
+```
+
+Do not introduce new critical React Doctor issues without justification.
+
+---
+
+# Zustand policy
+
+Rules:
+
+- Keep stores minimal.
+- Keep stores normalized.
+- Avoid storing derived/computed state.
+- Prefer selectors.
+- Prefer shallow selectors where useful.
+- Avoid broad subscriptions.
+- Avoid global rerenders from store updates.
+- Separate transient interaction state from persistent document state.
+- Keep editor interactions localized.
+
+---
+
+# Konva / canvas performance policy
+
+The editor canvas is performance sensitive.
+
+Rules:
+
+- Avoid rerendering the full stage.
+- Avoid unstable Konva props.
+- Prefer localized node updates.
+- Minimize React reconciliation inside the canvas tree.
+- Avoid unnecessary React/Konva synchronization.
+- Keep viewport updates lightweight.
+- Avoid storing large transient interaction objects in React state.
+- Prefer isolated rendering zones.
+
+---
+
+# Tiptap / ProseMirror policy
+
+Rules:
+
+- Keep schema deterministic.
+- Keep node ids stable.
+- Avoid uncontrolled extension mutations.
+- Keep node views isolated.
+- Avoid coupling editor state directly to UI state.
+- Prefer transactional updates.
+- Avoid unnecessary serialization/deserialization cycles.
+- Keep plugins modular and composable.
+
+---
+
+# Next.js App Router policy
+
+Rules:
+
+- Prefer Server Components by default.
+- Use Client Components only when necessary.
+- Keep server/client boundaries explicit.
+- Avoid leaking server-only logic to client bundles.
+- Minimize hydration cost.
+- Avoid unnecessary client-side state.
+
+---
+
+# WYSIWYG rendering and export policy
+
+The rendering/export pipeline must remain deterministic.
+
+Canonical pipeline:
 
 ```txt
 Template Schema
 -> Binding Engine
 -> Layout Engine
 -> Canonical Render Tree
--> Renderers: Konva / HTML / PDF / PNG-JPEG / PPTX
+-> Renderers
 ```
+
+Renderers include:
+
+- Konva
+- HTML
+- PDF
+- PNG/JPEG
+- PPTX
 
 Rules:
 
-- Konva is not the source of truth; it is the interactive editor renderer.
-- HTML is not the unique pivot; it is one renderer among others.
-- The Canonical Render Tree is the WYSIWYG reference.
-- Bindings, visibility rules, repeaters, fallbacks and AI-generated content must be resolved before final rendering.
-- Layout must be calculated centrally and deterministically.
-- Renderers must not reimplement business logic or layout decisions.
-- PDF, HTML, image and PPTX exports must be derived from the same calculated geometry whenever possible.
+- Konva is not the source of truth.
+- HTML is not the unique pivot.
+- Canonical Render Tree is the rendering reference.
+- Bindings and visibility must resolve before rendering.
+- Layout decisions must be centralized.
+- Renderers must not duplicate business logic.
+- Exports must share calculated geometry whenever possible.
 
-Required conceptual modules:
+---
+
+# Required conceptual modules
 
 - Template Schema
 - Binding Engine
@@ -172,173 +352,197 @@ Required conceptual modules:
 - PPTX Renderer
 - Export Orchestrator
 
-The detailed editor rules live in `features/editor/AGENTS.md`.
+Detailed editor rules live in: `features/editor/AGENTS.md`
 
-## Data mapping policy
+---
 
-The data-mapping module is a core product module, not a secondary form feature.
+# Data mapping policy
+
+The mapping system is a core product subsystem.
 
 It must support:
 
 - variables;
 - presets;
 - bindings;
-- typed field mappings;
+- typed mappings;
 - repeaters;
-- fallback values;
+- fallbacks;
 - visibility rules;
-- transformations and formatting;
-- preview of injected data;
-- validation of mappings;
-- detection of unmapped required fields;
-- output to the Binding Engine / Bound Document.
+- transformations;
+- formatting;
+- validation;
+- unmapped field detection;
+- preview injection;
+- Bound Document output.
 
-Do not implement data mapping as isolated UI-only dropdowns. It must feed the rendering/export pipeline.
+Do not implement mapping as isolated UI dropdowns.
 
-The detailed mapping rules live in `features/data-mapping/AGENTS.md`.
+Mapping must feed:
 
-## AI policy
+- Binding Engine;
+- rendering pipeline;
+- export pipeline.
 
-The AI module is a governed product subsystem.
+---
+
+# AI policy
+
+The AI system is a governed subsystem.
 
 It must support:
 
 - providers;
 - models;
-- prompt templates;
+- prompts;
 - prompt versions;
-- AI by field;
-- field context definition;
-- expected output schema;
-- preview/test execution;
-- fallback and retry strategy;
-- human validation where needed;
-- logs, cost, duration and execution status;
-- integration with mappings, bindings and rendered outputs.
+- field-level AI;
+- schemas;
+- validation;
+- retries;
+- previews;
+- execution logs;
+- costs;
+- durations;
+- statuses;
+- integrations with mappings and renderers.
 
-Do not hard-code AI behavior directly inside UI components.
-Do not couple the system irreversibly to one provider unless explicitly decided.
-Use provider/model/prompt abstractions.
+Rules:
 
-The detailed AI rules live in `features/ai/AGENTS.md`.
+- Do not hard-code provider logic inside UI.
+- Do not couple permanently to one provider.
+- Use provider/model abstractions.
 
-## Admin, logs, notifications and jobs policy
+Detailed rules: `features/ai/AGENTS.md`
 
-Admin is an exploitation and governance layer for the product.
+---
+
+# Admin / logs / jobs policy
+
+Admin is an exploitation layer.
 
 It must cover:
 
-- users, roles, permissions and sessions;
-- Better Auth-related administration;
-- database status and maintenance;
-- S3-compatible storage status;
-- email configuration;
-- AI/LLM configuration and monitoring;
-- API/webhooks;
-- payments/billing if implemented;
-- audit logs;
-- Sentry error visibility;
-- Pino structured logs;
-- export jobs;
-- asset processing jobs;
-- AI execution jobs;
-- notifications and alerts;
-- system health.
+- auth administration;
+- users;
+- roles;
+- sessions;
+- DB status;
+- storage status;
+- AI configuration;
+- webhooks;
+- payments;
+- logs;
+- Sentry visibility;
+- Pino logs;
+- jobs;
+- exports;
+- notifications;
+- health monitoring.
 
-Notifications must be treated as a cross-cutting feature:
+Notifications:
 
-- Sonner = ephemeral toast feedback
-- `features/notifications` = persistent notification center
+- Sonner = ephemeral feedback
+- `features/notifications` = persistent center
 
-Exports/jobs must exist at two levels:
+Exports/jobs:
 
-- `features/editor/export` = document/canvas export logic
-- `features/exports` = global export/job tracking and operational UI
+- `features/editor/export`
+- `features/exports`
 
-The detailed admin rules live in `features/admin/AGENTS.md`.
+---
 
-## Execution protocol
+# Execution protocol
 
-Before writing meaningful code, Codex must:
+For significant work, Codex must:
 
-1. inspect the repo tree;
-2. read `package.json` and key config files;
-3. identify the detected stack;
-4. read `STACK_IMPOSEE.md`;
-5. read `TARGET_REPO_TREE_v4.md`;
-6. read relevant nested `AGENTS.md` files;
-7. identify existing modules and reusable components;
-8. compare the current repo against the target architecture;
-9. produce a screen/module to route/component matrix;
-10. produce an exact file plan;
-11. propose lots;
-12. implement only the current approved or implied lot.
+1. inspect the repo;
+2. inspect package/config files;
+3. inspect current architecture;
+4. read relevant AGENTS files;
+5. identify reusable components;
+6. compare against target architecture;
+7. produce a file plan;
+8. implement only the current lot.
 
-Do not start by coding blindly.
-Do not create many files without a file plan.
-Do not perform broad refactors without declaring a structural lot.
+Small isolated fixes do not require the full audit protocol.
 
-## Lot discipline
+Use proportional reasoning relative to task complexity.
 
-Work must be split into small, reviewable lots.
+---
 
-Each lot must state:
+# Lot discipline
+
+Work should be split into small reviewable lots.
+
+Each lot should define:
 
 - objective;
-- screens/modules concerned;
-- components concerned;
-- files to create;
-- files to modify;
+- modules;
+- files;
 - risks;
-- verifications;
+- validations;
 - expected result.
 
-Recommended lot sequence:
+---
 
-1. Audit and target architecture comparison
-2. Global shell and design primitives
+# Recommended lot order
+
+1. Audit and architecture comparison
+2. Global shell and primitives
 3. Editor shell
-4. Canvas, selection and manipulation
-5. Inspector, panels, layers, pages and libraries
-6. Template Schema and Render Tree foundations
-7. Binding Engine and mapping integration
-8. Layout Engine foundation
-9. Renderers and export orchestrator foundation
-10. AI global config and field-level AI integration
-11. Dashboard and admin screens
-12. Auth, users, candidates, tags and notifications
-13. Logs, jobs, exports and system health
-14. Tests, review and stabilization
+4. Canvas manipulation
+5. Inspector/panels/layers/pages
+6. Schema + Render Tree
+7. Mapping + Binding Engine
+8. Layout Engine
+9. Renderers + exports
+10. AI integration
+11. Admin/dashboard
+12. Auth/users/candidates
+13. Logs/jobs/monitoring
+14. Stabilization/testing
 
-## Quality gate
+---
 
-A lot is not complete unless:
+# Quality gate
 
-- the implementation respects the screens and specs;
-- the code is typed;
-- the build passes;
-- lint passes where configured;
-- tests are added or updated when relevant;
-- no obvious runtime error remains;
+A lot is incomplete unless:
+
+- implementation matches screens/specs;
+- code is typed;
+- build passes;
+- lint passes;
+- React Doctor passes;
+- tests are added/updated when relevant;
 - imports are clean;
-- responsibilities are placed in the correct folders;
-- no forbidden library was introduced;
-- no visible feature was silently dropped;
-- deviations are explicitly documented.
+- responsibilities are correctly placed;
+- forbidden libraries were not introduced;
+- visible features were not silently removed.
 
-## Skill governance
+---
+
+# Skill governance
 
 Default policy: deny by default.
-Use a skill only when it is clearly necessary for the current lot.
-Do not mentally activate more than 2 or 3 skills for the same lot.
 
-### Always-allowed baseline skills
+Use skills only when clearly useful.
+
+Avoid activating too many skills simultaneously.
+
+Recommended maximum: 2–3 skills per lot.
+
+---
+
+# Always-allowed baseline skills
 
 - writing-plans
 - verification-before-completion
 - requesting-code-review
 
-### Explicit-approval-only skills
+---
+
+# Explicit-approval-only skills
 
 - subagent-driven-development
 - systematic-debugging
@@ -346,9 +550,11 @@ Do not mentally activate more than 2 or 3 skills for the same lot.
 - web-design-guidelines
 - analytics-tracking
 
-### Module-oriented skill guidance
+---
 
-Editor / canvas lots may use:
+# Module-oriented skill guidance
+
+Editor lots may use:
 
 - canvas-design
 - tiptap
@@ -359,25 +565,16 @@ Editor / canvas lots may use:
 - design-system-patterns
 - motion
 
-Data/mapping lots may use:
+Mapping lots may use:
 
 - database-design
 - database-schema-designer
-- frontend-to-backend-requirements
 - api-design-principles
 
 AI lots may use:
 
 - prompt-engineering-patterns
 - api-design-principles
-- database-design
-
-Admin/logs/jobs lots may use:
-
-- tanstack-table
-- database-design
-- api-design-principles
-- analytics-tracking only if explicitly useful
 
 Testing/review lots may use:
 
@@ -387,18 +584,11 @@ Testing/review lots may use:
 - verification-before-completion
 - requesting-code-review
 
-At the start of each task, Codex must state:
+---
 
-1. which skills it will use;
-2. why;
-3. which installed skills it will not use;
-4. which phase each selected skill applies to.
+# Required response format
 
-If no skill is clearly necessary, use no skill.
-
-## Required response format
-
-When reporting work, use this structure:
+When reporting work:
 
 ```md
 # Audit
@@ -410,48 +600,26 @@ When reporting work, use this structure:
 # Next lot
 ```
 
-For the first response on a repo, use:
+For the first repo response:
 
 ```md
 # Audit
-- detected stack
-- detected architecture
-- detected conventions
-- existing modules
-- reusable components
-- major gaps with screens/specs
-
 # Cartography
-- screens/modules to implement
-- existing routes
-- routes to create
-- components to preserve
-- components to create
-- sensitive areas
-
 # Target architecture
-- folders
-- modules
-- shared components
-- stores / hooks / services / schemas
-
-# Matrix: screens/modules -> routes -> components
-
+# Matrix
 # Exact file plan
-- files to create
-- files to modify
-- files not to touch
-
 # Lot order
-
 # Risks / ambiguities
-
 # Start
-- first lot to implement
 ```
 
-## Final rule
+---
 
-If there is a conflict between speed, simplification and fidelity, choose fidelity.
-If there is a conflict between improvisation and architecture, choose architecture.
-If there is a conflict between a generated convenience and the validated stack, choose `STACK_IMPOSEE.md`.
+# Final rule
+
+If there is a conflict between:
+
+- speed and fidelity → choose fidelity;
+- improvisation and architecture → choose architecture;
+- convenience and stack governance → choose stack governance.
+
