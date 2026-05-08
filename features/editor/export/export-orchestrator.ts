@@ -10,14 +10,20 @@ export type ExportRequest = {
 
 export type ExportResult = {
   format: ExportFormat;
+  queueId: string;
   status: "queued";
   renderTreeId: string;
+  queuedAt: string;
 };
 
 export function queueExport(request: ExportRequest): ExportResult {
+  const queuedAt = new Date().toISOString();
+
   return {
     format: request.format,
+    queueId: `${request.renderTree.id}:${request.format}`,
     status: "queued",
     renderTreeId: request.renderTree.id,
+    queuedAt,
   };
 }

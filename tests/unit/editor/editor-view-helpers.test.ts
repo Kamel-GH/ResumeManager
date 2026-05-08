@@ -125,6 +125,68 @@ describe("editor view helpers", () => {
     });
   });
 
+  it("falls back to the first workspace layer when the active and selected ids are unknown", () => {
+    const state = useEditorStore.getState();
+    const template = {
+      ...state.workingTemplate,
+      elements: [],
+    } as TemplateSchema;
+    const layers = deriveEditorLayersView(
+      template,
+      {
+        "page-1": [
+          { id: "layer-a", pageId: "page-1", name: "Layer A", order: 1, visible: true, locked: false },
+          { id: "layer-b", pageId: "page-1", name: "Layer B", order: 2, visible: true, locked: false },
+        ],
+      },
+      "page-1",
+      { "page-1": "missing-active" },
+      { "page-1": "missing-selected" },
+    );
+
+    expect(layers).toHaveLength(2);
+    expect(layers[0]).toMatchObject({
+      id: "layer-a",
+      active: true,
+      selected: true,
+      source: "workspace",
+    });
+    expect(layers[1]).toMatchObject({
+      id: "layer-b",
+      active: false,
+      selected: false,
+    });
+  });
+
+  it("creates a fallback layer row for an empty page with no layer metadata", () => {
+    const template: TemplateSchema = {
+      id: "template-empty-layers",
+      name: "Empty layers template",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+      ],
+      elements: [],
+    };
+
+    const layers = deriveEditorLayersView(template, {}, "page-1");
+
+    expect(layers).toHaveLength(1);
+    expect(layers[0]).toMatchObject({
+      id: "page-1:layer-1",
+      active: true,
+      selected: true,
+      objectCount: 0,
+      source: "fallback",
+    });
+  });
+
   it("returns the real objects of the active page and marks selected ones", () => {
     const state = useEditorStore.getState();
     const objects = deriveEditorObjectsView(state.workingTemplate, ["text-1"], "page-1");
@@ -139,6 +201,77 @@ describe("editor view helpers", () => {
       id: "text-1",
       selected: true,
       layerName: "Contenu",
+    });
+  });
+
+  it("derives a stable default layer for objects when the page has no explicit layer metadata", () => {
+    const template: TemplateSchema = {
+      id: "template-objects",
+      name: "Template Objects",
+      version: 1,
+      pages: [
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+      ],
+      elements: [
+        {
+          id: "headline",
+          pageId: "page-1",
+          type: "text",
+          frame: { x: 12, y: 16, width: 120, height: 28 },
+          rotation: 0,
+          zIndex: 1,
+          locked: false,
+          visible: true,
+          props: {
+            text: "Headline",
+          },
+        } as TemplateElement,
+      ],
+    };
+
+    const objects = deriveEditorObjectsView(template, [], "page-1");
+
+    expect(objects).toHaveLength(1);
+    expect(objects[0]).toMatchObject({
+      id: "headline",
+      layerId: "page-1:layer-1",
+      layerName: "Contenu",
+      layerNumber: 1,
+      name: "Headline",
+    });
+  });
+
+  it("uses object labels and grouping metadata consistently", () => {
+    const template: TemplateSchema = {
+      ...useEditorStore.getState().workingTemplate,
+      elements: [
+        {
+          ...useEditorStore.getState().workingTemplate.elements[0],
+          id: "grouped-text",
+          props: {
+            ...useEditorStore.getState().workingTemplate.elements[0]?.props,
+            label: "Professional summary",
+            groupId: "group-1",
+            grouped: true,
+          },
+        } as TemplateElement,
+      ],
+    };
+
+    const objects = deriveEditorObjectsView(template, [], "page-1");
+
+    expect(objects).toHaveLength(1);
+    expect(objects[0]).toMatchObject({
+      id: "grouped-text",
+      name: "Professional summary",
+      grouped: true,
+      groupId: "group-1",
     });
   });
 
@@ -313,9 +446,12 @@ function createTestStoreState(): Partial<EditorStoreState> {
       "page-2": "page-2:layer-1",
     },
     workspaceSettings: {
+      measurementUnit: "px",
       gridEnabled: false,
       gridSize: 16,
       rulerMode: "page",
+      workspaceMode: "fit-space",
+      autoCenterOnLoad: true,
       rulersVisible: true,
       marginsVisible: true,
       guidesVisible: true,
@@ -328,6 +464,7 @@ function createTestStoreState(): Partial<EditorStoreState> {
       pagePadding: 64,
       rulerMajorStep: 100,
       rulerMinorStep: 10,
+      rulerFineStep: 2,
     },
     openPanels: {
       pages: true,

@@ -50,6 +50,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
 
+import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import {
@@ -723,20 +724,25 @@ export function RichTextBlockEditor({ blockId, contentStyle, initialHtml, initia
 
                 {/* ─── Couleur ─── */}
                 <RichTextToolbarPopover label="Couleur" icon={<Palette size={15} aria-hidden="true" />}>
-                  <label className="ef-rich-text-editor-color-field">
-                    Couleur texte
-                    <input
-                      type="color"
-                      defaultValue="#111827"
-                      onMouseDown={rememberTextSelection}
-                      onFocus={rememberTextSelection}
-                      onChange={(e) => selectedVarAttrs ? applyVariableStyle({ color: e.target.value }) : runOnTextSelection((te) => te.chain().setColor(e.target.value).run())}
+                  <div onMouseDown={rememberTextSelection} onFocus={rememberTextSelection}>
+                    <ColorPickerControl
+                      label="Couleur texte"
+                      value={selectedVarAttrs ? (selectedVarAttrs.color ?? "#111827") : (editor?.getAttributes("textStyle").color ?? "#111827")}
+                      onChange={(color) => {
+                        if (!color) return;
+                        selectedVarAttrs ? applyVariableStyle({ color }) : runOnTextSelection((te) => te.chain().setColor(color).run());
+                      }}
                     />
-                  </label>
-                  <label className="ef-rich-text-editor-color-field">
-                    Surlignage
-                    <input type="color" defaultValue="#fff2a8" onMouseDown={rememberTextSelection} onFocus={rememberTextSelection} onChange={(e) => runOnTextSelection((te) => te.chain().setBackgroundColor(e.target.value).run())} disabled={!!selectedVarAttrs} />
-                  </label>
+                  </div>
+                  <div onMouseDown={rememberTextSelection} onFocus={rememberTextSelection}>
+                    <ColorPickerControl
+                      label="Surlignage"
+                      value={editor?.getAttributes("textStyle").backgroundColor ?? "#fff2a8"}
+                      disabled={!!selectedVarAttrs}
+                      allowTransparent
+                      onChange={(color) => runOnTextSelection((te) => color ? te.chain().setBackgroundColor(color).run() : te.chain().unsetBackgroundColor().run())}
+                    />
+                  </div>
                   <RichTextEditorToolbarButton
                     label="Retirer couleur"
                     onClick={() => selectedVarAttrs ? applyVariableStyle({ color: null }) : runOnTextSelection((te) => te.chain().unsetColor().unsetBackgroundColor().run())}

@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Crosshair,
   Eye,
   Grid3X3,
   GripVertical,
@@ -15,7 +16,6 @@ import {
   Pentagon,
   Square,
   Plus,
-  RotateCcw,
   Ruler,
   Settings2,
   Magnet,
@@ -26,12 +26,13 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ColorPickerPanel } from "@/components/ui/color-picker-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 import { isCanvasShortcutEditableTarget, resolveCanvasShortcutAction } from "@/features/editor/components/parts/canvas-shortcuts";
+import { CanvasWorkspaceSettingsDialog } from "@/features/editor/components/parts/canvas-workspace-settings-dialog";
 import {
-  EditorColorPopoverContent,
   resolveEditorColorButtonStyle,
   normalizeEditorColorValue,
 } from "@/features/editor/components/parts/editor-color-controls";
@@ -64,8 +65,12 @@ import {
   findWorkspacePageAtPoint,
   findWorkspacePageAtPointStrict,
   projectRulerTickToViewportPosition,
+  projectWorkspacePositionToViewport,
   resolveEffectiveRulerMode,
+  resolveEffectiveWorkspaceMode,
   resolveWorkspaceRulerTicks,
+  resolveWorkspaceVisualAids,
+  resolveWorkspaceViewportPreset,
   snapWorkspaceFrame,
   snapWorkspacePoint,
   type EditorWorkspaceSettings,
@@ -395,6 +400,7 @@ function CanvasPresetIconElementView({ element }: { element: CanvasPresetIconEle
 
 export function CanvasViewport() {
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const canvasScrollRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const activePageId = useEditorStore((state) => state.activePageId);
@@ -406,6 +412,7 @@ export function CanvasViewport() {
   const dragTraceContext = useEditorStore((state) => state.dragTraceContext);
   const workspaceSettings = useEditorStore((state) => state.workspaceSettings);
   const setWorkspaceSettings = useEditorStore((state) => state.setWorkspaceSettings);
+  const updatePageMargin = useEditorStore((state) => state.updatePageMargin);
   const viewport = useEditorStore((state) => state.viewport);
   const setZoom = useEditorStore((state) => state.setZoom);
   const setViewportPan = useEditorStore((state) => state.setViewportPan);
@@ -422,8 +429,12 @@ export function CanvasViewport() {
   const redo = useEditorStore((state) => state.redo);
   const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
   const activePage = useMemo(() => workingTemplate.pages.find((page) => page.id === activePageId) ?? workingTemplate.pages[0] ?? null, [activePageId, workingTemplate.pages]);
+  const activePageMargin = activePage?.margin ?? workingTemplate.pages[0]?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 };
   const activePageIndex = useMemo(() => workingTemplate.pages.findIndex((page) => page.id === activePageId), [activePageId, workingTemplate.pages]);
   const isArcPointTool = activeCanvasTool === "arc2point" || activeCanvasTool === "arc3point";
+  const effectiveWorkspaceMode = resolveEffectiveWorkspaceMode(workspaceSettings.workspaceMode);
+  const autoCenterOnLoad = workspaceSettings.autoCenterOnLoad ?? true;
+  const visualAids = resolveWorkspaceVisualAids(workspaceSettings);
   const workspaceLayout = useMemo(
     () =>
       buildActiveWorkspaceLayout(
@@ -442,15 +453,20 @@ export function CanvasViewport() {
       ),
     [activePage?.id, activePageId, workingTemplate.pages, workspaceSettings.pageGap, workspaceSettings.pagePadding],
   );
+  const workspacePageById = useMemo(() => new Map(workspaceLayout.pages.map((page) => [page.id, page] as const)), [workspaceLayout.pages]);
+  const activePageRulerTarget = workspacePageById.get(activePageId ?? "") ?? workspaceLayout.pages[0] ?? null;
   const effectiveRulerMode = resolveEffectiveRulerMode(workspaceSettings);
   const rulerMajorStep = workspaceSettings.rulerMajorStep;
   const rulerMinorStep = workspaceSettings.rulerMinorStep;
+  const rulerFineStep = workspaceSettings.rulerFineStep;
   const rulerTicks = useMemo(
     () =>
       resolveWorkspaceRulerTicks(workspaceLayout, activePage?.id ?? activePageId, {
         mode: effectiveRulerMode,
         majorStep: rulerMajorStep,
         minorStep: rulerMinorStep,
+        fineStep: rulerFineStep,
+        measurementUnit: workspaceSettings.measurementUnit,
       }),
     [
       activePage?.id,
@@ -458,10 +474,22 @@ export function CanvasViewport() {
       effectiveRulerMode,
       rulerMajorStep,
       rulerMinorStep,
+      rulerFineStep,
+      workspaceSettings.measurementUnit,
       workspaceLayout,
     ],
   );
+  const [canvasViewportSize, setCanvasViewportSize] = useState<{ width: number; height: number } | null>(null);
+  const canvasSurfaceSize = useMemo(
+    () => ({
+      width: Math.max(workspaceLayout.width, canvasViewportSize?.width ?? 0),
+      height: Math.max(workspaceLayout.height, canvasViewportSize?.height ?? 0),
+    }),
+    [canvasViewportSize?.height, canvasViewportSize?.width, workspaceLayout.height, workspaceLayout.width],
+  );
   const [isDropActive, setIsDropActive] = useState(false);
+  const [isWorkspaceSettingsOpen, setIsWorkspaceSettingsOpen] = useState(false);
+  const [isSpacePanActive, setIsSpacePanActive] = useState(false);
   const [draftCanvasCreation, setDraftCanvasCreation] = useState<CanvasToolDraft | null>(null);
   const dragDepthRef = useRef(0);
   const dragTraceOverSessionRef = useRef<string | null>(null);
@@ -501,6 +529,91 @@ export function CanvasViewport() {
     startClient: { x: number; y: number };
     startViewport: { panX: number; panY: number };
   } | null>(null);
+  const workspacePresetKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const element = canvasScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const updateViewportSize = () => {
+      setCanvasViewportSize({
+        width: Math.max(0, element.clientWidth - 64),
+        height: Math.max(0, element.clientHeight - 64),
+      });
+    };
+
+    updateViewportSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => updateViewportSize());
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!canvasViewportSize) {
+      return;
+    }
+
+    const preset = resolveWorkspaceViewportPreset(
+      workspaceLayout,
+      canvasViewportSize,
+        {
+          mode: effectiveWorkspaceMode,
+          autoCenterOnLoad,
+          currentViewport: viewport,
+          minZoom: EDITOR_VIEWPORT_MIN_ZOOM,
+          maxZoom: EDITOR_VIEWPORT_MAX_ZOOM,
+        },
+    );
+
+    if (!preset) {
+      workspacePresetKeyRef.current = null;
+      return;
+    }
+
+    const presetKey = [
+      effectiveWorkspaceMode,
+      autoCenterOnLoad ? "center" : "free",
+      activePageId ?? "page",
+      workspaceLayout.width,
+      workspaceLayout.height,
+      canvasViewportSize.width,
+      canvasViewportSize.height,
+    ].join(":");
+
+    if (workspacePresetKeyRef.current === presetKey) {
+      return;
+    }
+
+    workspacePresetKeyRef.current = presetKey;
+
+    if (Math.abs(preset.zoom - viewport.zoom) > 0.001) {
+      setZoom(preset.zoom);
+    }
+
+    if (Math.abs(preset.panX - viewport.panX) > 0.5 || Math.abs(preset.panY - viewport.panY) > 0.5) {
+      setViewportPan({ panX: preset.panX, panY: preset.panY });
+    }
+  }, [
+    activePageId,
+    canvasViewportSize,
+    effectiveWorkspaceMode,
+    autoCenterOnLoad,
+    setViewportPan,
+    setZoom,
+    viewport.panX,
+    viewport.panY,
+    viewport.zoom,
+    workspaceLayout,
+    autoCenterOnLoad,
+  ]);
 
   const appendVariableDragTrace = useCallback(
     (
@@ -773,6 +886,15 @@ export function CanvasViewport() {
         return;
       }
 
+      const isSpaceKey = event.code === "Space" || event.key === " ";
+      if (isSpaceKey && !event.metaKey && !event.ctrlKey && !event.altKey && (activeCanvasTool === "pointer" || activeCanvasTool === "selection")) {
+        event.preventDefault();
+        if (!event.repeat) {
+          setIsSpacePanActive(true);
+        }
+        return;
+      }
+
       const shortcut = resolveCanvasShortcutAction(event);
       if (shortcut === "copy") {
         if (selectedElementIds.length === 0) {
@@ -910,9 +1032,27 @@ export function CanvasViewport() {
       }
     };
 
+    const handleWindowKeyUp = (event: KeyboardEvent) => {
+      const isSpaceKey = event.code === "Space" || event.key === " ";
+      if (isSpaceKey) {
+        setIsSpacePanActive(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      setIsSpacePanActive(false);
+    };
+
     window.addEventListener("keydown", handleWindowKeyDown);
-    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+    window.addEventListener("keyup", handleWindowKeyUp);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      window.removeEventListener("keydown", handleWindowKeyDown);
+      window.removeEventListener("keyup", handleWindowKeyUp);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
   }, [
+    activeCanvasTool,
     clearCanvasInteractions,
     commitArcDraft,
     commitPointDraft,
@@ -953,10 +1093,10 @@ export function CanvasViewport() {
       return;
     }
 
-    if (activePanDraft && activeCanvasTool !== "hand") {
+    if (activePanDraft && activeCanvasTool !== "hand" && !isSpacePanActive) {
       clearCanvasInteractions();
     }
-  }, [activeCanvasTool, clearCanvasInteractions, draftCanvasCreation]);
+  }, [activeCanvasTool, clearCanvasInteractions, draftCanvasCreation, isSpacePanActive]);
 
   const handleWorkspaceDragEnter = (event: DragEvent<HTMLDivElement>) => {
     if (isRichTextCanvasOverlayTarget(event.target)) {
@@ -1462,7 +1602,7 @@ export function CanvasViewport() {
 
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const toolId = activeCanvasTool;
-    if (toolId === "hand") {
+    if (toolId === "hand" || isSpacePanActive) {
       const startViewport = { panX: viewport.panX, panY: viewport.panY };
       event.currentTarget.setPointerCapture(event.pointerId);
       panDraftRef.current = {
@@ -1851,6 +1991,18 @@ export function CanvasViewport() {
     addTemplatePage();
   }, [addTemplatePage]);
 
+  const handlePageMarginChange = useCallback(
+    (patch: Partial<{ top: number; right: number; bottom: number; left: number }>) => {
+      const pageId = activePage?.id ?? activePageId;
+      if (!pageId) {
+        return;
+      }
+
+      updatePageMargin({ pageId, margin: patch });
+    },
+    [activePage?.id, activePageId, updatePageMargin],
+  );
+
   const handleZoomStep = useCallback(
     (direction: -1 | 1) => {
       const step = viewport.zoom < 1 ? 0.1 : 0.25;
@@ -1859,10 +2011,37 @@ export function CanvasViewport() {
     [setZoom, viewport.zoom],
   );
 
+  const handleFitWorkspace = useCallback(() => {
+    if (!canvasViewportSize) {
+      return;
+    }
+
+    const preset = resolveWorkspaceViewportPreset(workspaceLayout, canvasViewportSize, {
+      mode: "fit-space",
+      autoCenterOnLoad: true,
+      currentViewport: viewport,
+      minZoom: EDITOR_VIEWPORT_MIN_ZOOM,
+      maxZoom: EDITOR_VIEWPORT_MAX_ZOOM,
+    });
+
+    if (!preset) {
+      return;
+    }
+
+    if (Math.abs(preset.zoom - viewport.zoom) > 0.001) {
+      setZoom(preset.zoom);
+    }
+
+    if (Math.abs(preset.panX - viewport.panX) > 0.5 || Math.abs(preset.panY - viewport.panY) > 0.5) {
+      setViewportPan({ panX: preset.panX, panY: preset.panY });
+    }
+  }, [canvasViewportSize, setViewportPan, setZoom, viewport.panX, viewport.panY, viewport.zoom, workspaceLayout]);
+
   return (
     <section
       className="ef-canvas-shell"
       ref={shellRef}
+      data-workspace-mode={effectiveWorkspaceMode}
       style={
         {
           position: "relative",
@@ -1910,21 +2089,33 @@ export function CanvasViewport() {
         onChange={handleImageFileChange}
       />
 
-      <div className="ef-canvas-scroll">
+      <div className="ef-canvas-scroll" ref={canvasScrollRef}>
         <div
           className="ef-ruler-grid"
           style={{
-            gridTemplateColumns: `var(--editor-ruler-size) ${workspaceLayout.width}px`,
-            gridTemplateRows: `var(--editor-ruler-h) ${workspaceLayout.height}px`,
+            gridTemplateColumns: `${visualAids.rulersVisible ? "var(--editor-ruler-size)" : "0px"} ${canvasSurfaceSize.width}px`,
+            gridTemplateRows: `${visualAids.rulersVisible ? "var(--editor-ruler-h)" : "0px"} ${canvasSurfaceSize.height}px`,
           }}
         >
-          <RulerCorner />
-          <HorizontalRuler ticks={rulerTicks.horizontal} viewport={viewport} width={workspaceLayout.width} visible={workspaceSettings.rulersVisible} />
-          <VerticalRuler ticks={rulerTicks.vertical} viewport={viewport} height={workspaceLayout.height} visible={workspaceSettings.rulersVisible} />
+          {visualAids.rulersVisible ? <RulerCorner /> : null}
+          <HorizontalRuler
+            page={activePageRulerTarget}
+            ticks={rulerTicks.horizontal}
+            viewport={viewport}
+            width={canvasSurfaceSize.width}
+            visible={visualAids.rulersVisible}
+          />
+          <VerticalRuler
+            page={activePageRulerTarget}
+            ticks={rulerTicks.vertical}
+            viewport={viewport}
+            height={canvasSurfaceSize.height}
+            visible={visualAids.rulersVisible}
+          />
           <div
-            className={["ef-canvas-stage", isDropActive ? "is-drop-active" : "", isArcPointTool ? "is-pencil-tool" : "", activeCanvasTool === "hand" ? "is-pan-tool" : ""].join(" ")}
+            className={["ef-canvas-stage", isDropActive ? "is-drop-active" : "", isArcPointTool ? "is-pencil-tool" : "", activeCanvasTool === "hand" || isSpacePanActive ? "is-pan-tool" : ""].join(" ")}
             ref={stageRef}
-            style={{ width: `${workspaceLayout.width}px`, height: `${workspaceLayout.height}px` }}
+            style={{ width: `${canvasSurfaceSize.width}px`, height: `${canvasSurfaceSize.height}px` }}
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
@@ -1933,6 +2124,8 @@ export function CanvasViewport() {
           >
             <EditorRenderTreePreview
               draftCanvasCreation={draftCanvasCreation}
+              canvasSize={canvasSurfaceSize}
+              isSpacePanActive={isSpacePanActive}
               workspaceLayout={workspaceLayout}
               viewport={viewport}
               workspaceSettings={workspaceSettings}
@@ -1944,17 +2137,21 @@ export function CanvasViewport() {
         activePageIndex={activePageIndex >= 0 ? activePageIndex : 0}
         gridEnabled={workspaceSettings.gridEnabled}
         isPanActive={activeCanvasTool === "hand"}
+        isSpacePanActive={isSpacePanActive}
         onAddPage={handleAddPage}
         onNextPage={() => goToPageByOffset(1)}
         onPreviousPage={() => goToPageByOffset(-1)}
-        onResetZoom={() => setZoom(1)}
         onToggleGrid={() => setWorkspaceSettings({ gridEnabled: !workspaceSettings.gridEnabled })}
+        onToggleGuides={() => setWorkspaceSettings({ guidesVisible: !workspaceSettings.guidesVisible })}
         onTogglePan={() => setActiveCanvasTool(activeCanvasTool === "hand" ? "pointer" : "hand")}
         onToggleRulers={() => setWorkspaceSettings({ rulersVisible: !workspaceSettings.rulersVisible })}
         onToggleSnap={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })}
+        onOpenWorkspaceSettings={() => setIsWorkspaceSettingsOpen(true)}
+        onFitWorkspace={handleFitWorkspace}
         onZoomIn={() => handleZoomStep(1)}
         onZoomOut={() => handleZoomStep(-1)}
         pageCount={workingTemplate.pages.length}
+        guidesVisible={workspaceSettings.guidesVisible}
         rulersVisible={workspaceSettings.rulersVisible}
         snapEnabled={workspaceSettings.snapEnabled}
         zoom={viewport.zoom}
@@ -1966,8 +2163,17 @@ export function CanvasViewport() {
         />
       </div>
 
+      <CanvasWorkspaceSettingsDialog
+        open={isWorkspaceSettingsOpen}
+        onOpenChange={setIsWorkspaceSettingsOpen}
+        settings={workspaceSettings}
+        onChange={setWorkspaceSettings}
+        pageMargin={activePageMargin}
+        onPageMarginChange={handlePageMarginChange}
+      />
+
       <div className="ef-canvas-footer">
-        <button className="ef-adjust-button">
+        <button className="ef-adjust-button" onClick={() => setIsWorkspaceSettingsOpen(true)} type="button">
           <Settings2 size={13} aria-hidden="true" />
           Ajuster
           <ChevronDown size={12} aria-hidden="true" />
@@ -1989,17 +2195,21 @@ function CanvasNavigationPalette({
   activePageIndex,
   gridEnabled,
   isPanActive,
+  isSpacePanActive,
   onAddPage,
   onNextPage,
   onPreviousPage,
-  onResetZoom,
   onToggleGrid,
+  onToggleGuides,
   onTogglePan,
   onToggleRulers,
   onToggleSnap,
+  onOpenWorkspaceSettings,
+  onFitWorkspace,
   onZoomIn,
   onZoomOut,
   pageCount,
+  guidesVisible,
   rulersVisible,
   snapEnabled,
   zoom,
@@ -2007,17 +2217,21 @@ function CanvasNavigationPalette({
   activePageIndex: number;
   gridEnabled: boolean;
   isPanActive: boolean;
+  isSpacePanActive: boolean;
   onAddPage: () => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
-  onResetZoom: () => void;
   onToggleGrid: () => void;
+  onToggleGuides: () => void;
   onTogglePan: () => void;
   onToggleRulers: () => void;
   onToggleSnap: () => void;
+  onOpenWorkspaceSettings: () => void;
+  onFitWorkspace: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   pageCount: number;
+  guidesVisible: boolean;
   rulersVisible: boolean;
   snapEnabled: boolean;
   zoom: number;
@@ -2030,19 +2244,21 @@ function CanvasNavigationPalette({
     <div className="ef-navigation-palette" aria-label="Navigation canvas">
       <div className="ef-navigation-group" aria-label="Zoom">
         <NavigationPaletteButton icon={ZoomOut} label="Zoom -" onClick={onZoomOut} disabled={zoom <= EDITOR_VIEWPORT_MIN_ZOOM} />
-        <button className="ef-navigation-zoom-value" type="button" onClick={onResetZoom} title="Zoom 100 %" aria-label="Zoom 100 %">
+        <span className="ef-navigation-zoom-value" aria-label="Zoom actuel">
           {zoomPercent}%
-        </button>
+        </span>
         <NavigationPaletteButton icon={ZoomIn} label="Zoom +" onClick={onZoomIn} disabled={zoom >= EDITOR_VIEWPORT_MAX_ZOOM} />
-        <NavigationPaletteButton icon={RotateCcw} label="Zoom 100 %" onClick={onResetZoom} />
+        <NavigationPaletteButton icon={Crosshair} label="Fit to workspace" onClick={onFitWorkspace} />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Pan">
-        <NavigationPaletteButton icon={Hand} label="Mode Pan" onClick={onTogglePan} active={isPanActive} />
+        <NavigationPaletteButton icon={Hand} label="Mode Pan" onClick={onTogglePan} active={isPanActive || isSpacePanActive} />
+        <NavigationPaletteButton icon={Settings2} label="Réglages du workspace" onClick={onOpenWorkspaceSettings} />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Aides au placement">
         <NavigationPaletteButton icon={Ruler} label="Règles" onClick={onToggleRulers} active={rulersVisible} />
+        <NavigationPaletteButton icon={Crosshair} label="Guides" onClick={onToggleGuides} active={guidesVisible} />
         <NavigationPaletteButton icon={Magnet} label="Magnétisme" onClick={onToggleSnap} active={snapEnabled} />
         <NavigationPaletteButton icon={Grid3X3} label="Grille" onClick={onToggleGrid} active={gridEnabled} />
       </div>
@@ -2055,6 +2271,7 @@ function CanvasNavigationPalette({
         <NavigationPaletteButton icon={ChevronRight} label="Page suivante" onClick={onNextPage} disabled={isLastPage} />
         <NavigationPaletteButton icon={Plus} label="Ajouter une page" onClick={onAddPage} />
       </div>
+      <span className="ef-navigation-separator" aria-hidden="true" />
     </div>
   );
 }
@@ -2088,23 +2305,30 @@ function RulerCorner() {
 }
 
 function HorizontalRuler({
+  page,
   ticks,
   viewport,
   width,
   visible,
 }: {
+  page: WorkspacePageLayout | null;
   ticks: RulerTick[];
   viewport: WorkspaceViewport;
   width: number;
   visible: boolean;
 }) {
+  if (!visible) {
+    return null;
+  }
+
   return (
     <div className="ef-ruler-h" style={{ width, visibility: visible ? "visible" : "hidden" }}>
+      {page ? <RulerMarginBands axis="x" page={page} viewport={viewport} /> : null}
       {ticks.map((tick) => (
         <span
           key={`h-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-h"
-          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x"), height: tick.isMajor ? 11 : 6 }}
+          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x"), height: tick.isMajor ? 11 : tick.isMinor ? 7 : 4 }}
         />
       ))}
       {ticks.filter((tick) => tick.label).map((tick) => (
@@ -2121,23 +2345,30 @@ function HorizontalRuler({
 }
 
 function VerticalRuler({
+  page,
   ticks,
   viewport,
   height,
   visible,
 }: {
+  page: WorkspacePageLayout | null;
   ticks: RulerTick[];
   viewport: WorkspaceViewport;
   height: number;
   visible: boolean;
 }) {
+  if (!visible) {
+    return null;
+  }
+
   return (
     <div className="ef-ruler-v" style={{ height, visibility: visible ? "visible" : "hidden" }}>
+      {page ? <RulerMarginBands axis="y" page={page} viewport={viewport} /> : null}
       {ticks.map((tick) => (
         <span
           key={`v-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-v"
-          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y"), width: tick.isMajor ? 11 : 6 }}
+          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y"), width: tick.isMajor ? 11 : tick.isMinor ? 7 : 4 }}
         />
       ))}
       {ticks.filter((tick) => tick.label).map((tick) => (
@@ -2149,6 +2380,64 @@ function VerticalRuler({
           {tick.label}
         </span>
       ))}
+    </div>
+  );
+}
+
+function RulerMarginBands({
+  axis,
+  page,
+  viewport,
+}: {
+  axis: "x" | "y";
+  page: WorkspacePageLayout;
+  viewport: WorkspaceViewport;
+}) {
+  const marginStart = axis === "x" ? page.margin.left : page.margin.top;
+  const marginEnd = axis === "x" ? page.width - page.margin.right : page.height - page.margin.bottom;
+  const pageStart = axis === "x" ? page.x : page.y;
+  const pageEnd = axis === "x" ? page.x + page.width : page.y + page.height;
+  const usefulStart = projectWorkspacePositionToViewport(pageStart + marginStart, viewport, axis);
+  const usefulEnd = projectWorkspacePositionToViewport(marginEnd + pageStart, viewport, axis);
+  const start = projectWorkspacePositionToViewport(pageStart, viewport, axis);
+  const end = projectWorkspacePositionToViewport(pageEnd, viewport, axis);
+
+  if (usefulEnd <= usefulStart) {
+    return null;
+  }
+
+  const bandThickness = axis === "x" ? "100%" : "100%";
+
+  return (
+    <div className="ef-ruler-band-layer" aria-hidden="true">
+      {start < usefulStart ? (
+        <span
+          className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-outside"].join(" ")}
+          style={
+            axis === "x"
+              ? { left: start, width: usefulStart - start, height: bandThickness }
+              : { top: start, height: usefulStart - start, width: bandThickness }
+          }
+        />
+      ) : null}
+      <span
+        className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-useful"].join(" ")}
+        style={
+          axis === "x"
+            ? { left: usefulStart, width: usefulEnd - usefulStart, height: bandThickness }
+            : { top: usefulStart, height: usefulEnd - usefulStart, width: bandThickness }
+        }
+      />
+      {usefulEnd < end ? (
+        <span
+          className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-outside"].join(" ")}
+          style={
+            axis === "x"
+              ? { left: usefulEnd, width: end - usefulEnd, height: bandThickness }
+              : { top: usefulEnd, height: end - usefulEnd, width: bandThickness }
+          }
+        />
+      ) : null}
     </div>
   );
 }
@@ -2466,16 +2755,14 @@ function CanvasFloatingPalette({
             align="start"
             side={orientation === "vertical" ? "right" : "bottom"}
             sideOffset={10}
-            className="ef-palette-color-popover"
+            className="app-color-popover"
           >
-            <EditorColorPopoverContent
-              title={tool.label}
+            <ColorPickerPanel
+              label={tool.label}
               value={colorState.value}
-              defaultValue={defaultColor}
-              mixed={colorState.mixed}
-              onChange={(value) => applyPaletteColor(colorKind, value)}
+              resetLabel="Par défaut"
+              onChange={(value) => value && applyPaletteColor(colorKind, value)}
               onReset={() => applyPaletteColor(colorKind, defaultColor)}
-              onClose={() => setOpen(false)}
             />
           </PopoverContent>
         </Popover>

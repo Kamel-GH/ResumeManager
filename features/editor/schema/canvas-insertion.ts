@@ -5,6 +5,7 @@ import {
   DEFAULT_CANVAS_STROKE_COLOR,
   DEFAULT_CANVAS_STROKE_WIDTH,
 } from "@/features/editor/schema/canvas-mutation";
+import { createCanvasLayerMetadata } from "@/features/editor/schema/canvas-layer-model";
 import { parseRichTextHtmlToJson } from "@/features/editor/lib/rich-text-variable";
 
 export type CanvasDropEnvelope = {
@@ -133,13 +134,23 @@ export function createCanvasInsertionElement(input: {
   const { context } = input;
   const pageId = context.pageId;
   const layer = context.layer;
+  const layerMetadata = createCanvasLayerMetadata(layer);
   const frame = buildFrame(sourceType, rawPayload, context.point, context.frame);
+  const makeElement = (element: Parameters<typeof buildCanvasElement>[0]) =>
+    buildCanvasElement({
+      ...element,
+      props: {
+        ...(element.props ?? {}),
+        ...layerMetadata,
+      },
+    });
 
   if (sourceType === "canvas-tool") {
     return createCanvasToolInsertionElement(
       input as { source: CanvasToolEnvelope; context: CanvasInsertionContext },
       rawPayload,
       frame,
+      makeElement,
     );
   }
 
@@ -378,6 +389,7 @@ function createCanvasToolInsertionElement(
   input: { source: CanvasToolEnvelope; context: CanvasInsertionContext },
   payload: Record<string, unknown>,
   frame: Rect,
+  makeElement: typeof buildCanvasElement,
 ): CanvasInsertionResult {
   const { toolId } = input.source.payload;
   const layer = input.context.layer;
@@ -965,7 +977,7 @@ function normalizeRenderableSvgSource(source: string | undefined): string | unde
   return trimmed;
 }
 
-function makeElement(input: {
+function buildCanvasElement(input: {
   id: string;
   pageId: string;
   frame: TemplateElement["frame"];

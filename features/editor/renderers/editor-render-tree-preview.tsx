@@ -10,14 +10,22 @@ import { SvgRenderer } from "@/features/editor/renderers/svg-renderer/svg-render
 import { KonvaCanvasRenderer } from "@/features/editor/renderers/konva-renderer";
 import { projectKonvaSelection } from "@/features/editor/schema/selection-projection";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
+import type { BindingData } from "@/features/editor/schema/editor-model-types";
+import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
+
+const EMPTY_PREVIEW_DATA: BindingData = {};
 
 export function EditorRenderTreePreview({
   draftCanvasCreation,
+  canvasSize,
+  isSpacePanActive = false,
   workspaceLayout,
   viewport,
   workspaceSettings,
 }: {
   draftCanvasCreation?: CanvasToolDraft | null;
+  canvasSize?: { width: number; height: number };
+  isSpacePanActive?: boolean;
   workspaceLayout: WorkspaceLayout;
   viewport: WorkspaceViewport;
   workspaceSettings: EditorWorkspaceSettings;
@@ -26,10 +34,11 @@ export function EditorRenderTreePreview({
   const activeCanvasTool = useEditorStore((state) => state.activeCanvasTool);
   const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
   const workingTemplate = useEditorStore((state) => state.workingTemplate);
+  const previewData: BindingData = useVariablesStore((state) => state.source?.rows[0] ?? EMPTY_PREVIEW_DATA);
   const setSelectionProjection = useEditorStore((state) => state.setSelectionProjection);
   const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
-  const renderTree = useMemo(() => buildCanonicalRenderTree(resolveBindings({ template: workingTemplate, data: {} })), [workingTemplate]);
-  const useKonvaWorkspace = true;
+  const renderTree = useMemo(() => buildCanonicalRenderTree(resolveBindings({ template: workingTemplate, data: previewData })), [previewData, workingTemplate]);
+  const useKonvaWorkspace = process.env.NEXT_PUBLIC_EDITOR_RENDERER !== "svg";
   const selectionProjection = useMemo(() => projectKonvaSelection(renderTree, activePageId, selectedElementIds), [activePageId, renderTree, selectedElementIds]);
   const handleSelectElement = useMemo(
     () => (elementIds: string[], options?: { additive?: boolean }) => {
@@ -64,12 +73,14 @@ export function EditorRenderTreePreview({
   return (
     <KonvaCanvasRenderer
       renderTree={renderTree}
+      canvasSize={canvasSize}
       workspaceLayout={workspaceLayout}
       viewport={viewport}
       workspaceSettings={workspaceSettings}
       activePageId={activePageId}
       selectedElementIds={selectedElementIds}
       activeCanvasTool={activeCanvasTool}
+      isSpacePanActive={isSpacePanActive}
       draftCanvasCreation={draftCanvasCreation ?? null}
       onSelectElement={handleSelectElement}
     />

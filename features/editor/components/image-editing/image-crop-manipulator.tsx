@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { ImageEditingState, ImageMaskResizeHandle } from "./image-editor-types";
 import { buildImagePreviewFrameStyle, moveImageCrop, scaleImageCropZoom } from "./image-editor-utils";
@@ -82,11 +82,21 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
+      interactionRef.current = null;
+      setDragging(false);
     };
   }, [dragging, onChange]);
 
+  useEffect(
+    () => () => {
+      interactionRef.current = null;
+      setDragging(false);
+    },
+    [],
+  );
+
   const startMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || !frameRef.current) {
+    if (!event.isPrimary || event.button !== 0 || !frameRef.current) {
       return;
     }
 
@@ -105,7 +115,7 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
   };
 
   const startResize = (handle: ImageMaskResizeHandle, event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0 || !frameRef.current) {
+    if (!event.isPrimary || event.button !== 0 || !frameRef.current) {
       return;
     }
 
@@ -124,12 +134,71 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
+  const handleBoxKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 0.08 : 0.02;
+    let nextCrop: ImageEditingState["crop"] | null = null;
+
+    switch (event.key) {
+      case "ArrowLeft":
+        nextCrop = { ...editing.crop, x: clamp(editing.crop.x - step, -1, 1) };
+        break;
+      case "ArrowRight":
+        nextCrop = { ...editing.crop, x: clamp(editing.crop.x + step, -1, 1) };
+        break;
+      case "ArrowUp":
+        nextCrop = { ...editing.crop, y: clamp(editing.crop.y - step, -1, 1) };
+        break;
+      case "ArrowDown":
+        nextCrop = { ...editing.crop, y: clamp(editing.crop.y + step, -1, 1) };
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    onChange(nextCrop);
+  };
+
+  const handleResizeKeyDown = (_handle: ImageMaskResizeHandle, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const step = event.shiftKey ? 0.08 : 0.02;
+    let delta = 0;
+
+    switch (event.key) {
+      case "ArrowLeft":
+        delta = -step;
+        break;
+      case "ArrowRight":
+        delta = step;
+        break;
+      case "ArrowUp":
+        delta = step;
+        break;
+      case "ArrowDown":
+        delta = -step;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    onChange({
+      ...editing.crop,
+      zoom: clamp(editing.crop.zoom + delta, 0.25, 5),
+    });
+  };
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+  }
+
   return (
     <div ref={frameRef} className="ef-image-crop-manipulator" aria-label="Manipulation de l’image">
       <div
         className="ef-image-crop-manipulator-box"
-        style={boxStyle}
+        style={{ ...boxStyle, touchAction: "none" }}
         onPointerDown={startMove}
+        onKeyDown={handleBoxKeyDown}
+        tabIndex={0}
         role="button"
         aria-label="Déplacer l’image"
         title="Déplacer l’image"
@@ -140,9 +209,11 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
             key={handle.id}
             type="button"
             className={`ef-image-crop-manipulator-handle ${handle.className}`}
+            style={{ touchAction: "none" }}
             aria-label={handle.title}
             title={handle.title}
             onPointerDown={(event) => startResize(handle.id, event)}
+            onKeyDown={(event) => handleResizeKeyDown(handle.id, event)}
           >
             <span aria-hidden="true" />
           </button>

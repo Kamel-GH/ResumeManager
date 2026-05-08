@@ -596,7 +596,7 @@ function groupRenderNodesByOrderContext(nodes: RenderNode[]) {
   return [...groups.values()];
 }
 
-function resolveRenderNodeOrderGroupKey(node: RenderNode) {
+export function resolveRenderNodeOrderGroupKey(node: RenderNode) {
   const layerId = propString(node.props, "layerId") ?? propString(node.props, "layerName") ?? "default";
   const parentId =
     propString(node.props, "parentId") ??

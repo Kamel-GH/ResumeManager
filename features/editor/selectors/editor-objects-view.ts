@@ -1,5 +1,11 @@
-import type { TemplateElement, TemplateElementType, TemplateSchema } from "@/features/editor/schema/template-schema";
-import { resolveElementLayerIdentity, resolveStableLayerNumber } from "@/features/editor/selectors/editor-layers-view";
+import type { TemplateElementType, TemplateSchema } from "@/features/editor/schema/template-schema";
+import {
+  resolveEditorObjectFallbackLayerId,
+  resolveEditorObjectGrouping,
+  resolveEditorObjectLabel,
+  resolveEditorObjectLayerIdentity,
+} from "@/features/editor/selectors/editor-object-model";
+import { resolveStableLayerNumber } from "@/features/editor/selectors/editor-layers-view";
 
 export type EditorObjectView = {
   id: string;
@@ -33,12 +39,12 @@ export function deriveEditorObjectsView(template: TemplateSchema, selectedElemen
   }
 
   const pageIndex = template.pages.findIndex((page) => page.id === activePage.id) + 1;
-  const fallbackLayerId = resolveSingleLayerIdForPage(template, activePage.id);
+  const fallbackLayerId = resolveEditorObjectFallbackLayerId(template, activePage.id);
   const pageElements = template.elements
     .filter((element) => element.pageId === activePage.id)
     .sort((a, b) => {
-      const layerOrderA = resolveElementLayerIdentity(a, fallbackLayerId)?.order ?? 0;
-      const layerOrderB = resolveElementLayerIdentity(b, fallbackLayerId)?.order ?? 0;
+      const layerOrderA = resolveEditorObjectLayerIdentity(a, fallbackLayerId)?.order ?? 0;
+      const layerOrderB = resolveEditorObjectLayerIdentity(b, fallbackLayerId)?.order ?? 0;
       if (layerOrderA !== layerOrderB) {
         return layerOrderA - layerOrderB;
       }
@@ -47,10 +53,11 @@ export function deriveEditorObjectsView(template: TemplateSchema, selectedElemen
     });
 
   return pageElements.map((element) => {
-    const layerIdentity = resolveElementLayerIdentity(element, fallbackLayerId);
+    const layerIdentity = resolveEditorObjectLayerIdentity(element, fallbackLayerId);
+    const grouping = resolveEditorObjectGrouping(element);
     return {
       id: element.id,
-      name: resolveElementLabel(element),
+      name: resolveEditorObjectLabel(element),
       type: element.type,
       pageId: activePage.id,
       pageName: activePage.name,
@@ -61,8 +68,8 @@ export function deriveEditorObjectsView(template: TemplateSchema, selectedElemen
       layerOrder: layerIdentity?.order ?? null,
       visible: element.visible,
       locked: element.locked,
-      grouped: readElementPropBoolean(element, "grouped") ?? (readElementPropString(element, "groupId") ? true : null),
-      groupId: readElementPropString(element, "groupId"),
+      grouped: grouping.grouped,
+      groupId: grouping.groupId,
       selected: selectedElementIds.includes(element.id),
     };
   });
@@ -82,41 +89,4 @@ export function filterEditorObjectsView(objects: EditorObjectView[], filters: Ed
     const matchesPage = !filters.page || filters.page === "all" || String(object.pageIndex) === filters.page || object.pageId === filters.page;
     return matchesText && matchesType && matchesLayer && matchesPage;
   });
-}
-
-function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
-  const layerIds = new Set(
-    template.elements
-      .filter((element) => element.pageId === pageId)
-      .map((element) => readElementPropString(element, "layerId"))
-      .filter(Boolean),
-  );
-  return layerIds.size === 1 ? [...layerIds][0] ?? null : null;
-}
-
-function resolveElementLabel(element: TemplateElement) {
-  const explicitName = readElementPropString(element, "name") ?? readElementPropString(element, "label") ?? readElementPropString(element, "title");
-  if (explicitName) {
-    return explicitName;
-  }
-
-  const text = readElementPropString(element, "text") ?? readElementPropString(element, "html");
-  if (text) {
-    const clean = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    if (clean) {
-      return clean.length > 36 ? `${clean.slice(0, 33)}…` : clean;
-    }
-  }
-
-  return `${element.type} ${element.id}`;
-}
-
-function readElementPropString(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function readElementPropBoolean(element: TemplateElement, key: string) {
-  const value = element.props?.[key];
-  return typeof value === "boolean" ? value : null;
 }

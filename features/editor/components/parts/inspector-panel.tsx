@@ -17,13 +17,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  EditorColorPopoverContent,
-  formatEditorColorValue,
-  normalizeEditorColorValue,
-  resolveEditorColorChipStyle,
-} from "@/features/editor/components/parts/editor-color-controls";
+import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import {
   resolveCanvasObjectStyleCapabilities,
   resolveCanvasObjectStylePreview,
@@ -122,6 +116,7 @@ export function InspectorPanel() {
             label="Fond"
             value={stylePreview?.fill ?? "#ffffff"}
             disabled={!styleCapabilities?.fill}
+            allowTransparent
             onChange={(value) => applyStylePatch({ fill: value })}
           />
           <StyleColorField
@@ -288,38 +283,23 @@ function StyleColorField({
   label,
   value,
   disabled,
+  allowTransparent,
   onChange,
 }: {
   label: string;
   value: string;
   disabled?: boolean;
+  allowTransparent?: boolean;
   onChange: (value: string) => void;
 }) {
-  const pickerValue = normalizeEditorColorValue(value);
-  const displayValue = formatEditorColorValue(value);
-
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button type="button" variant="outline" className="ef-field ef-style-color-field" disabled={disabled}>
-          <span className="ef-style-color-chip" style={resolveEditorColorChipStyle(value, false)} />
-          <span className="ef-style-color-label">{label}</span>
-          <span className="ef-style-color-value">{displayValue}</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" sideOffset={10} className="ef-style-color-popover">
-        <EditorColorPopoverContent
-          title={label}
-          value={value}
-          defaultValue={pickerValue}
-          mixed={false}
-          showReset={false}
-          onChange={onChange}
-          onReset={() => undefined}
-          onClose={() => {}}
-        />
-      </PopoverContent>
-    </Popover>
+    <ColorPickerControl
+      label={label}
+      value={value}
+      disabled={disabled}
+      allowTransparent={allowTransparent}
+      onChange={(nextColor) => onChange(nextColor ?? "transparent")}
+    />
   );
 }
 

@@ -3,6 +3,7 @@
 import { RotateCcw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import type { RenderNode } from "@/features/editor/schema/render-tree";
 
 import type { ImageEditingState, ImageEditorTab, ImageFilterPreset, ImageMaskBounds, ImageMaskType } from "./image-editor-types";
@@ -11,6 +12,7 @@ import {
   buildImageMaskPathData,
   defaultImageEditingState,
   normalizeImageEditingState,
+  resolveImagePreviewSource,
   resolveImageMaskBorderPresentation,
   resolveImageMaskFrame,
   resolveImagePreviewSvgGeometry,
@@ -69,7 +71,7 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
   const initialEditing = useMemo(() => normalizeImageEditingState(node.props.imageEditing), [node.props.imageEditing]);
   const [activeTab, setActiveTab] = useState<ImageEditorTab>("crop");
   const [draft, setDraft] = useState<ImageEditingState>(initialEditing);
-  const source = typeof node.props.src === "string" ? node.props.src : "";
+  const source = useMemo(() => resolveImagePreviewSource(node.props.src), [node.props.src]);
   const previewClipId = useMemo(() => `ef-image-editor-preview-clip-${node.id}`, [node.id]);
   const previewFrameWidth = Number.isFinite(node.frame.width) && node.frame.width > 0 ? node.frame.width : 1;
   const previewFrameHeight = Number.isFinite(node.frame.height) && node.frame.height > 0 ? node.frame.height : 1;
@@ -81,6 +83,7 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
     () => buildImageMaskPathData(maskFrame, draft.mask.type, draft.mask.type === "rounded-rect" ? draft.mask.radius : 0),
     [draft.mask.radius, draft.mask.type, maskFrame],
   );
+  const hasSource = source.length > 0;
   const handleCropChange = useCallback((crop: ImageEditingState["crop"]) => {
     setDraft((current) => ({
       ...current,
@@ -99,10 +102,20 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
     },
     [],
   );
+  const handleReset = useCallback(() => {
+    setDraft(structuredClone(defaultImageEditingState));
+    setActiveTab("crop");
+  }, []);
+
+  useEffect(() => {
+    setDraft(initialEditing);
+    setActiveTab("crop");
+  }, [node.id]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onCancel();
       }
     };
@@ -127,7 +140,13 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
         <div className="ef-image-editor-body">
           <nav className="ef-image-editor-tabs" aria-label="Outils image">
             {tabs.map((tab) => (
-              <button key={tab.id} type="button" className={activeTab === tab.id ? "is-active" : ""} onClick={() => setActiveTab(tab.id)}>
+              <button
+                key={tab.id}
+                type="button"
+                className={activeTab === tab.id ? "is-active" : ""}
+                aria-pressed={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+              >
                 {tab.label}
               </button>
             ))}
@@ -144,7 +163,7 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
 
           <section className="ef-image-editor-preview">
             <div className="ef-image-editor-preview-frame" style={{ aspectRatio: previewAspectRatio }}>
-              {source ? (
+              {hasSource ? (
                 <svg className="ef-image-editor-preview-svg" viewBox={`0 0 ${previewFrameWidth} ${previewFrameHeight}`} preserveAspectRatio="none" aria-hidden="true">
                   <defs>
                     <clipPath id={previewClipId}>
@@ -186,12 +205,12 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
                   ) : null}
                 </svg>
               ) : (
-                <span className="ef-image-editor-preview-empty">Aucune image</span>
+                <span className="ef-image-editor-preview-empty">{typeof node.props.src === "string" && node.props.src.trim() ? "Source image invalide" : "Aucune image"}</span>
               )}
               {draft.adjustments.vignette > 0 ? <div className="ef-image-editor-vignette" style={{ opacity: draft.adjustments.vignette }} /> : null}
               {draft.adjustments.grain > 0 ? <div className="ef-image-editor-grain" style={{ opacity: draft.adjustments.grain }} /> : null}
-              {(activeTab === "crop" || activeTab === "mask") && source ? <ImageCropManipulator editing={draft} onChange={handleCropChange} /> : null}
-              {activeTab === "mask" ? <ImageMaskManipulator editing={draft} onChange={handleMaskBoundsChange} /> : null}
+              {(activeTab === "crop" || activeTab === "mask") && hasSource ? <ImageCropManipulator editing={draft} onChange={handleCropChange} /> : null}
+              {activeTab === "mask" && hasSource ? <ImageMaskManipulator editing={draft} onChange={handleMaskBoundsChange} /> : null}
             </div>
           </section>
         </div>
@@ -200,11 +219,11 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
           <button type="button" className="ef-image-editor-secondary" onClick={onCancel}>
             Annuler
           </button>
-          <button type="button" className="ef-image-editor-secondary" onClick={() => setDraft(structuredClone(defaultImageEditingState))}>
+          <button type="button" className="ef-image-editor-secondary" onClick={handleReset}>
             <RotateCcw size={14} aria-hidden="true" />
             Réinitialiser
           </button>
-          <button type="button" className="ef-image-editor-primary" onClick={() => onApply(draft)}>
+          <button type="button" className="ef-image-editor-primary" onClick={() => onApply(draft)} disabled={!hasSource} title={hasSource ? "Appliquer" : "L'image source est invalide"}>
             Appliquer
           </button>
         </footer>
@@ -393,12 +412,8 @@ function ControlSelect({ label, onChange, options, value }: { label: string; onC
 
 function ControlColor({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
   return (
-    <label className="ef-image-editor-control">
-      <span>
-        {label}
-        <b>{value.toUpperCase()}</b>
-      </span>
-      <input className="ef-image-editor-color-input" type="color" value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
+    <div className="ef-image-editor-control">
+      <ColorPickerControl label={label} value={value} onChange={(color) => color && onChange(color)} />
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { JSONContent } from "@tiptap/core";
 
 import {
+  buildRichTextVariableNodeAttrsFromSource,
   createRichTextVariableRegistry,
   parseRichTextHtmlToJson,
   serializeRichTextJsonToHtml,
@@ -58,6 +59,20 @@ describe("rich text variable node", () => {
     );
   });
 
+  it("resolves bracketed payloads from the registry without guessing a new key", () => {
+    const attrs = buildRichTextVariableNodeAttrsFromSource({ label: "Prénom", token: "[Prénom]" }, registry);
+
+    expect(attrs).toEqual(
+      expect.objectContaining({
+        id: "candidate.firstName",
+        key: "candidate.firstName",
+        label: "Prénom",
+        fallback: "Prénom",
+        source: "candidate",
+      }),
+    );
+  });
+
   it("serializes variable nodes without mutating the canonical JSON", () => {
     const technicalHtml = serializeRichTextJsonToHtml(content, { displayMode: "technical", registry });
     const valueHtml = serializeRichTextJsonToHtml(content, {
@@ -80,6 +95,17 @@ describe("rich text variable node", () => {
     );
   });
 
+  it("resolves value mode from the dataset and falls back when the data is missing", () => {
+    const attrs = {
+      key: "candidate.firstName",
+      fallback: "Prénom",
+      label: "Prénom",
+    };
+
+    expect(resolveRichTextVariableValue(attrs, "value", { candidate: { firstName: "Kamel" } })).toBe("Kamel");
+    expect(resolveRichTextVariableValue(attrs, "value", {})).toBe("Prénom");
+  });
+
   it("never renders an empty variable label fallback", () => {
     expect(
       resolveRichTextVariableValue(
@@ -91,5 +117,16 @@ describe("rich text variable node", () => {
         "label",
       ),
     ).toBe("[variable]");
+  });
+
+  it("keeps blank bracket syntax as plain text", () => {
+    const parsed = parseRichTextHtmlToJson("<p>Bonjour [   ]</p>", registry);
+    const paragraph = parsed.content?.[0];
+    const text = paragraph && "content" in paragraph && Array.isArray(paragraph.content)
+      ? paragraph.content.map((child) => ("text" in child ? child.text ?? "" : "")).join("")
+      : "";
+
+    expect(text).toContain("[   ]");
+    expect(paragraph && "content" in paragraph ? paragraph.content?.some((child) => child.type === "variable") : false).toBe(false);
   });
 });

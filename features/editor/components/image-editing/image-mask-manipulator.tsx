@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 
 import type { ImageEditingState, ImageMaskBounds, ImageMaskResizeHandle } from "./image-editor-types";
 import { moveImageMaskBounds, resizeImageMaskBounds } from "./image-editor-utils";
@@ -81,11 +81,21 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerEnd);
       window.removeEventListener("pointercancel", handlePointerEnd);
+      interactionRef.current = null;
+      setDragging(false);
     };
   }, [dragging, editing.mask.type, onChange]);
 
+  useEffect(
+    () => () => {
+      interactionRef.current = null;
+      setDragging(false);
+    },
+    [],
+  );
+
   const startMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) {
+    if (!event.isPrimary || event.button !== 0) {
       return;
     }
 
@@ -108,7 +118,7 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
   };
 
   const startResize = (handle: ImageMaskResizeHandle, event: ReactPointerEvent<HTMLButtonElement>) => {
-    if (event.button !== 0) {
+    if (!event.isPrimary || event.button !== 0) {
       return;
     }
 
@@ -131,19 +141,81 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
+  const handleBoxKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 0.05 : 0.01;
+    let nextBounds: ImageMaskBounds | null = null;
+
+    switch (event.key) {
+      case "ArrowLeft":
+        nextBounds = moveImageMaskBounds(editing.mask.bounds, -step, 0);
+        break;
+      case "ArrowRight":
+        nextBounds = moveImageMaskBounds(editing.mask.bounds, step, 0);
+        break;
+      case "ArrowUp":
+        nextBounds = moveImageMaskBounds(editing.mask.bounds, 0, -step);
+        break;
+      case "ArrowDown":
+        nextBounds = moveImageMaskBounds(editing.mask.bounds, 0, step);
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    onChange(nextBounds);
+  };
+
+  const handleResizeKeyDown = (handle: ImageMaskResizeHandle, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const step = event.shiftKey ? 0.05 : 0.01;
+    let deltaX = 0;
+    let deltaY = 0;
+
+    switch (event.key) {
+      case "ArrowLeft":
+        deltaX = -step;
+        break;
+      case "ArrowRight":
+        deltaX = step;
+        break;
+      case "ArrowUp":
+        deltaY = -step;
+        break;
+      case "ArrowDown":
+        deltaY = step;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    onChange(resizeImageMaskBounds(editing.mask.bounds, handle, deltaX, deltaY, editing.mask.type));
+  };
+
   return (
     <div ref={frameRef} className="ef-image-mask-manipulator" aria-label="Manipulation du masque">
       <div
         className="ef-image-mask-manipulator-box"
-        style={boundsStyle}
+        style={{ ...boundsStyle, touchAction: "none" }}
         onPointerDown={startMove}
+        onKeyDown={handleBoxKeyDown}
+        tabIndex={0}
         role="button"
         aria-label="Déplacer le masque"
         title="Déplacer le masque"
       >
         <div className="ef-image-mask-manipulator-frame" aria-hidden="true" />
         {handles.map((handle) => (
-          <button key={handle.id} type="button" className={`ef-image-mask-manipulator-handle ${handle.className}`} aria-label={handle.title} title={handle.title} onPointerDown={(event) => startResize(handle.id, event)}>
+          <button
+            key={handle.id}
+            type="button"
+            className={`ef-image-mask-manipulator-handle ${handle.className}`}
+            style={{ touchAction: "none" }}
+            aria-label={handle.title}
+            title={handle.title}
+            onPointerDown={(event) => startResize(handle.id, event)}
+            onKeyDown={(event) => handleResizeKeyDown(handle.id, event)}
+          >
             <span aria-hidden="true" />
           </button>
         ))}

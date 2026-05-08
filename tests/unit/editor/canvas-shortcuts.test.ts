@@ -11,6 +11,14 @@ describe("canvas shortcuts", () => {
     expect(resolveCanvasShortcutAction({ key: "v", metaKey: false, ctrlKey: false, altKey: false })).toBeNull();
   });
 
+  it("resolves undo and redo shortcuts while rejecting alt-modified combinations", () => {
+    expect(resolveCanvasShortcutAction({ key: "z", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false })).toBe("undo");
+    expect(resolveCanvasShortcutAction({ key: "z", metaKey: true, ctrlKey: false, altKey: false, shiftKey: true })).toBe("redo");
+    expect(resolveCanvasShortcutAction({ key: "y", metaKey: false, ctrlKey: true, altKey: false })).toBe("redo");
+    expect(resolveCanvasShortcutAction({ key: "c", metaKey: true, ctrlKey: false, altKey: true })).toBeNull();
+    expect(resolveCanvasShortcutAction({ key: "z", metaKey: false, ctrlKey: true, altKey: true })).toBeNull();
+  });
+
   it("ignores shortcut targets that should keep native text editing behavior", () => {
     const input = {
       closest: (selector: string) => (selector.includes("input") ? {} : null),

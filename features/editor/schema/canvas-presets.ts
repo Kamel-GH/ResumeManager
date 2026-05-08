@@ -1,4 +1,5 @@
 import type { CanvasToolEnvelope } from "@/features/editor/schema/canvas-insertion";
+import type { TemplateElementProps } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
 
 export type CanvasPresetIconElement =
@@ -37,7 +38,7 @@ export type CanvasPresetBase = {
     width: number;
     height: number;
   };
-  defaultProps: Record<string, unknown>;
+  defaultProps: TemplateElementProps;
 };
 
 export type CanvasShapePreset = CanvasPresetBase & {
@@ -189,7 +190,7 @@ function defineArcPreset(
   canonicalType: string,
   width: number,
   height: number,
-  props: Record<string, unknown>,
+  props: TemplateElementProps,
   elements: CanvasPresetIconElement[],
 ): CanvasArcPreset {
   return {

@@ -4,6 +4,7 @@ import type { StoreApi } from "zustand";
 import type { JSONContent } from "@tiptap/core";
 
 import { modernResumeTemplate } from "@/features/editor/templates/modern-resume-template";
+import type { PageMargin } from "@/features/editor/schema/template-schema";
 import {
   createCanvasInsertionElement,
   type CanvasCreationEnvelope,
@@ -37,10 +38,14 @@ import {
   buildStyleOperationLogs,
 } from "@/features/editor/schema/editor-operation-log";
 import { parseRichTextHtmlToJson, serializeRichTextJsonToHtml, type RichTextVariableDisplayMode } from "@/features/editor/lib/rich-text-variable";
+import { convertMeasurementValue } from "@/features/editor/lib/measurement";
 import { defaultWorkspaceSettings, type EditorWorkspaceSettings } from "@/features/editor/schema/workspace-layout";
+import type { TemplateElementProps } from "@/features/editor/schema/template-schema";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { TemplateElement, TemplateElementType } from "@/features/editor/schema/template-schema";
 import type { KonvaSelectionProjection } from "@/features/editor/schema/selection-projection";
+import type { ImageEditingState } from "@/features/editor/components/image-editing/image-editor-types";
+import { clampEditorViewportZoom, resolveStableLayerNumber } from "@/features/editor/stores/editor-store-helpers";
 
 export type EditorPanelId = "pages" | "layers" | "assets" | "data" | "inspector";
 export type EditorLeftPanelTab = "data" | "libraries" | "layers" | "objects" | "pages";
@@ -143,9 +148,10 @@ export type EditorStoreState = {
   }) => { updated: true; elementId: string } | { updated: false; reason: string };
   updateRichTextContainerProps: (input: {
     elementId: string;
-    props: Record<string, unknown>;
+    props: Partial<TemplateElementProps>;
   }) => { updated: true; elementId: string } | { updated: false; reason: string };
-  updateImageElementEditing: (input: { elementId: string; imageEditing: TemplateElement["props"] }) => { updated: true; elementId: string } | { updated: false; reason: string };
+  updateImageElementEditing: (input: { elementId: string; imageEditing: ImageEditingState }) => { updated: true; elementId: string } | { updated: false; reason: string };
+  updatePageMargin: (input: { pageId: string; margin: Partial<PageMargin> }) => { updated: true; pageId: string } | { updated: false; reason: string };
   setWorkspaceSettings: (patch: Partial<EditorWorkspaceSettings>) => void;
   setZoom: (zoom: number) => void;
   setViewportPan: (input: { panX: number; panY: number }) => void;
@@ -199,6 +205,87 @@ function createDefaultWorkspaceLayer(pageId: string, order: number): CanvasWorks
     visible: true,
     locked: false,
   };
+}
+
+function normalizeLegacyWorkspaceSettings(settings: EditorWorkspaceSettings): EditorWorkspaceSettings {
+  const unit = settings.measurementUnit ?? "px";
+  if (unit === "px") {
+    return settings;
+  }
+
+  const convert = (value: number) => roundMeasurementValue(convertMeasurementValue(value, unit, "px"));
+
+  return {
+    ...settings,
+    measurementUnit: unit,
+    gridSize: convert(settings.gridSize),
+    snapTolerance: convert(settings.snapTolerance),
+    pageGap: convert(settings.pageGap),
+    pagePadding: convert(settings.pagePadding),
+    rulerMajorStep: convert(settings.rulerMajorStep),
+    rulerMinorStep: convert(settings.rulerMinorStep),
+    rulerFineStep: convert(settings.rulerFineStep),
+  };
+}
+
+function isSuspiciousWorkspaceSettings(settings: EditorWorkspaceSettings) {
+  return [
+    settings.gridSize,
+    settings.snapTolerance,
+    settings.pageGap,
+    settings.pagePadding,
+    settings.rulerMajorStep,
+    settings.rulerMinorStep,
+    settings.rulerFineStep,
+  ].some((value) => Number.isFinite(value) && value > 10000);
+}
+
+export function normalizePersistedEditorStoreState(
+  persistedState: Partial<EditorStoreState> | undefined,
+  version?: number,
+): Partial<EditorStoreState> | undefined {
+  if (!persistedState) {
+    return persistedState;
+  }
+
+  const { viewport: _viewport, ...persistedWithoutViewport } = persistedState;
+  let normalizedWorkspaceSettings = persistedWithoutViewport.workspaceSettings;
+
+  if (normalizedWorkspaceSettings && version !== undefined && version < 4) {
+    normalizedWorkspaceSettings = normalizeLegacyWorkspaceSettings(normalizedWorkspaceSettings);
+  }
+
+  if (normalizedWorkspaceSettings && isSuspiciousWorkspaceSettings(normalizedWorkspaceSettings)) {
+    normalizedWorkspaceSettings = {
+      ...normalizedWorkspaceSettings,
+      gridSize: defaultWorkspaceSettings.gridSize,
+      snapTolerance: defaultWorkspaceSettings.snapTolerance,
+      pageGap: defaultWorkspaceSettings.pageGap,
+      pagePadding: defaultWorkspaceSettings.pagePadding,
+      rulerMajorStep: defaultWorkspaceSettings.rulerMajorStep,
+      rulerMinorStep: defaultWorkspaceSettings.rulerMinorStep,
+      rulerFineStep: defaultWorkspaceSettings.rulerFineStep,
+    };
+  }
+
+  if (!normalizedWorkspaceSettings) {
+    return persistedWithoutViewport;
+  }
+
+  return {
+    ...persistedWithoutViewport,
+    workspaceSettings:
+      version !== undefined && version < 6
+        ? {
+            ...normalizedWorkspaceSettings,
+            workspaceMode: "fit-space",
+          }
+        : normalizedWorkspaceSettings,
+  };
+}
+
+function roundMeasurementValue(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 export const useEditorStore = create<EditorStoreState>()(
@@ -1539,6 +1626,43 @@ export const useEditorStore = create<EditorStoreState>()(
 
         return outcome;
       },
+      updatePageMargin: ({ pageId, margin }) => {
+        let outcome: { updated: true; pageId: string } | { updated: false; reason: string } = {
+          updated: false,
+          reason: "page_introuvable",
+        };
+
+        set((state) => {
+          const pageExists = state.workingTemplate.pages.some((page) => page.id === pageId);
+          if (!pageExists) {
+            return state;
+          }
+
+          outcome = {
+            updated: true,
+            pageId,
+          };
+
+          return {
+            workingTemplate: {
+              ...state.workingTemplate,
+              pages: state.workingTemplate.pages.map((page) =>
+                page.id === pageId
+                  ? {
+                      ...page,
+                      margin: {
+                        ...page.margin,
+                        ...margin,
+                      },
+                    }
+                  : page,
+              ),
+            },
+          };
+        });
+
+        return outcome;
+      },
       setWorkspaceSettings: (patch) =>
         set((state) => ({
           workspaceSettings: {
@@ -1622,16 +1746,19 @@ export const useEditorStore = create<EditorStoreState>()(
     }),
     {
       name: "resume-manager-editor-panels-v2",
+      version: 6,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persistedState, version) => {
+        return normalizePersistedEditorStoreState(persistedState as Partial<EditorStoreState> | undefined, version);
+      },
       partialize: (state) => ({
         panelPreferences: state.panelPreferences,
-        viewport: state.viewport,
         workspaceSettings: state.workspaceSettings,
         defaultFillColor: state.defaultFillColor,
         defaultStrokeColor: state.defaultStrokeColor,
       }),
       merge: (persistedState, currentState) => {
-        const persisted = persistedState as Partial<EditorStoreState> | undefined;
+        const persisted = normalizePersistedEditorStoreState(persistedState as Partial<EditorStoreState> | undefined);
 
         return {
           ...currentState,
@@ -1676,24 +1803,6 @@ function resolveNextTemplatePageId(pages: TemplateSchema["pages"], startNumber: 
   }
 
   return pageId;
-}
-
-function clampEditorViewportZoom(zoom: number) {
-  if (!Number.isFinite(zoom)) {
-    return 1;
-  }
-
-  return Math.min(EDITOR_VIEWPORT_MAX_ZOOM, Math.max(EDITOR_VIEWPORT_MIN_ZOOM, zoom));
-}
-
-function resolveStableLayerNumber(layerId: string, fallback: number) {
-  const match = /(?:^|:)(?:layer|calque)[^\d]*(\d+)$/i.exec(layerId);
-  if (!match) {
-    return fallback;
-  }
-
-  const number = Number.parseInt(match[1] ?? "", 10);
-  return Number.isFinite(number) ? number : fallback;
 }
 
 function updateWorkspaceLayerState(

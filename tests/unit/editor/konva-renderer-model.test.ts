@@ -368,6 +368,36 @@ describe("konva renderer model", () => {
     ).toEqual(["shape-1", "shape-2"]);
   });
 
+  it("keeps the anchor when the drag selection does not include another movable node", () => {
+    const baseNode: RenderNode = {
+      id: "shape-1",
+      type: "shape",
+      pageId: "page-1",
+      frame: { x: 10, y: 10, width: 40, height: 40 },
+      rotation: 0,
+      zIndex: 1,
+      locked: false,
+      visible: true,
+      props: {
+        shape: "rect",
+      },
+    };
+    const renderNodeById = new Map<string, { node: RenderNode; pageId: string }>([
+      ["shape-1", { node: baseNode, pageId: "page-1" }],
+      ["shape-2", { node: { ...baseNode, id: "shape-2", locked: true }, pageId: "page-1" }],
+      ["other-page", { node: { ...baseNode, id: "other-page", pageId: "page-2" }, pageId: "page-2" }],
+    ]);
+
+    expect(
+      resolveDragSelectionIds({
+        anchorId: "shape-1",
+        anchorPageId: "page-1",
+        selectedElementIds: ["shape-2", "other-page"],
+        renderNodeById,
+      }),
+    ).toEqual(["shape-1"]);
+  });
+
   it("projects flip flags into Konva transforms without moving the visual frame", () => {
     const flippedRect: RenderNode = {
       id: "flipped-rect",
@@ -613,6 +643,39 @@ describe("konva renderer model", () => {
       y: 94,
       width: 100,
       height: 80,
+    });
+  });
+
+  it("falls back to the canonical frame dimensions when projected geometry collapses", () => {
+    const node: RenderNode = {
+      id: "shape",
+      type: "shape",
+      pageId: "page-1",
+      frame: { x: 20, y: 30, width: 80, height: 40 },
+      rotation: 0,
+      zIndex: 1,
+      visible: true,
+      locked: false,
+      props: {
+        shape: "rect",
+        selectable: true,
+      },
+    };
+
+    expect(
+      resolveCanonicalFrameFromProjectedGeometry(node, {
+        x: 140,
+        y: 180,
+        width: 0,
+        height: 0,
+        scaleX: 1,
+        scaleY: 1,
+      }),
+    ).toEqual({
+      x: 140,
+      y: 180,
+      width: 80,
+      height: 40,
     });
   });
 

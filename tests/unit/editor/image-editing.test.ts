@@ -10,6 +10,7 @@ import {
   moveImageMaskBounds,
   hasImageMaskBorderChanges,
   normalizeImageEditingState,
+  resolveImagePreviewSource,
   resolveImageMaskBorderPresentation,
   resolveImageMaskFrame,
   resolveImagePreviewSvgGeometry,
@@ -50,6 +51,14 @@ describe("image editing helpers", () => {
     expect(editing.adjustments.brightness).toBe(1);
     expect(editing.transform.flipX).toBe(true);
     expect(editing.transform.rotation).toBe(90);
+  });
+
+  it("sanitizes preview sources and preserves safe image URLs", () => {
+    expect(resolveImagePreviewSource("   ")).toBe("");
+    expect(resolveImagePreviewSource("javascript:alert(1)")).toBe("");
+    expect(resolveImagePreviewSource("https://cdn.example.com/photo.png")).toBe("https://cdn.example.com/photo.png");
+    expect(resolveImagePreviewSource("data:image/png;base64,AAA")).toBe("data:image/png;base64,AAA");
+    expect(resolveImagePreviewSource("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"></svg>")).toContain("data:image/svg+xml;utf8,");
   });
 
   it("normalizes mask border controls and maps dash styles consistently", () => {

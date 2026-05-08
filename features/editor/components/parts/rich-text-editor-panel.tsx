@@ -17,7 +17,7 @@ import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight,
   Bold, Braces, ChevronDown, Code, Code2,
   Columns3, Eraser, Eye, Heading1, Heading2, Heading3,
-  Italic, LayoutList, List, ListOrdered, Minus, Pilcrow,
+  Grid2x2, Italic, LayoutList, List, ListOrdered, Minus, Pilcrow,
   Plus, Quote, Rows3, Search, Strikethrough,
   Table2, TableCellsMerge, TableCellsSplit, Tag,
   Trash2, Type, Underline as UnderlineIcon, X,
@@ -27,6 +27,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { DragEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type { Editor } from "@tiptap/react";
 
+import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import {
@@ -49,6 +50,19 @@ import {
   RichTextVariableDisplayModeContext,
   RichTextVariableRegistryContext,
 } from "@/features/editor/components/parts/rich-text-variable-node-view";
+import {
+  RichTextTableInspector,
+  type RichTextTableInspectorTab,
+} from "@/features/editor/components/rich-text/rich-text-table-inspector";
+import { RichTextTableInsertDialog } from "@/features/editor/components/rich-text/rich-text-table-insert-dialog";
+import { RichTextTextInspector } from "@/features/editor/components/rich-text/rich-text-text-inspector";
+import { RichTextVariableInspector } from "@/features/editor/components/rich-text/rich-text-variable-inspector";
+import {
+  type RichTextTableBorderPreset,
+  type RtpTableCellStyleAttrs,
+  type RtpTableRowStyleAttrs,
+  type RtpTableStyleAttrs,
+} from "@/features/editor/components/rich-text/rich-text-table-model";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 import { insertVariableTokenIntoRichTextEditor } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
 import { resolveCanvasObjectStylePreview } from "@/features/editor/schema/canvas-mutation";
@@ -56,6 +70,38 @@ import { resolveCanvasObjectStylePreview } from "@/features/editor/schema/canvas
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type RtpTab = "content" | "properties";
+type TableSelectionMode = "table" | "row" | "column";
+type RichTextTableHoverTarget =
+  | { mode: "table" }
+  | { mode: "row"; index: number }
+  | { mode: "column"; index: number }
+  | { mode: "column-resize"; index: number }
+  | { mode: "row-resize"; index: number }
+  | null;
+type RichTextTableSelectedTarget =
+  | { mode: TableSelectionMode; index?: number }
+  | { mode: "cell-range"; startRow: number; startColumn: number; endRow: number; endColumn: number }
+  | null;
+type RichTextTableCellDragRef = {
+  tableIndex: number;
+  tableElement: HTMLTableElement;
+  startRow: number;
+  startColumn: number;
+  startClientX: number;
+  startClientY: number;
+  active: boolean;
+} | null;
+
+type RichTextTableOverlay = {
+  tableIndex: number;
+  table: { left: number; top: number; width: number; height: number };
+  columns: Array<{ left: number; width: number; index: number }>;
+  rows: Array<{ top: number; height: number; index: number }>;
+};
+
+type RichTextTableResizeGuide =
+  | { kind: "column"; x: number; top: number; height: number }
+  | { kind: "row"; y: number; left: number; width: number };
 
 export type RichTextEditorPanelProps = {
   blockId: string;
@@ -71,6 +117,10 @@ const DASH_PRESETS: Record<string, number[]> = {
   dashed: [8, 4],
   "dash-dot": [8, 3, 2, 3],
 };
+
+function mergeStyleRules(rules: Array<string | null | undefined>) {
+  return rules.filter(Boolean).join(";");
+}
 
 function dashToBorderType(dash: number[] | undefined): string {
   if (!dash || dash.length === 0) return "solid";
@@ -88,17 +138,30 @@ const RtpTableCell = TableCell.extend({
       backgroundColor: {
         default: null,
         parseHTML: (el) => el.style.backgroundColor || null,
-        renderHTML: (attrs) => attrs.backgroundColor ? { style: `background-color:${attrs.backgroundColor}` } : {},
+        renderHTML: (attrs) => {
+          const style = mergeStyleRules([
+            attrs.backgroundColor ? `background-color:${attrs.backgroundColor}` : null,
+            attrs.textAlign ? `text-align:${attrs.textAlign}` : null,
+            attrs.verticalAlign ? `vertical-align:${attrs.verticalAlign}` : null,
+            attrs.cellPadding ? `padding:${attrs.cellPadding}` : null,
+          ]);
+          return style ? { style } : {};
+        },
       },
       verticalAlign: {
         default: null,
         parseHTML: (el) => el.style.verticalAlign || null,
-        renderHTML: (attrs) => attrs.verticalAlign ? { style: `vertical-align:${attrs.verticalAlign}` } : {},
+        renderHTML: () => ({}),
+      },
+      textAlign: {
+        default: null,
+        parseHTML: (el) => el.style.textAlign || null,
+        renderHTML: () => ({}),
       },
       cellPadding: {
         default: null,
         parseHTML: (el) => el.style.padding || null,
-        renderHTML: (attrs) => attrs.cellPadding ? { style: `padding:${attrs.cellPadding}` } : {},
+        renderHTML: () => ({}),
       },
     };
   },
@@ -111,17 +174,30 @@ const RtpTableHeader = TableHeader.extend({
       backgroundColor: {
         default: null,
         parseHTML: (el) => el.style.backgroundColor || null,
-        renderHTML: (attrs) => attrs.backgroundColor ? { style: `background-color:${attrs.backgroundColor}` } : {},
+        renderHTML: (attrs) => {
+          const style = mergeStyleRules([
+            attrs.backgroundColor ? `background-color:${attrs.backgroundColor}` : null,
+            attrs.textAlign ? `text-align:${attrs.textAlign}` : null,
+            attrs.verticalAlign ? `vertical-align:${attrs.verticalAlign}` : null,
+            attrs.cellPadding ? `padding:${attrs.cellPadding}` : null,
+          ]);
+          return style ? { style } : {};
+        },
       },
       verticalAlign: {
         default: null,
         parseHTML: (el) => el.style.verticalAlign || null,
-        renderHTML: (attrs) => attrs.verticalAlign ? { style: `vertical-align:${attrs.verticalAlign}` } : {},
+        renderHTML: () => ({}),
+      },
+      textAlign: {
+        default: null,
+        parseHTML: (el) => el.style.textAlign || null,
+        renderHTML: () => ({}),
       },
       cellPadding: {
         default: null,
         parseHTML: (el) => el.style.padding || null,
-        renderHTML: (attrs) => attrs.cellPadding ? { style: `padding:${attrs.cellPadding}` } : {},
+        renderHTML: () => ({}),
       },
     };
   },
@@ -147,39 +223,84 @@ const RtpTable = Table.extend({
       tableWidth: {
         default: null,
         parseHTML: (el) => el.style.width || null,
-        renderHTML: (attrs) => attrs.tableWidth ? { style: `width:${attrs.tableWidth}` } : {},
+        renderHTML: (attrs) => {
+          const style = mergeStyleRules([
+            attrs.tableWidth ? `width:${attrs.tableWidth}` : null,
+            attrs.borderColor ? `--rtp-bc:${attrs.borderColor}` : null,
+            attrs.borderWidth ? `--rtp-bw:${attrs.borderWidth}` : null,
+            attrs.headerBackgroundColor ? `--rtp-header-bg:${attrs.headerBackgroundColor}` : null,
+            attrs.headerTextColor ? `--rtp-header-color:${attrs.headerTextColor}` : null,
+            attrs.firstColumnBackgroundColor ? `--rtp-first-col-bg:${attrs.firstColumnBackgroundColor}` : null,
+            attrs.firstColumnTextColor ? `--rtp-first-col-color:${attrs.firstColumnTextColor}` : null,
+            attrs.stripedEvenColor ? `--rtp-striped-even:${attrs.stripedEvenColor}` : null,
+            attrs.stripedOddColor ? `--rtp-striped-odd:${attrs.stripedOddColor}` : null,
+          ]);
+          return style ? { style } : {};
+        },
       },
       bordered: {
         default: false,
         parseHTML: (el) => el.getAttribute('data-bordered') === 'true',
         renderHTML: (attrs) => attrs.bordered ? { 'data-bordered': 'true' } : {},
       },
+      borderPreset: {
+        default: null,
+        parseHTML: (el) => el.getAttribute('data-border-preset') || null,
+        renderHTML: (attrs) => attrs.borderPreset ? { 'data-border-preset': attrs.borderPreset } : {},
+      },
       striped: {
         default: false,
         parseHTML: (el) => el.getAttribute('data-striped') === 'true',
         renderHTML: (attrs) => attrs.striped ? { 'data-striped': 'true' } : {},
       },
+      firstColumn: {
+        default: false,
+        parseHTML: (el) => el.getAttribute('data-first-column') === 'true',
+        renderHTML: (attrs) => attrs.firstColumn ? { 'data-first-column': 'true' } : {},
+      },
       borderColor: {
         default: null,
         parseHTML: (el) => el.style.getPropertyValue('--rtp-bc') || null,
-        renderHTML: (attrs) => attrs.borderColor ? { style: `--rtp-bc:${attrs.borderColor}` } : {},
+        renderHTML: () => ({}),
       },
       borderWidth: {
         default: null,
         parseHTML: (el) => el.style.getPropertyValue('--rtp-bw') || null,
-        renderHTML: (attrs) => attrs.borderWidth ? { style: `--rtp-bw:${attrs.borderWidth}` } : {},
+        renderHTML: () => ({}),
+      },
+      headerBackgroundColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-header-bg') || null,
+        renderHTML: () => ({}),
+      },
+      headerTextColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-header-color') || null,
+        renderHTML: () => ({}),
+      },
+      firstColumnBackgroundColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-first-col-bg') || null,
+        renderHTML: () => ({}),
+      },
+      firstColumnTextColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-first-col-color') || null,
+        renderHTML: () => ({}),
+      },
+      stripedEvenColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-striped-even') || null,
+        renderHTML: () => ({}),
+      },
+      stripedOddColor: {
+        default: null,
+        parseHTML: (el) => el.style.getPropertyValue('--rtp-striped-odd') || null,
+        renderHTML: () => ({}),
       },
     };
   },
 });
-
-interface RtpTableStyleAttrs {
-  bordered?: boolean;
-  striped?: boolean;
-  borderColor?: string | null;
-  borderWidth?: string | null;
-  tableWidth?: string | null;
-}
 
 const LIVE_SYNC_MS = 300;
 
@@ -199,7 +320,7 @@ export function RichTextEditorPanel({
   // ── Floating window (drag + resize) ────────────────────────────────────────
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [size, setSize] = useState({ w: 520, h: 600 });
+  const [size, setSize] = useState({ w: 1120, h: 720 });
   const posRef  = useRef(pos);
   const sizeRef = useRef(size);
   posRef.current  = pos;   // kept in sync every render (no stale-closure in stable effects)
@@ -210,11 +331,11 @@ export function RichTextEditorPanel({
     dir: string; sx: number; sy: number; ix: number; iy: number; iw: number; ih: number;
   } | null>(null);
 
-  // Position to top-right on first mount (synchronous → no flash)
+  // Position near the center on first mount (synchronous -> no flash)
   useLayoutEffect(() => {
-    const W = 520;
-    const H = Math.round(Math.min(window.innerHeight - 24, 780));
-    const x = Math.max(0, window.innerWidth - W - 16);
+    const W = Math.round(Math.min(window.innerWidth - 48, 1180));
+    const H = Math.round(Math.min(window.innerHeight - 48, 760));
+    const x = Math.max(16, Math.round((window.innerWidth - W) / 2));
     const y = Math.max(0, Math.round((window.innerHeight - H) / 2));
     posRef.current  = { x, y };
     sizeRef.current = { w: W, h: H };
@@ -326,9 +447,23 @@ export function RichTextEditorPanel({
 
   // Refs
   const liveSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const dragTraceSessionRef = useRef<string | null>(null);
   const handledVarDropSessionRef = useRef<string | null>(null);
   const lastSelectionRef = useRef<{ from: number; to: number } | null>(null);
+  const tableCellDragRef = useRef<RichTextTableCellDragRef>(null);
+  const [selectedVarAttrs, setSelectedVarAttrs] = useState<RichTextVariableNodeAttrs | null>(null);
+  const [inTableCtx, setInTableCtx] = useState(false);
+  const [tableAttrs, setTableAttrs] = useState<RtpTableStyleAttrs | null>(null);
+  const [tableCellAttrs, setTableCellAttrs] = useState<RtpTableCellStyleAttrs | null>(null);
+  const [tableRowAttrs, setTableRowAttrs] = useState<RtpTableRowStyleAttrs | null>(null);
+  const [tableColumnWidth, setTableColumnWidth] = useState<number | null>(null);
+  const [tablePanelTab, setTablePanelTab] = useState<RichTextTableInspectorTab>("selection");
+  const [tablePanelOpen, setTablePanelOpen] = useState(false);
+  const [tableOverlay, setTableOverlay] = useState<RichTextTableOverlay | null>(null);
+  const [tableSelectedTarget, setTableSelectedTarget] = useState<RichTextTableSelectedTarget>(null);
+  const [tableResizeGuide, setTableResizeGuide] = useState<RichTextTableResizeGuide | null>(null);
+  const [tableInsertOpen, setTableInsertOpen] = useState(false);
 
   // Initial content — captured once at open
   const initialContent = useMemo<JSONContent>(() => {
@@ -412,10 +547,6 @@ export function RichTextEditorPanel({
 
   // ── Variable selection ─────────────────────────────────────────────────────
 
-  const [selectedVarAttrs, setSelectedVarAttrs] = useState<RichTextVariableNodeAttrs | null>(null);
-  const [inTableCtx, setInTableCtx] = useState(false);
-  const [tableTab, setTableTab] = useState<'structure' | 'style'>('structure');
-
   useEffect(() => {
     if (!editor) return;
     const sync = () => {
@@ -426,11 +557,210 @@ export function RichTextEditorPanel({
           : null,
       );
       setInTableCtx(isInTable(editor.state));
+      setTableAttrs(getTableAttrs(editor));
+      setTableCellAttrs(getSelectedCellAttrs(editor));
+      setTableRowAttrs(getSelectedRowAttrs(editor));
+      setTableColumnWidth(getSelectedColumnWidth(editor));
     };
     editor.on("selectionUpdate", sync);
     editor.on("transaction", sync);
     return () => { editor.off("selectionUpdate", sync); editor.off("transaction", sync); };
   }, [editor]);
+
+  useEffect(() => {
+    if (inTableCtx) {
+      setTablePanelOpen(true);
+    }
+  }, [inTableCtx]);
+
+  const syncTableOverlay = useCallback((targetTable?: HTMLTableElement | null) => {
+    if (!editor || !editorSurfaceRef.current) {
+      setTableOverlay(null);
+      return;
+    }
+
+    const table = targetTable ?? findActiveTableElement(editor.view.dom);
+    setTableOverlay(table ? resolveRichTextTableOverlay(editorSurfaceRef.current, table) : null);
+  }, [editor]);
+
+  const handleEditorMouseMove = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (event.target instanceof Element && event.target.closest("[data-rtp-table-overlay]")) {
+        return;
+      }
+      const table = event.target instanceof Element ? event.target.closest("table") : null;
+      if (table instanceof HTMLTableElement) {
+        syncTableOverlay(table);
+        return;
+      }
+    },
+    [syncTableOverlay],
+  );
+
+  const handleEditorMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!editor || !editorSurfaceRef.current || event.button !== 0) return;
+    if (event.target instanceof Element && event.target.closest("button, input, select, textarea, [data-rtp-table-overlay]")) {
+      return;
+    }
+
+    const cell = event.target instanceof Element ? event.target.closest("td, th") : null;
+    const row = cell?.closest("tr");
+    const table = cell?.closest("table");
+    if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement) || !(table instanceof HTMLTableElement)) {
+      return;
+    }
+
+    const editorDom = editorSurfaceRef.current.querySelector(".ef-rtp-editor-content");
+    const tableIndex = editorDom ? Array.from(editorDom.querySelectorAll("table")).indexOf(table) : -1;
+    if (tableIndex < 0) return;
+
+    tableCellDragRef.current = {
+      tableIndex,
+      tableElement: table,
+      startRow: row.rowIndex,
+      startColumn: cell.cellIndex,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      active: false,
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const onMove = (event: MouseEvent) => {
+      const drag = tableCellDragRef.current;
+      if (!drag || event.buttons !== 1) return;
+
+      const distance = Math.abs(event.clientX - drag.startClientX) + Math.abs(event.clientY - drag.startClientY);
+      if (!drag.active && distance < 6) return;
+
+      const target = document.elementFromPoint(event.clientX, event.clientY);
+      const cell = target instanceof Element ? target.closest("td, th") : null;
+      const row = cell?.closest("tr");
+      const table = cell?.closest("table");
+      if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement) || table !== drag.tableElement) return;
+
+      event.preventDefault();
+      drag.active = true;
+      const nextTarget = {
+        mode: "cell-range" as const,
+        startRow: drag.startRow,
+        startColumn: drag.startColumn,
+        endRow: row.rowIndex,
+        endColumn: cell.cellIndex,
+      };
+      selectTableCellRangeByIndex(editor.view, drag.tableIndex, nextTarget);
+      setTableSelectedTarget(nextTarget);
+      setTablePanelOpen(true);
+      setTablePanelTab("selection");
+    };
+
+    const onUp = () => {
+      tableCellDragRef.current = null;
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [editor]);
+
+  useLayoutEffect(() => {
+    syncTableOverlay();
+  }, [syncTableOverlay, inTableCtx, tableAttrs, tableCellAttrs, tableRowAttrs, tableColumnWidth]);
+
+  const startTableColumnResize = useCallback((
+    overlay: RichTextTableOverlay,
+    columnIndex: number,
+    event: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
+    if (!editor) return;
+    const column = overlay.columns[columnIndex];
+    if (!column) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = column.width;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clampNumber(startWidth + moveEvent.clientX - startX, 24, 1600);
+      setTableResizeGuide({
+        kind: "column",
+        x: column.left + nextWidth,
+        top: overlay.table.top,
+        height: overlay.table.height,
+      });
+    };
+
+    const onUp = (upEvent: MouseEvent) => {
+      const nextWidth = clampNumber(startWidth + upEvent.clientX - startX, 24, 1600);
+      const nextWidths = overlay.columns.map((item) => Math.round(item.width));
+      nextWidths[columnIndex] = Math.round(nextWidth);
+      setTableColumnWidthsByTableIndex(editor.view, overlay.tableIndex, nextWidths);
+      setTableResizeGuide(null);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      requestAnimationFrame(() => syncTableOverlay());
+    };
+
+    setTableResizeGuide({
+      kind: "column",
+      x: column.left + startWidth,
+      top: overlay.table.top,
+      height: overlay.table.height,
+    });
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [editor, syncTableOverlay]);
+
+  const startTableRowResize = useCallback((
+    overlay: RichTextTableOverlay,
+    rowIndex: number,
+    event: ReactMouseEvent<HTMLButtonElement>,
+  ) => {
+    if (!editor) return;
+    const row = overlay.rows[rowIndex];
+    if (!row) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startY = event.clientY;
+    const startHeight = row.height;
+
+    const onMove = (moveEvent: MouseEvent) => {
+      const nextHeight = clampNumber(startHeight + moveEvent.clientY - startY, 18, 800);
+      setTableResizeGuide({
+        kind: "row",
+        y: row.top + nextHeight,
+        left: overlay.table.left,
+        width: overlay.table.width,
+      });
+    };
+
+    const onUp = (upEvent: MouseEvent) => {
+      const nextHeight = clampNumber(startHeight + upEvent.clientY - startY, 18, 800);
+      setRowHeightByTableIndex(editor.view, overlay.tableIndex, rowIndex, nextHeight);
+      setTableResizeGuide(null);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      requestAnimationFrame(() => syncTableOverlay());
+    };
+
+    setTableResizeGuide({
+      kind: "row",
+      y: row.top + startHeight,
+      left: overlay.table.left,
+      width: overlay.table.width,
+    });
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [editor, syncTableOverlay]);
 
   const applyVarStyle = useCallback((patch: Partial<RichTextVariableNodeAttrs>) => {
     if (!editor) return;
@@ -628,474 +958,119 @@ export function RichTextEditorPanel({
             {activeTab === "content" && (
               <div className="ef-rtp-content-tab">
 
-                {/* Toolbar */}
-                <div className="ef-rtp-toolbar" role="toolbar" aria-label="Barre de mise en forme">
-
-                  {/* ── Styles ── */}
-                  <RtpPopover
-                    label="Styles"
-                    icon={<Pilcrow size={13} aria-hidden />}
-                    active={editor?.isActive("heading") || editor?.isActive("blockquote") || editor?.isActive("codeBlock")}
-                  >
-                    <div className="ef-rtp-popover-section">Styles de texte</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Texte normal"     active={editor?.isActive("paragraph")}               onClick={() => editor?.chain().focus().setParagraph().run()}                icon={<Pilcrow   size={13} />} />
-                      <RtpActionBtn label="Titre 1"          active={editor?.isActive("heading", { level: 1 })}   onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} icon={<Heading1  size={13} />} />
-                      <RtpActionBtn label="Titre 2"          active={editor?.isActive("heading", { level: 2 })}   onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} icon={<Heading2  size={13} />} />
-                      <RtpActionBtn label="Titre 3"          active={editor?.isActive("heading", { level: 3 })}   onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} icon={<Heading3  size={13} />} />
-                      <RtpActionBtn label="Sous-titre"       active={editor?.isActive("heading", { level: 4 })}   onClick={() => editor?.chain().focus().toggleHeading({ level: 4 }).run()} icon={<Type      size={13} />} />
-                      <RtpActionBtn label="Citation"         active={editor?.isActive("blockquote")}              onClick={() => editor?.chain().focus().toggleBlockquote().run()}           icon={<Quote     size={13} />} />
-                      <RtpActionBtn label="Code / Monospace" active={editor?.isActive("codeBlock")}               onClick={() => editor?.chain().focus().toggleCodeBlock().run()}            icon={<Code      size={13} />} />
-                    </div>
-                    <div className="ef-rtp-popover-section">Actions</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Réinitialiser le style" onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()} icon={<Eraser size={13} />} />
-                      <RtpActionBtn label="Copier le style"        onClick={() => {}} disabled icon={<Code2  size={13} />} />
-                      <RtpActionBtn label="Coller le style"        onClick={() => {}} disabled icon={<Code2  size={13} />} />
-                    </div>
-                  </RtpPopover>
-
-                  {/* ── Texte ── */}
-                  <RtpPopover
-                    label="Texte"
-                    icon={<Bold size={13} aria-hidden />}
-                    active={
-                      selectedVarAttrs
-                        ? !!(selectedVarAttrs.bold || selectedVarAttrs.italic || selectedVarAttrs.underline || selectedVarAttrs.strike)
-                        : !!(editor?.isActive("bold") || editor?.isActive("italic") || editor?.isActive("underline") || editor?.isActive("strike"))
-                    }
-                  >
-                    <div className="ef-rtp-popover-section">Police</div>
-                    <div className="ef-rtp-popover-grid">
-                      <label className="ef-rtp-popover-field">
-                        Famille
-                        <select
-                          className="ef-rtp-popover-select"
-                          value={selectedVarAttrs ? (selectedVarAttrs.fontFamily ?? "") : (editor?.getAttributes("textStyle").fontFamily ?? "")}
-                          onMouseDown={rememberSelection}
-                          onChange={(e) => selectedVarAttrs ? applyVarStyle({ fontFamily: e.target.value || null }) : runOnSelection((te) => te.chain().setFontFamily(e.target.value).run())}
-                        >
-                          <option value="" disabled>Choisir</option>
-                          <option value="Inter, system-ui, sans-serif">Inter</option>
-                          <option value="Roboto, sans-serif">Roboto</option>
-                          <option value="Arial, sans-serif">Arial</option>
-                          <option value="Georgia, serif">Georgia</option>
-                          <option value="Playfair Display, serif">Playfair Display</option>
-                          <option value="'Courier New', Courier, monospace">Courier New</option>
-                          <option value="ui-monospace, monospace">Monospace</option>
-                        </select>
-                      </label>
-                      <label className="ef-rtp-popover-field">
-                        Taille
-                        <select
-                          className="ef-rtp-popover-select"
-                          value={selectedVarAttrs ? (selectedVarAttrs.fontSize ?? "") : (editor?.getAttributes("textStyle").fontSize ?? "")}
-                          onMouseDown={rememberSelection}
-                          onChange={(e) => selectedVarAttrs ? applyVarStyle({ fontSize: e.target.value || null }) : runOnSelection((te) => te.chain().setFontSize(e.target.value).run())}
-                        >
-                          <option value="" disabled>Choisir</option>
-                          {[8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48].map((s) => (
-                            <option key={s} value={`${s}px`}>{s}px</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="ef-rtp-popover-section">Format</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Gras"         active={selectedVarAttrs ? !!selectedVarAttrs.bold      : editor?.isActive("bold")}      onClick={() => selectedVarAttrs ? applyVarStyle({ bold:      !selectedVarAttrs.bold      || null }) : editor?.chain().focus().toggleBold().run()}      icon={<Bold            size={13} />} />
-                      <RtpActionBtn label="Italique"     active={selectedVarAttrs ? !!selectedVarAttrs.italic    : editor?.isActive("italic")}    onClick={() => selectedVarAttrs ? applyVarStyle({ italic:    !selectedVarAttrs.italic    || null }) : editor?.chain().focus().toggleItalic().run()}    icon={<Italic          size={13} />} />
-                      <RtpActionBtn label="Souligné"     active={selectedVarAttrs ? !!selectedVarAttrs.underline : editor?.isActive("underline")} onClick={() => selectedVarAttrs ? applyVarStyle({ underline: !selectedVarAttrs.underline || null }) : editor?.chain().focus().toggleUnderline().run()} icon={<UnderlineIcon   size={13} />} />
-                      <RtpActionBtn label="Barré"        active={selectedVarAttrs ? !!selectedVarAttrs.strike    : editor?.isActive("strike")}    onClick={() => selectedVarAttrs ? applyVarStyle({ strike:    !selectedVarAttrs.strike    || null }) : editor?.chain().focus().toggleStrike().run()}    icon={<Strikethrough   size={13} />} />
-                      <RtpActionBtn label="Code inline"  active={!selectedVarAttrs && editor?.isActive("code")}  disabled={!!selectedVarAttrs}    onClick={() => editor?.chain().focus().toggleCode().run()}   icon={<Code            size={13} />} />
-                      <RtpActionBtn label="Exposant"     disabled icon={<Type size={13} />} onClick={() => {}} />
-                      <RtpActionBtn label="Indice"       disabled icon={<Type size={13} />} onClick={() => {}} />
-                    </div>
-                    <div className="ef-rtp-popover-section">Couleurs</div>
-                    <div className="ef-rtp-popover-grid">
-                      <label className="ef-rtp-popover-field">
-                        Couleur du texte
-                        <div className="ef-rtp-popover-color-row">
-                          <input type="color" className="ef-rtp-popover-color-input" defaultValue="#111827" onMouseDown={rememberSelection} onChange={(e) => selectedVarAttrs ? applyVarStyle({ color: e.target.value }) : runOnSelection((te) => te.chain().setColor(e.target.value).run())} />
-                          <span className="ef-rtp-popover-color-label">Couleur texte</span>
-                        </div>
-                      </label>
-                      <label className="ef-rtp-popover-field">
-                        Surlignage
-                        <div className="ef-rtp-popover-color-row">
-                          <input type="color" className="ef-rtp-popover-color-input" defaultValue="#fef08a" onMouseDown={rememberSelection} disabled={!!selectedVarAttrs} onChange={(e) => runOnSelection((te) => te.chain().setBackgroundColor(e.target.value).run())} />
-                          <span className="ef-rtp-popover-color-label">Couleur fond</span>
-                        </div>
-                      </label>
-                      <RtpActionBtn
-                        label="Effacer couleurs"
-                        onClick={() => selectedVarAttrs ? applyVarStyle({ color: null }) : runOnSelection((te) => te.chain().unsetColor().unsetBackgroundColor().run())}
-                        icon={<Eraser size={13} />}
-                      />
-                      <RtpActionBtn
-                        label="Effacer tous les formats"
-                        onClick={() => selectedVarAttrs
-                          ? applyVarStyle({ bold: null, italic: null, underline: null, strike: null, color: null, fontSize: null, fontFamily: null })
-                          : editor?.chain().focus().unsetAllMarks().run()
-                        }
-                        icon={<Eraser size={13} />}
-                      />
-                    </div>
-                  </RtpPopover>
-
-                  {/* ── Paragraphe ── */}
-                  <RtpPopover label="Paragraphe" icon={<AlignLeft size={13} aria-hidden />}>
-                    <div className="ef-rtp-popover-section">Alignement</div>
-                    <div className="ef-rtp-popover-align-row">
-                      <RtpActionBtn label="Gauche"   active={editor?.isActive({ textAlign: "left"    })} onClick={() => editor?.chain().focus().setTextAlign("left").run()}    icon={<AlignLeft    size={14} />} />
-                      <RtpActionBtn label="Centre"   active={editor?.isActive({ textAlign: "center"  })} onClick={() => editor?.chain().focus().setTextAlign("center").run()}  icon={<AlignCenter  size={14} />} />
-                      <RtpActionBtn label="Droite"   active={editor?.isActive({ textAlign: "right"   })} onClick={() => editor?.chain().focus().setTextAlign("right").run()}   icon={<AlignRight   size={14} />} />
-                      <RtpActionBtn label="Justifié" active={editor?.isActive({ textAlign: "justify" })} onClick={() => editor?.chain().focus().setTextAlign("justify").run()} icon={<AlignJustify size={14} />} />
-                    </div>
-                    <div className="ef-rtp-popover-section">Espacement</div>
-                    <div className="ef-rtp-popover-grid">
-                      <label className="ef-rtp-popover-field">
-                        Interligne
-                        <select
-                          className="ef-rtp-popover-select"
-                          value={editor?.getAttributes("textStyle").lineHeight ?? ""}
-                          onMouseDown={rememberSelection}
-                          onChange={(e) => runOnSelection((te) => te.chain().setLineHeight(e.target.value).run())}
-                        >
-                          <option value="" disabled>Choisir</option>
-                          {["1", "1.15", "1.25", "1.3", "1.5", "1.75", "2"].map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="ef-rtp-popover-field">
-                        Espacement avant (px)
-                        <input type="number" className="ef-rtp-popover-input" disabled placeholder="—" />
-                      </label>
-                      <label className="ef-rtp-popover-field">
-                        Espacement après (px)
-                        <input type="number" className="ef-rtp-popover-input" disabled placeholder="—" />
-                      </label>
-                    </div>
-                  </RtpPopover>
-
-                  {/* ── Listes ── */}
-                  <RtpPopover
-                    label="Listes"
-                    icon={<List size={13} aria-hidden />}
-                    active={editor?.isActive("bulletList") || editor?.isActive("orderedList")}
-                  >
-                    <div className="ef-rtp-popover-section">Type de liste</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Liste à puces"    active={editor?.isActive("bulletList")}  onClick={() => editor?.chain().focus().toggleBulletList().run()}  icon={<List         size={13} />} />
-                      <RtpActionBtn label="Liste numérotée"  active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()} icon={<ListOrdered  size={13} />} />
-                      <RtpActionBtn label="Checklist"        disabled onClick={() => {}}               icon={<LayoutList   size={13} />} />
-                      <RtpActionBtn label="Alphabétique"     disabled onClick={() => {}}               icon={<ListOrdered  size={13} />} />
-                      <RtpActionBtn label="Chiffres romains" disabled onClick={() => {}}               icon={<ListOrdered  size={13} />} />
-                    </div>
-                    <div className="ef-rtp-popover-section">Niveau</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Augmenter le niveau" onClick={() => editor?.chain().focus().sinkListItem("listItem").run()} disabled={!editor?.can().sinkListItem("listItem")} icon={<Plus  size={13} />} />
-                      <RtpActionBtn label="Réduire le niveau"   onClick={() => editor?.chain().focus().liftListItem("listItem").run()} disabled={!editor?.can().liftListItem("listItem")} icon={<Minus size={13} />} />
-                    </div>
-                  </RtpPopover>
-
-                  {/* ── Tableaux ── */}
-                  <RtpPopover
-                    label="Tableaux"
-                    icon={<Table2 size={13} aria-hidden />}
-                    active={editor?.isActive("table")}
-                  >
-                    {/* Tab switcher */}
-                    <div className="ef-rtp-popover-tabs">
-                      <button
-                        type="button"
-                        className={["ef-rtp-popover-tab", tableTab === "structure" ? "is-active" : ""].filter(Boolean).join(" ")}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setTableTab("structure")}
-                      >
-                        Structure
-                      </button>
-                      <button
-                        type="button"
-                        className={["ef-rtp-popover-tab", tableTab === "style" ? "is-active" : ""].filter(Boolean).join(" ")}
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => setTableTab("style")}
-                      >
-                        Style
-                      </button>
-                    </div>
-
-                    {/* ── NIVEAU 1 — STRUCTURE ── */}
-                    {tableTab === "structure" && (
-                      <>
-                        <div className="ef-rtp-popover-section">Insérer</div>
-                        <TableInsertGrid
-                          onInsert={(rows, cols) =>
-                            editor?.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run()
-                          }
-                        />
-                        <div className="ef-rtp-popover-section">Lignes</div>
-                        <div className="ef-rtp-popover-grid">
-                          <RtpActionBtn label="Ligne au-dessus"  disabled={!editor?.can().addRowBefore()}  onClick={() => editor?.chain().focus().addRowBefore().run()} icon={<Rows3  size={13} />} />
-                          <RtpActionBtn label="Ligne en-dessous" disabled={!editor?.can().addRowAfter()}   onClick={() => editor?.chain().focus().addRowAfter().run()}  icon={<Rows3  size={13} />} />
-                          <RtpActionBtn label="Supprimer ligne"  disabled={!editor?.can().deleteRow()}     onClick={() => editor?.chain().focus().deleteRow().run()}    icon={<Trash2 size={13} />} />
-                        </div>
-                        <div className="ef-rtp-popover-section">Colonnes</div>
-                        <div className="ef-rtp-popover-grid">
-                          <RtpActionBtn label="Colonne à gauche"  disabled={!editor?.can().addColumnBefore()} onClick={() => editor?.chain().focus().addColumnBefore().run()} icon={<Columns3 size={13} />} />
-                          <RtpActionBtn label="Colonne à droite"  disabled={!editor?.can().addColumnAfter()}  onClick={() => editor?.chain().focus().addColumnAfter().run()}  icon={<Columns3 size={13} />} />
-                          <RtpActionBtn label="Supprimer colonne" disabled={!editor?.can().deleteColumn()}    onClick={() => editor?.chain().focus().deleteColumn().run()}    icon={<Trash2   size={13} />} />
-                        </div>
-                        <div className="ef-rtp-popover-section">Cellules</div>
-                        <div className="ef-rtp-popover-grid">
-                          <RtpActionBtn label="Fusionner"                disabled={!editor?.can().mergeCells()}  onClick={() => editor?.chain().focus().mergeCells().run()} icon={<TableCellsMerge size={13} />} />
-                          <RtpActionBtn label="Fractionner"              disabled={!editor?.can().splitCell()}   onClick={() => editor?.chain().focus().splitCell().run()}  icon={<TableCellsSplit size={13} />} />
-                          <RtpActionBtn label="Sélectionner le tableau" disabled={!inTableCtx}                  onClick={() => editor && execSelectTable(editor)}          icon={<Table2   size={13} />} />
-                          <RtpActionBtn label="Sélectionner la ligne"   disabled={!inTableCtx}                  onClick={() => editor && execSelectRow(editor)}            icon={<Rows3    size={13} />} />
-                          <RtpActionBtn label="Sélectionner la colonne" disabled={!inTableCtx}                  onClick={() => editor && execSelectColumn(editor)}         icon={<Columns3 size={13} />} />
-                        </div>
-                        <div className="ef-rtp-popover-section">Tableau</div>
-                        <div className="ef-rtp-popover-grid">
-                          <RtpActionBtn label="Supprimer le tableau" disabled={!editor?.can().deleteTable()} onClick={() => editor?.chain().focus().deleteTable().run()} icon={<Trash2 size={13} />} />
-                        </div>
-                      </>
-                    )}
-
-                    {/* ── NIVEAU 2 — STYLE ── */}
-                    {tableTab === "style" && (
-                      <>
-                        <div className="ef-rtp-popover-section">Apparence</div>
-                        <div className="ef-rtp-popover-grid">
-                          <RtpActionBtn
-                            label="Bordures"
-                            active={inTableCtx && !!(getTableAttrs(editor)?.bordered)}
-                            disabled={!inTableCtx}
-                            onClick={() => { if (!editor) return; updateTableAttr(editor, { bordered: !getTableAttrs(editor)?.bordered }); }}
-                            icon={<Table2 size={13} />}
-                          />
-                          <RtpActionBtn
-                            label="Alternance"
-                            active={inTableCtx && !!(getTableAttrs(editor)?.striped)}
-                            disabled={!inTableCtx}
-                            onClick={() => { if (!editor) return; updateTableAttr(editor, { striped: !getTableAttrs(editor)?.striped }); }}
-                            icon={<Rows3 size={13} />}
-                          />
-                          <RtpActionBtn
-                            label="Ligne en-tête"
-                            disabled={!inTableCtx}
-                            onClick={() => editor?.chain().focus().toggleHeaderRow().run()}
-                            icon={<Rows3 size={13} />}
-                          />
-                          <RtpActionBtn
-                            label="1ère colonne"
-                            disabled={!inTableCtx}
-                            onClick={() => editor?.chain().focus().toggleHeaderColumn().run()}
-                            icon={<Columns3 size={13} />}
-                          />
-                        </div>
-                        <div className="ef-rtp-popover-grid">
-                          <label className="ef-rtp-popover-field">
-                            Couleur bordure
-                            <div className="ef-rtp-popover-color-row">
-                              <input
-                                type="color"
-                                className="ef-rtp-popover-color-input"
-                                defaultValue="#cccccc"
-                                disabled={!inTableCtx}
-                                onChange={(e) => editor && updateTableAttr(editor, { borderColor: e.target.value })}
-                              />
-                              <span className="ef-rtp-popover-color-label">Bordure</span>
-                            </div>
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Fond cellule
-                            <div className="ef-rtp-popover-color-row">
-                              <input
-                                type="color"
-                                className="ef-rtp-popover-color-input"
-                                defaultValue="#ffffff"
-                                disabled={!inTableCtx}
-                                onChange={(e) => editor && updateCellAttr(editor, { backgroundColor: e.target.value })}
-                              />
-                              <span className="ef-rtp-popover-color-label">Cellule</span>
-                            </div>
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Épaisseur (px)
-                            <select
-                              className="ef-rtp-popover-select"
-                              disabled={!inTableCtx}
-                              onChange={(e) => editor && updateTableAttr(editor, { borderWidth: e.target.value ? `${e.target.value}px` : null })}
-                            >
-                              <option value="">Auto</option>
-                              {[1, 2, 3, 4].map((n) => (
-                                <option key={n} value={String(n)}>{n}px</option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                        <div className="ef-rtp-popover-section">Dimensions</div>
-                        <div className="ef-rtp-popover-grid">
-                          <label className="ef-rtp-popover-field">
-                            Largeur tableau (px)
-                            <input
-                              type="number"
-                              className="ef-rtp-popover-input"
-                              min={50}
-                              max={2000}
-                              placeholder="Auto"
-                              disabled={!inTableCtx}
-                              onBlur={(e) => editor && e.target.value && updateTableAttr(editor, { tableWidth: `${e.target.value}px` })}
-                              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                            />
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Largeur colonne (px)
-                            <input
-                              type="number"
-                              className="ef-rtp-popover-input"
-                              min={20}
-                              max={1000}
-                              placeholder="Auto"
-                              disabled={!inTableCtx}
-                              onBlur={(e) => editor && e.target.value && setColumnWidth(editor, Number(e.target.value))}
-                              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                            />
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Hauteur ligne (px)
-                            <input
-                              type="number"
-                              className="ef-rtp-popover-input"
-                              min={16}
-                              max={500}
-                              placeholder="Auto"
-                              disabled={!inTableCtx}
-                              onBlur={(e) => editor && e.target.value && updateRowAttr(editor, { rowHeight: `${e.target.value}px` })}
-                              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                            />
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Align. vertical
-                            <select
-                              className="ef-rtp-popover-select"
-                              disabled={!inTableCtx}
-                              onChange={(e) => editor && updateCellAttr(editor, { verticalAlign: e.target.value || null })}
-                            >
-                              <option value="">Auto</option>
-                              <option value="top">Haut</option>
-                              <option value="middle">Milieu</option>
-                              <option value="bottom">Bas</option>
-                            </select>
-                          </label>
-                          <label className="ef-rtp-popover-field">
-                            Marges cellule (px)
-                            <input
-                              type="number"
-                              className="ef-rtp-popover-input"
-                              min={0}
-                              max={40}
-                              placeholder="4"
-                              disabled={!inTableCtx}
-                              onBlur={(e) => editor && e.target.value !== "" && updateCellAttr(editor, { cellPadding: `${e.target.value}px` })}
-                              onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                            />
-                          </label>
-                        </div>
-                      </>
-                    )}
-                  </RtpPopover>
-
-                  {/* ── Insertion ── */}
-                  <RtpPopover label="Insertion" icon={<Plus size={13} aria-hidden />}>
-                    <div className="ef-rtp-popover-section">Éléments</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Séparateur horizontal" onClick={() => editor?.chain().focus().setHorizontalRule().run()} icon={<Minus size={13} />} />
-                      <RtpActionBtn label="Saut de ligne"         onClick={() => editor?.chain().focus().setHardBreak().run()}      icon={<Plus  size={13} />} />
-                      <RtpActionBtn label="Saut de page"          disabled onClick={() => {}}                                       icon={<Plus  size={13} />} />
-                    </div>
-                    <div className="ef-rtp-popover-section">Lien</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn
-                        label={editor?.isActive("link") ? "Modifier le lien" : "Insérer un lien"}
-                        onClick={() => promptLink(editor)}
-                        icon={<Code2 size={13} />}
-                      />
-                    </div>
-                    <div className="ef-rtp-popover-section">Médias</div>
-                    <div className="ef-rtp-popover-grid">
-                      <RtpActionBtn label="Image"  disabled onClick={() => {}} icon={<Plus size={13} />} />
-                      <RtpActionBtn label="Icône"  disabled onClick={() => {}} icon={<Plus size={13} />} />
-                    </div>
-                  </RtpPopover>
-
-                  {/* ── Variables ── */}
-                  <RtpPopover label="Variables" icon={<Braces size={13} aria-hidden />}>
-                    <div className="ef-rtp-var-search-wrap">
-                      <Search size={11} className="ef-rtp-var-search-icon" aria-hidden />
-                      <input
-                        type="search"
-                        className="ef-rtp-var-search"
-                        placeholder="Rechercher…"
-                        value={varSearch}
-                        onChange={(e) => setVarSearch(e.target.value)}
-                        aria-label="Rechercher une variable"
-                      />
-                    </div>
-                    {filteredVars.length === 0 ? (
-                      <p className="ef-rtp-var-empty">
-                        {variableRegistry.entries.length === 0 ? "Aucune variable disponible" : "Aucun résultat"}
-                      </p>
-                    ) : (
-                      <div className="ef-rtp-popover-grid">
-                        {filteredVars.map((entry) => (
-                          <RtpActionBtn
-                            key={entry.id}
-                            label={entry.label}
-                            icon={<Braces size={12} />}
-                            onClick={() =>
-                              runOnSelection((te) => {
-                                insertVariableTokenIntoRichTextEditor(
-                                  te,
-                                  { key: entry.key, label: entry.label, sampleValue: entry.sampleValue, sourceColumn: entry.sourceColumn },
-                                  te.state.selection,
-                                  variableRegistry,
-                                );
-                              })
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </RtpPopover>
-                </div>
-
-                {/* Editor area */}
-                <div
-                  className="ef-rtp-editor"
-                  onDragOverCapture={(event: DragEvent<HTMLDivElement>) => {
-                    const ctx = useEditorStore.getState().dragTraceContext;
-                    const types = Array.from(event.dataTransfer?.types ?? []);
-                    if (!(ctx?.type === "variable" || types.includes("application/x-resume-editor-item"))) return;
-                    event.preventDefault();
-                    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+                <RichTextTopToolbar
+                  editor={editor}
+                  selectedVarAttrs={selectedVarAttrs}
+                  applyVarStyle={applyVarStyle}
+                  rememberSelection={rememberSelection}
+                  runOnSelection={runOnSelection}
+                  varSearch={varSearch}
+                  setVarSearch={setVarSearch}
+                  filteredVars={filteredVars}
+                  variableRegistry={variableRegistry}
+                  onOpenTableDialog={() => setTableInsertOpen(true)}
+                  onInsertVariable={(entry) => {
+                    runOnSelection((te) => {
+                      insertVariableTokenIntoRichTextEditor(
+                        te,
+                        { key: entry.key, label: entry.label, sampleValue: entry.sampleValue, sourceColumn: entry.sourceColumn },
+                        te.state.selection,
+                        variableRegistry,
+                      );
+                    });
                   }}
-                  onDropCapture={(event: DragEvent<HTMLDivElement>) => {
-                    const ctx = useEditorStore.getState().dragTraceContext;
-                    const raw = event.dataTransfer?.getData("application/x-resume-editor-item") ?? "";
-                    const payload = parseVarDropPayload(raw, ctx);
-                    if (!payload || !editor) return;
-                    event.preventDefault();
-                    event.stopPropagation();
-                    handledVarDropSessionRef.current = ctx?.sessionId ?? "__handled__";
-                    const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
-                    const insertAt = typeof pos === "number" ? { from: pos, to: pos } : { from: editor.state.selection.from, to: editor.state.selection.to };
-                    insertVariableTokenIntoRichTextEditor(viewToInsertionTarget(editor.view), payload.payload, insertAt, variableRegistry);
-                    editor.commands.focus();
-                  }}
-                >
-                  <EditorContent editor={editor} />
+                />
+
+                <div className="ef-rtp-workarea">
+                  <div
+                    className="ef-rtp-editor"
+                    ref={editorSurfaceRef}
+                    onMouseDown={handleEditorMouseDown}
+                    onMouseMove={handleEditorMouseMove}
+                    onScroll={() => syncTableOverlay()}
+                    onDragOverCapture={(event: DragEvent<HTMLDivElement>) => {
+                      const ctx = useEditorStore.getState().dragTraceContext;
+                      const types = Array.from(event.dataTransfer?.types ?? []);
+                      if (!(ctx?.type === "variable" || types.includes("application/x-resume-editor-item"))) return;
+                      event.preventDefault();
+                      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDropCapture={(event: DragEvent<HTMLDivElement>) => {
+                      const ctx = useEditorStore.getState().dragTraceContext;
+                      const raw = event.dataTransfer?.getData("application/x-resume-editor-item") ?? "";
+                      const payload = parseVarDropPayload(raw, ctx);
+                      if (!payload || !editor) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      handledVarDropSessionRef.current = ctx?.sessionId ?? "__handled__";
+                      const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+                      const insertAt = typeof pos === "number" ? { from: pos, to: pos } : { from: editor.state.selection.from, to: editor.state.selection.to };
+                      insertVariableTokenIntoRichTextEditor(viewToInsertionTarget(editor.view), payload.payload, insertAt, variableRegistry);
+                      editor.commands.focus();
+                    }}
+                  >
+                    <EditorContent editor={editor} />
+                    {tableOverlay && editor ? (
+                    <RichTextTableSelectionOverlay
+                      overlay={tableOverlay}
+                      resizeGuide={tableResizeGuide}
+                      selectedTarget={tableSelectedTarget}
+                      onSelect={(mode, index) => {
+                        setTableSelectedTarget({ mode, index });
+                        selectTableTargetByOverlayIndex(editor.view, tableOverlay.tableIndex, mode, index);
+                        setTablePanelOpen(true);
+                        setTablePanelTab("selection");
+                      }}
+                      onColumnResizeStart={(index, event) => startTableColumnResize(tableOverlay, index, event)}
+                      onRowResizeStart={(index, event) => startTableRowResize(tableOverlay, index, event)}
+                      onAddRow={() => editor.chain().focus().addRowAfter().run()}
+                      onAddColumn={() => editor.chain().focus().addColumnAfter().run()}
+                      onMergeCells={() => editor.chain().focus().mergeCells().run()}
+                      onSplitCell={() => editor.chain().focus().splitCell().run()}
+                      onToggleBorders={() => {
+                        const nextBordered = !getTableAttrs(editor)?.bordered;
+                        updateTableAttr(editor, { bordered: nextBordered, borderPreset: nextBordered ? "all" : "none" }, { focus: true });
+                      }}
+                      onApplySoftColor={() => updateCellAttr(editor, { backgroundColor: "#dbeafe" }, { focus: true })}
+                      onDelete={() => editor.chain().focus().deleteTable().run()}
+                      capabilities={{
+                        addRow: !!editor.can().addRowAfter(),
+                        addColumn: !!editor.can().addColumnAfter(),
+                        deleteRow: !!editor.can().deleteRow(),
+                        deleteColumn: !!editor.can().deleteColumn(),
+                        mergeCells: !!editor.can().mergeCells(),
+                        splitCell: !!editor.can().splitCell(),
+                        deleteTable: !!editor.can().deleteTable(),
+                      }}
+                    />
+                  ) : null}
+                  </div>
+                  <RichTextContextInspector
+                    editor={editor}
+                    inTableCtx={inTableCtx}
+                    selectedVarAttrs={selectedVarAttrs}
+                    displayMode={displayMode}
+                    onDisplayModeChange={handleDisplayMode}
+                    tablePanelOpen={tablePanelOpen}
+                    onShowTablePanel={() => setTablePanelOpen(true)}
+                    tableAttrs={tableAttrs}
+                    cellAttrs={tableCellAttrs}
+                    rowAttrs={tableRowAttrs}
+                    columnWidth={tableColumnWidth}
+                    activeTab={tablePanelTab}
+                    onTabChange={setTablePanelTab}
+                    onClose={() => setTablePanelOpen(false)}
+                  />
                 </div>
+                <RichTextTableInsertDialog
+                  open={tableInsertOpen}
+                  onClose={() => setTableInsertOpen(false)}
+                  onInsert={(rows, cols, withHeaderRow) => {
+                    editor?.chain().focus().insertTable({ rows, cols, withHeaderRow }).run();
+                    setTablePanelOpen(true);
+                    setTablePanelTab("selection");
+                  }}
+                />
               </div>
             )}
 
@@ -1187,19 +1162,11 @@ export function RichTextEditorPanel({
                       </select>
                     </label>
                   </div>
-                  <label className="ef-rtp-field">
-                    <span>Couleur</span>
-                    <div className="ef-rtp-color-field">
-                      <input
-                        type="color"
-                        className="ef-rtp-color-input"
-                        value={resolveColorInput(stylePreview?.stroke)}
-                        onChange={(e) => patchStyle({ stroke: e.target.value })}
-                        title="Couleur de la bordure"
-                      />
-                      <span className="ef-rtp-color-value">{stylePreview?.stroke ?? "—"}</span>
-                    </div>
-                  </label>
+                  <ColorPickerControl
+                    label="Couleur"
+                    value={resolveColorInput(stylePreview?.stroke)}
+                    onChange={(color) => color && patchStyle({ stroke: color })}
+                  />
                 </section>
 
                 {/* Opacité */}
@@ -1228,12 +1195,69 @@ export function RichTextEditorPanel({
 
 // ── Table selection helpers ──────────────────────────────────────────────────
 
+function resolveRichTextTableOverlay(surface: HTMLDivElement, table: HTMLTableElement): RichTextTableOverlay | null {
+  const surfaceRect = surface.getBoundingClientRect();
+  const tableRect = table.getBoundingClientRect();
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const firstRowCells = Array.from(rows[0]?.querySelectorAll("th, td") ?? []);
+  const editorDom = surface.querySelector(".ef-rtp-editor-content");
+  const tableIndex = editorDom
+    ? Array.from(editorDom.querySelectorAll("table")).indexOf(table)
+    : -1;
+
+  return {
+    tableIndex: Math.max(0, tableIndex),
+    table: {
+      left: tableRect.left - surfaceRect.left + surface.scrollLeft,
+      top: tableRect.top - surfaceRect.top + surface.scrollTop,
+      width: tableRect.width,
+      height: tableRect.height,
+    },
+    columns: firstRowCells.map((cell, index) => {
+      const rect = cell.getBoundingClientRect();
+      return {
+        left: rect.left - surfaceRect.left + surface.scrollLeft,
+        width: rect.width,
+        index,
+      };
+    }),
+    rows: rows.map((row, index) => {
+      const rect = row.getBoundingClientRect();
+      return {
+        top: rect.top - surfaceRect.top + surface.scrollTop,
+        height: rect.height,
+        index,
+      };
+    }),
+  };
+}
+
+function findActiveTableElement(editorDom: HTMLElement): HTMLTableElement | null {
+  const selectedCell = editorDom.querySelector(".selectedCell");
+  const selectedTable = selectedCell?.closest("table");
+  if (selectedTable instanceof HTMLTableElement) {
+    return selectedTable;
+  }
+
+  const focusedCell = editorDom.querySelector("td:focus-within, th:focus-within");
+  const focusedTable = focusedCell?.closest("table");
+  if (focusedTable instanceof HTMLTableElement) {
+    return focusedTable;
+  }
+
+  return null;
+}
+
 function getTableCtx(editor: Editor) {
   if (!isInTable(editor.state)) return null;
   try {
     const $cell = selectionCell(editor.state);
-    const table = $cell.node(-1);
-    const tableStart = $cell.start(-1);
+    const tableDepth = findAncestorDepth($cell, "table");
+    if (tableDepth === null) {
+      return null;
+    }
+    const table = $cell.node(tableDepth);
+    const tableStart = $cell.start(tableDepth);
     const map = TableMap.get(table);
     return { map, tableStart, $cell };
   } catch {
@@ -1279,6 +1303,231 @@ function execSelectColumn(editor: Editor): void {
   } catch { /* merged-cell edge case */ }
 }
 
+type RichTextEditorView = {
+  state: Editor["state"];
+  dispatch: Editor["view"]["dispatch"];
+  focus: Editor["view"]["focus"];
+};
+
+type RichTextTableDocumentCtx = {
+  map: ReturnType<typeof TableMap.get>;
+  tablePos: number;
+  tableStart: number;
+};
+
+function selectTableTargetByOverlayIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+  mode: TableSelectionMode,
+  index = 0,
+): void {
+  const ctx = getTableCtxByDocumentIndex(view, tableIndex);
+  if (!ctx) {
+    return;
+  }
+
+  try {
+    const { map, tableStart } = ctx;
+    let anchorOffset = map.map[0];
+    let headOffset = map.map[map.map.length - 1];
+
+    if (mode === "row") {
+      const rowIndex = Math.min(map.height - 1, Math.max(0, index));
+      anchorOffset = map.map[rowIndex * map.width];
+      headOffset = map.map[(rowIndex + 1) * map.width - 1];
+    }
+
+    if (mode === "column") {
+      const columnIndex = Math.min(map.width - 1, Math.max(0, index));
+      anchorOffset = map.map[columnIndex];
+      headOffset = map.map[(map.height - 1) * map.width + columnIndex];
+    }
+
+    const $anchor = view.state.doc.resolve(tableStart + anchorOffset);
+    const $head = view.state.doc.resolve(tableStart + headOffset);
+    view.dispatch(view.state.tr.setSelection(new CellSelection($anchor, $head)).scrollIntoView());
+    view.focus();
+  } catch {
+    // Ignore invalid merged-cell edge cases; regular table selections still work.
+  }
+}
+
+function selectTableCellRangeByIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+  range: Extract<RichTextTableSelectedTarget, { mode: "cell-range" }>,
+): void {
+  const ctx = getTableCtxByDocumentIndex(view, tableIndex);
+  if (!ctx) return;
+
+  try {
+    const { map, tableStart } = ctx;
+    const startRow = Math.min(map.height - 1, Math.max(0, range.startRow));
+    const endRow = Math.min(map.height - 1, Math.max(0, range.endRow));
+    const startColumn = Math.min(map.width - 1, Math.max(0, range.startColumn));
+    const endColumn = Math.min(map.width - 1, Math.max(0, range.endColumn));
+    const $anchor = view.state.doc.resolve(tableStart + map.map[startRow * map.width + startColumn]);
+    const $head = view.state.doc.resolve(tableStart + map.map[endRow * map.width + endColumn]);
+    view.dispatch(view.state.tr.setSelection(new CellSelection($anchor, $head)).scrollIntoView());
+    view.focus();
+  } catch {
+    // Ignore merged-cell edge cases; regular table cell-range selection keeps working.
+  }
+}
+
+function getTableCtxByDocumentIndex(view: RichTextEditorView, tableIndex: number): RichTextTableDocumentCtx | null {
+  let currentIndex = -1;
+  let found: RichTextTableDocumentCtx | null = null;
+
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "table") {
+      return true;
+    }
+
+    currentIndex += 1;
+    if (currentIndex !== tableIndex) {
+      return false;
+    }
+
+    found = {
+      map: TableMap.get(node),
+      tablePos: pos,
+      tableStart: pos + 1,
+    };
+    return false;
+  });
+
+  return found;
+}
+
+function setColumnWidthByTableIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+  columnIndex: number,
+  widthPx: number,
+): void {
+  const ctx = getTableCtxByDocumentIndex(view, tableIndex);
+  if (!ctx) return;
+  const widths = getTableColumnWidthsFromDocument(view, ctx).map((width, index) =>
+    index === columnIndex ? Math.round(widthPx) : width,
+  );
+  setTableColumnWidthsByTableIndex(view, tableIndex, widths);
+}
+
+function setTableColumnWidthsByTableIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+  widthsPx: number[],
+): void {
+  const ctx = getTableCtxByDocumentIndex(view, tableIndex);
+  if (!ctx) return;
+
+  try {
+    const { map, tablePos, tableStart } = ctx;
+    const seen = new Set<number>();
+    const { tr } = view.state;
+    const normalizedWidths = Array.from({ length: map.width }, (_, index) =>
+      Math.round(clampNumber(widthsPx[index] ?? widthsPx[widthsPx.length - 1] ?? 80, 24, 1600)),
+    );
+
+    for (let column = 0; column < map.width; column += 1) {
+      for (let row = 0; row < map.height; row += 1) {
+        const cellOffset = map.map[row * map.width + column];
+        if (seen.has(cellOffset)) continue;
+        seen.add(cellOffset);
+
+        const cellPos = tableStart + cellOffset;
+        const cellNode = view.state.doc.nodeAt(cellPos);
+        if (!cellNode) continue;
+
+        const existing = Array.isArray(cellNode.attrs.colwidth) ? cellNode.attrs.colwidth as number[] : [];
+        tr.setNodeMarkup(cellPos, undefined, { ...cellNode.attrs, colwidth: [normalizedWidths[column], ...existing.slice(1)] });
+      }
+    }
+
+    const tableNode = view.state.doc.nodeAt(tablePos);
+    if (tableNode) {
+      const totalWidth = normalizedWidths.reduce((sum, width) => sum + width, 0);
+      tr.setNodeMarkup(tablePos, undefined, { ...tableNode.attrs, tableWidth: `${totalWidth}px` });
+    }
+
+    if (tr.docChanged) {
+      view.dispatch(tr);
+      view.focus();
+    }
+  } catch {
+    // Ignore invalid table maps; normal tables keep resizing.
+  }
+}
+
+function getTableColumnWidthsFromDocument(
+  view: RichTextEditorView,
+  ctx: RichTextTableDocumentCtx,
+): number[] {
+  const { map, tableStart } = ctx;
+  return Array.from({ length: map.width }, (_, column) => {
+    const firstCellOffset = map.map[column];
+    const firstCellNode = view.state.doc.nodeAt(tableStart + firstCellOffset);
+    const colwidth = firstCellNode?.attrs.colwidth;
+    const width = Array.isArray(colwidth) ? Number(colwidth[0]) : NaN;
+    return Number.isFinite(width) && width > 0 ? Math.round(width) : 80;
+  });
+}
+
+function setRowHeightByTableIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+  rowIndex: number,
+  heightPx: number,
+): void {
+  let currentIndex = -1;
+  let applied = false;
+  const { tr } = view.state;
+
+  view.state.doc.descendants((node, pos) => {
+    if (node.type.name !== "table") {
+      return true;
+    }
+
+    currentIndex += 1;
+    if (currentIndex !== tableIndex) {
+      return false;
+    }
+
+    const row = Math.min(node.childCount - 1, Math.max(0, rowIndex));
+    let rowPos: number | null = null;
+    node.forEach((child, offset, index) => {
+      if (index === row && child.type.name === "tableRow") {
+        rowPos = pos + 1 + offset;
+      }
+    });
+
+    if (rowPos !== null) {
+      const rowNode = view.state.doc.nodeAt(rowPos);
+      if (rowNode) {
+        tr.setNodeMarkup(rowPos, undefined, { ...rowNode.attrs, rowHeight: `${Math.round(heightPx)}px` });
+        applied = true;
+      }
+    }
+
+    return false;
+  });
+
+  if (applied && tr.docChanged) {
+    view.dispatch(tr);
+    view.focus();
+  }
+}
+
+function findAncestorDepth($pos: Editor["state"]["selection"]["$from"], nodeName: string): number | null {
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    if ($pos.node(depth).type.name === nodeName) {
+      return depth;
+    }
+  }
+  return null;
+}
+
 // ── Table style helpers ──────────────────────────────────────────────────────
 
 function getTableAttrs(editor: Editor | null): RtpTableStyleAttrs | null {
@@ -1292,7 +1541,55 @@ function getTableAttrs(editor: Editor | null): RtpTableStyleAttrs | null {
   } catch { return null; }
 }
 
-function updateTableAttr(editor: Editor, attrPatch: Record<string, unknown>): void {
+function getSelectedCellAttrs(editor: Editor | null): RtpTableCellStyleAttrs | null {
+  if (!editor || !isInTable(editor.state)) return null;
+  try {
+    const sel = editor.state.selection;
+    if (sel instanceof CellSelection) {
+      let attrs: RtpTableCellStyleAttrs | null = null;
+      sel.forEachCell((node) => {
+        if (!attrs) {
+          attrs = node.attrs as RtpTableCellStyleAttrs;
+        }
+      });
+      return attrs;
+    }
+
+    const $from = editor.state.selection.$from;
+    for (let d = $from.depth; d > 0; d--) {
+      const name = $from.node(d).type.name;
+      if (name === "tableCell" || name === "tableHeader") {
+        return $from.node(d).attrs as RtpTableCellStyleAttrs;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getSelectedRowAttrs(editor: Editor | null): RtpTableRowStyleAttrs | null {
+  if (!editor || !isInTable(editor.state)) return null;
+  try {
+    const $cell = selectionCell(editor.state);
+    for (let d = $cell.depth; d > 0; d--) {
+      if ($cell.node(d).type.name === "tableRow") {
+        return $cell.node(d).attrs as RtpTableRowStyleAttrs;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getSelectedColumnWidth(editor: Editor | null): number | null {
+  const cellAttrs = getSelectedCellAttrs(editor);
+  const firstWidth = Array.isArray(cellAttrs?.colwidth) ? cellAttrs.colwidth[0] : null;
+  return typeof firstWidth === "number" && Number.isFinite(firstWidth) ? firstWidth : null;
+}
+
+function updateTableAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
   if (!isInTable(editor.state)) return;
   try {
     const $cell = selectionCell(editor.state);
@@ -1301,14 +1598,16 @@ function updateTableAttr(editor: Editor, attrPatch: Record<string, unknown>): vo
         const { tr } = editor.state;
         tr.setNodeMarkup($cell.before(d), undefined, { ...$cell.node(d).attrs, ...attrPatch });
         editor.view.dispatch(tr);
-        editor.view.focus();
+        if (options.focus !== false) {
+          editor.view.focus();
+        }
         return;
       }
     }
   } catch {}
 }
 
-function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>): void {
+function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
   if (!isInTable(editor.state)) return;
   try {
     const sel = editor.state.selection;
@@ -1328,11 +1627,13 @@ function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>): voi
       }
     }
     editor.view.dispatch(tr);
-    editor.view.focus();
+    if (options.focus !== false) {
+      editor.view.focus();
+    }
   } catch {}
 }
 
-function updateRowAttr(editor: Editor, attrPatch: Record<string, unknown>): void {
+function updateRowAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
   if (!isInTable(editor.state)) return;
   try {
     const $cell = selectionCell(editor.state);
@@ -1341,14 +1642,16 @@ function updateRowAttr(editor: Editor, attrPatch: Record<string, unknown>): void
         const { tr } = editor.state;
         tr.setNodeMarkup($cell.before(d), undefined, { ...$cell.node(d).attrs, ...attrPatch });
         editor.view.dispatch(tr);
-        editor.view.focus();
+        if (options.focus !== false) {
+          editor.view.focus();
+        }
         return;
       }
     }
   } catch {}
 }
 
-function setColumnWidth(editor: Editor, widthPx: number): void {
+function setColumnWidth(editor: Editor, widthPx: number | null, options: { focus?: boolean } = {}): void {
   if (!isInTable(editor.state)) return;
   try {
     const ctx = getTableCtx(editor);
@@ -1365,11 +1668,13 @@ function setColumnWidth(editor: Editor, widthPx: number): void {
       const cellNode = editor.state.doc.nodeAt(cellPos);
       if (!cellNode) continue;
       const existing = Array.isArray(cellNode.attrs.colwidth) ? cellNode.attrs.colwidth as number[] : [];
-      const newColwidth = [widthPx, ...existing.slice(1)];
+      const newColwidth = widthPx === null ? null : [widthPx, ...existing.slice(1)];
       tr.setNodeMarkup(cellPos, undefined, { ...cellNode.attrs, colwidth: newColwidth });
     }
     editor.view.dispatch(tr);
-    editor.view.focus();
+    if (options.focus !== false) {
+      editor.view.focus();
+    }
   } catch {}
 }
 
@@ -1379,6 +1684,46 @@ function resolveColorInput(value: string | undefined): string {
   if (!value) return "#000000";
   if (/^#[0-9a-f]{3,6}$/i.test(value)) return value;
   return "#000000";
+}
+
+function parseCssPixelValue(value: string | null | undefined, fallback: number): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function cssPixelPatch(value: string, min = 0, max = Number.POSITIVE_INFINITY): string | null {
+  if (value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return `${Math.min(max, Math.max(min, parsed))}px`;
+}
+
+function numericPatch(value: string, min = 0, max = Number.POSITIVE_INFINITY): number | null {
+  if (value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
 }
 
 function parseVarDropPayload(raw: string, context: { type: string; payload: unknown; sourcePanel?: string } | null): VariableDragEnvelope | null {
@@ -1423,28 +1768,679 @@ function promptLink(editor: Editor | null) {
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function TableInsertGrid({ onInsert }: { onInsert: (rows: number, cols: number) => void }) {
-  const [hovered, setHovered] = useState({ r: 0, c: 0 });
-  const COLS = 10, ROWS = 10;
+type RichTextVariableEntry = RichTextVariableRegistry["entries"][number];
+
+function RichTextTopToolbar({
+  editor,
+  selectedVarAttrs,
+  applyVarStyle,
+  rememberSelection,
+  runOnSelection,
+  varSearch,
+  setVarSearch,
+  filteredVars,
+  variableRegistry,
+  onOpenTableDialog,
+  onInsertVariable,
+}: {
+  editor: Editor | null;
+  selectedVarAttrs: RichTextVariableNodeAttrs | null;
+  applyVarStyle: (patch: Partial<RichTextVariableNodeAttrs>) => void;
+  rememberSelection: () => void;
+  runOnSelection: (runner: (editor: Editor) => void) => void;
+  varSearch: string;
+  setVarSearch: (value: string) => void;
+  filteredVars: RichTextVariableEntry[];
+  variableRegistry: RichTextVariableRegistry;
+  onOpenTableDialog: () => void;
+  onInsertVariable: (entry: RichTextVariableEntry) => void;
+}) {
+  const textAttrs = editor?.getAttributes("textStyle") ?? {};
+
   return (
-    <div className="ef-rtp-tg-wrap">
-      <div className="ef-rtp-tg" onMouseLeave={() => setHovered({ r: 0, c: 0 })}>
-        {Array.from({ length: ROWS }, (_, ri) =>
-          Array.from({ length: COLS }, (_, ci) => (
-            <div
-              key={`${ri}-${ci}`}
-              className={["ef-rtp-tg-cell", ri < hovered.r && ci < hovered.c ? "is-hovered" : ""].filter(Boolean).join(" ")}
-              onMouseEnter={() => setHovered({ r: ri + 1, c: ci + 1 })}
-              onClick={() => hovered.r > 0 && hovered.c > 0 && onInsert(hovered.r, hovered.c)}
-            />
-          ))
-        ).flat()}
+    <div className="ef-rtp-toolbar" role="toolbar" aria-label="Barre de mise en forme">
+      <select
+        className="ef-rtp-toolbar-select ef-rtp-toolbar-style-select"
+        value={resolveCurrentTextStyle(editor)}
+        onChange={(event) => applyToolbarStyle(editor, event.target.value)}
+        aria-label="Style de paragraphe"
+      >
+        <option value="paragraph">Normal</option>
+        <option value="h1">Titre 1</option>
+        <option value="h2">Titre 2</option>
+        <option value="h3">Titre 3</option>
+        <option value="blockquote">Citation</option>
+        <option value="codeBlock">Code</option>
+      </select>
+
+      <select
+        className="ef-rtp-toolbar-select ef-rtp-toolbar-font-select"
+        value={selectedVarAttrs ? (selectedVarAttrs.fontFamily ?? "") : (textAttrs.fontFamily ?? "")}
+        onMouseDown={rememberSelection}
+        onChange={(event) => selectedVarAttrs ? applyVarStyle({ fontFamily: event.target.value || null }) : runOnSelection((te) => te.chain().setFontFamily(event.target.value).run())}
+        aria-label="Police"
+      >
+        <option value="">Inter</option>
+        <option value="Inter, system-ui, sans-serif">Inter</option>
+        <option value="Georgia, serif">Georgia</option>
+        <option value="Arial, sans-serif">Arial</option>
+        <option value="ui-monospace, monospace">Mono</option>
+      </select>
+
+      <select
+        className="ef-rtp-toolbar-select ef-rtp-toolbar-size-select"
+        value={selectedVarAttrs ? (selectedVarAttrs.fontSize ?? "") : (textAttrs.fontSize ?? "")}
+        onMouseDown={rememberSelection}
+        onChange={(event) => selectedVarAttrs ? applyVarStyle({ fontSize: event.target.value || null }) : runOnSelection((te) => te.chain().setFontSize(event.target.value).run())}
+        aria-label="Taille de police"
+      >
+        <option value="">14</option>
+        {[12, 13, 14, 16, 18, 22, 24, 32].map((size) => (
+          <option key={size} value={`${size}px`}>{size}</option>
+        ))}
+      </select>
+
+      <span className="ef-rtp-toolbar-separator" aria-hidden />
+      <ToolbarIconButton label="Gras" active={selectedVarAttrs ? !!selectedVarAttrs.bold : editor?.isActive("bold")} onClick={() => selectedVarAttrs ? applyVarStyle({ bold: !selectedVarAttrs.bold || null }) : editor?.chain().focus().toggleBold().run()} icon={<Bold size={15} />} />
+      <ToolbarIconButton label="Italique" active={selectedVarAttrs ? !!selectedVarAttrs.italic : editor?.isActive("italic")} onClick={() => selectedVarAttrs ? applyVarStyle({ italic: !selectedVarAttrs.italic || null }) : editor?.chain().focus().toggleItalic().run()} icon={<Italic size={15} />} />
+      <ToolbarIconButton label="Souligné" active={selectedVarAttrs ? !!selectedVarAttrs.underline : editor?.isActive("underline")} onClick={() => selectedVarAttrs ? applyVarStyle({ underline: !selectedVarAttrs.underline || null }) : editor?.chain().focus().toggleUnderline().run()} icon={<UnderlineIcon size={15} />} />
+      <ToolbarIconButton label="Barré" active={selectedVarAttrs ? !!selectedVarAttrs.strike : editor?.isActive("strike")} onClick={() => selectedVarAttrs ? applyVarStyle({ strike: !selectedVarAttrs.strike || null }) : editor?.chain().focus().toggleStrike().run()} icon={<Strikethrough size={15} />} />
+
+      <div className="ef-rtp-toolbar-color-picker" onMouseDown={rememberSelection}>
+        <ColorPickerControl
+          label="Texte"
+          value={selectedVarAttrs ? (selectedVarAttrs.color ?? "#111827") : (textAttrs.color ?? "#111827")}
+          onChange={(color) => {
+            if (!color) return;
+            selectedVarAttrs ? applyVarStyle({ color }) : runOnSelection((te) => te.chain().setColor(color).run());
+          }}
+        />
       </div>
-      <div className="ef-rtp-tg-label">
-        {hovered.r > 0 && hovered.c > 0 ? `${hovered.c} × ${hovered.r}` : "Survolez pour insérer"}
+      <div className="ef-rtp-toolbar-color-picker" onMouseDown={rememberSelection}>
+        <ColorPickerControl
+          label="Surlignage"
+          value={textAttrs.backgroundColor ?? "#fef08a"}
+          disabled={!!selectedVarAttrs}
+          allowTransparent
+          onChange={(color) => runOnSelection((te) => color ? te.chain().setBackgroundColor(color).run() : te.chain().unsetBackgroundColor().run())}
+        />
       </div>
+
+      <span className="ef-rtp-toolbar-separator" aria-hidden />
+      <ToolbarIconButton label="Aligner à gauche" active={editor?.isActive({ textAlign: "left" })} onClick={() => editor?.chain().focus().setTextAlign("left").run()} icon={<AlignLeft size={15} />} />
+      <ToolbarIconButton label="Centrer" active={editor?.isActive({ textAlign: "center" })} onClick={() => editor?.chain().focus().setTextAlign("center").run()} icon={<AlignCenter size={15} />} />
+      <ToolbarIconButton label="Aligner à droite" active={editor?.isActive({ textAlign: "right" })} onClick={() => editor?.chain().focus().setTextAlign("right").run()} icon={<AlignRight size={15} />} />
+      <ToolbarIconButton label="Justifier" active={editor?.isActive({ textAlign: "justify" })} onClick={() => editor?.chain().focus().setTextAlign("justify").run()} icon={<AlignJustify size={15} />} />
+
+      <span className="ef-rtp-toolbar-separator" aria-hidden />
+      <ToolbarIconButton label="Liste à puces" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()} icon={<List size={15} />} />
+      <ToolbarIconButton label="Liste numérotée" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()} icon={<ListOrdered size={15} />} />
+      <ToolbarIconButton label="Lien" active={editor?.isActive("link")} onClick={() => promptLink(editor)} icon={<Code2 size={15} />} />
+      <ToolbarIconButton label="Tableau" active={editor?.isActive("table")} onClick={onOpenTableDialog} icon={<Table2 size={15} />} />
+
+      <RtpPopover label="Variables" icon={<Braces size={14} aria-hidden />}>
+        <div className="ef-rtp-var-search-wrap">
+          <Search size={11} className="ef-rtp-var-search-icon" aria-hidden />
+          <input
+            type="search"
+            className="ef-rtp-var-search"
+            placeholder="Rechercher une variable..."
+            value={varSearch}
+            onChange={(event) => setVarSearch(event.target.value)}
+            aria-label="Rechercher une variable"
+          />
+        </div>
+        {filteredVars.length === 0 ? (
+          <p className="ef-rtp-var-empty">
+            {variableRegistry.entries.length === 0 ? "Aucune variable disponible" : "Aucun résultat"}
+          </p>
+        ) : (
+          <div className="ef-rtp-popover-grid">
+            {filteredVars.map((entry) => (
+              <RtpActionBtn key={entry.id} label={entry.label} icon={<Braces size={12} />} onClick={() => onInsertVariable(entry)} />
+            ))}
+          </div>
+        )}
+      </RtpPopover>
+
+      <ToolbarIconButton label="Effacer format" onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()} icon={<Eraser size={15} />} />
     </div>
   );
+}
+
+function ToolbarIconButton({
+  label,
+  icon,
+  active,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={["ef-rtp-toolbar-icon", active ? "is-active" : ""].filter(Boolean).join(" ")}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+    >
+      {icon}
+    </button>
+  );
+}
+
+function resolveCurrentTextStyle(editor: Editor | null): string {
+  if (!editor) return "paragraph";
+  if (editor.isActive("heading", { level: 1 })) return "h1";
+  if (editor.isActive("heading", { level: 2 })) return "h2";
+  if (editor.isActive("heading", { level: 3 })) return "h3";
+  if (editor.isActive("blockquote")) return "blockquote";
+  if (editor.isActive("codeBlock")) return "codeBlock";
+  return "paragraph";
+}
+
+function applyToolbarStyle(editor: Editor | null, style: string): void {
+  if (!editor) return;
+  if (style === "h1") editor.chain().focus().toggleHeading({ level: 1 }).run();
+  else if (style === "h2") editor.chain().focus().toggleHeading({ level: 2 }).run();
+  else if (style === "h3") editor.chain().focus().toggleHeading({ level: 3 }).run();
+  else if (style === "blockquote") editor.chain().focus().toggleBlockquote().run();
+  else if (style === "codeBlock") editor.chain().focus().toggleCodeBlock().run();
+  else editor.chain().focus().setParagraph().run();
+}
+
+function RichTextContextInspector({
+  editor,
+  inTableCtx,
+  selectedVarAttrs,
+  displayMode,
+  onDisplayModeChange,
+  tablePanelOpen,
+  onShowTablePanel,
+  tableAttrs,
+  cellAttrs,
+  rowAttrs,
+  columnWidth,
+  activeTab,
+  onTabChange,
+  onClose,
+}: {
+  editor: Editor | null;
+  inTableCtx: boolean;
+  selectedVarAttrs: RichTextVariableNodeAttrs | null;
+  displayMode: RichTextVariableDisplayMode;
+  onDisplayModeChange: (mode: RichTextVariableDisplayMode) => void;
+  tablePanelOpen: boolean;
+  onShowTablePanel: () => void;
+  tableAttrs: RtpTableStyleAttrs | null;
+  cellAttrs: RtpTableCellStyleAttrs | null;
+  rowAttrs: RtpTableRowStyleAttrs | null;
+  columnWidth: number | null;
+  activeTab: RichTextTableInspectorTab;
+  onTabChange: (tab: RichTextTableInspectorTab) => void;
+  onClose: () => void;
+}) {
+  if (inTableCtx) {
+    if (!tablePanelOpen) {
+      return (
+        <aside className="ef-rtp-context-inspector" aria-label="Inspecteur contextuel">
+          <div className="ef-rtp-context-empty">
+            <strong>Tableau détecté</strong>
+            <span>Le panneau tableau est masqué.</span>
+            <button type="button" onClick={onShowTablePanel}>Afficher les réglages</button>
+          </div>
+        </aside>
+      );
+    }
+
+    return (
+      <RichTextTableInspector
+        isActive={inTableCtx}
+        tableAttrs={tableAttrs}
+        cellAttrs={cellAttrs}
+        rowAttrs={rowAttrs}
+        columnWidth={columnWidth}
+        activeTab={activeTab}
+        capabilities={{
+          addRowBefore: !!editor?.can().addRowBefore(),
+          addRowAfter: !!editor?.can().addRowAfter(),
+          deleteRow: !!editor?.can().deleteRow(),
+          addColumnBefore: !!editor?.can().addColumnBefore(),
+          addColumnAfter: !!editor?.can().addColumnAfter(),
+          deleteColumn: !!editor?.can().deleteColumn(),
+          mergeCells: !!editor?.can().mergeCells(),
+          splitCell: !!editor?.can().splitCell(),
+          deleteTable: !!editor?.can().deleteTable(),
+        }}
+        onTabChange={onTabChange}
+        onClose={onClose}
+        onSelectTable={() => editor && execSelectTable(editor)}
+        onSelectRow={() => editor && execSelectRow(editor)}
+        onSelectColumn={() => editor && execSelectColumn(editor)}
+        onAddRowBefore={() => editor?.chain().focus().addRowBefore().run()}
+        onAddRowAfter={() => editor?.chain().focus().addRowAfter().run()}
+        onDeleteRow={() => editor?.chain().focus().deleteRow().run()}
+        onAddColumnBefore={() => editor?.chain().focus().addColumnBefore().run()}
+        onAddColumnAfter={() => editor?.chain().focus().addColumnAfter().run()}
+        onDeleteColumn={() => editor?.chain().focus().deleteColumn().run()}
+        onMergeCells={() => editor?.chain().focus().mergeCells().run()}
+        onSplitCell={() => editor?.chain().focus().splitCell().run()}
+        onDeleteTable={() => editor?.chain().focus().deleteTable().run()}
+        onToggleHeaderRow={() => editor?.chain().focus().toggleHeaderRow().run()}
+        onToggleHeaderColumn={() => editor?.chain().focus().toggleHeaderColumn().run()}
+        onToggleStriped={() => {
+          if (!editor) return;
+          updateTableAttr(editor, { striped: !getTableAttrs(editor)?.striped }, { focus: true });
+        }}
+        onFirstColumnToggle={() => {
+          if (!editor) return;
+          updateTableAttr(editor, { firstColumn: !getTableAttrs(editor)?.firstColumn }, { focus: true });
+        }}
+        onBorderPresetChange={(borderPreset: RichTextTableBorderPreset) => {
+          if (!editor) return;
+          updateTableAttr(
+            editor,
+            { bordered: borderPreset !== "none", borderPreset },
+            { focus: true },
+          );
+        }}
+        onBorderColorChange={(color) => editor && updateTableAttr(editor, { bordered: true, borderColor: color }, { focus: false })}
+        onCellBackgroundChange={(color) => editor && updateCellAttr(editor, { backgroundColor: color }, { focus: false })}
+        onCellTextAlignChange={(value) => editor && updateCellAttr(editor, { textAlign: value }, { focus: false })}
+        onHeaderBackgroundChange={(color) => editor && updateTableAttr(editor, { headerBackgroundColor: color }, { focus: false })}
+        onHeaderTextColorChange={(color) => editor && updateTableAttr(editor, { headerTextColor: color }, { focus: false })}
+        onFirstColumnBackgroundChange={(color) => editor && updateTableAttr(editor, { firstColumn: true, firstColumnBackgroundColor: color }, { focus: false })}
+        onFirstColumnTextColorChange={(color) => editor && updateTableAttr(editor, { firstColumn: true, firstColumnTextColor: color }, { focus: false })}
+        onStripedEvenColorChange={(color) => editor && updateTableAttr(editor, { striped: true, stripedEvenColor: color }, { focus: false })}
+        onStripedOddColorChange={(color) => editor && updateTableAttr(editor, { striped: true, stripedOddColor: color }, { focus: false })}
+        onBorderWidthChange={(value) => {
+          if (!editor) return;
+          const borderWidth = cssPixelPatch(value, 0, 20);
+          updateTableAttr(editor, { bordered: borderWidth !== null && parseCssPixelValue(borderWidth, 0) > 0, borderWidth }, { focus: false });
+        }}
+        onTableWidthChange={(value) => editor && updateTableAttr(editor, { tableWidth: cssPixelPatch(value, 50, 2000) }, { focus: false })}
+        onColumnWidthChange={(value) => editor && setColumnWidth(editor, numericPatch(value, 20, 1000), { focus: false })}
+        onRowHeightChange={(value) => editor && updateRowAttr(editor, { rowHeight: cssPixelPatch(value, 16, 500) }, { focus: false })}
+        onCellPaddingChange={(value) => editor && updateCellAttr(editor, { cellPadding: cssPixelPatch(value, 0, 40) }, { focus: false })}
+        onVerticalAlignChange={(value) => editor && updateCellAttr(editor, { verticalAlign: value }, { focus: false })}
+      />
+    );
+  }
+
+  if (selectedVarAttrs) {
+    return <RichTextVariableInspector attrs={selectedVarAttrs} displayMode={displayMode} onDisplayModeChange={onDisplayModeChange} />;
+  }
+
+  return <RichTextTextInspector editor={editor} />;
+}
+
+function RichTextTableSelectionOverlay({
+  overlay,
+  resizeGuide,
+  selectedTarget,
+  onSelect,
+  onColumnResizeStart,
+  onRowResizeStart,
+  onAddRow,
+  onAddColumn,
+  onMergeCells,
+  onSplitCell,
+  onToggleBorders,
+  onApplySoftColor,
+  onDelete,
+  capabilities,
+}: {
+  overlay: RichTextTableOverlay;
+  resizeGuide: RichTextTableResizeGuide | null;
+  selectedTarget: RichTextTableSelectedTarget;
+  onSelect: (mode: TableSelectionMode, index?: number) => void;
+  onColumnResizeStart: (index: number, event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onRowResizeStart: (index: number, event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onAddRow: () => void;
+  onAddColumn: () => void;
+  onMergeCells: () => void;
+  onSplitCell: () => void;
+  onToggleBorders: () => void;
+  onApplySoftColor: () => void;
+  onDelete: () => void;
+  capabilities: {
+    addRow: boolean;
+    addColumn: boolean;
+    deleteRow: boolean;
+    deleteColumn: boolean;
+    mergeCells: boolean;
+    splitCell: boolean;
+    deleteTable: boolean;
+  };
+}) {
+  const [hoverTarget, setHoverTarget] = useState<RichTextTableHoverTarget>(null);
+
+  return (
+    <div className="ef-rtp-table-selection-overlay" onMouseLeave={() => setHoverTarget(null)}>
+      <RichTextTableHoverMark overlay={overlay} target={hoverTarget} />
+      {selectedTarget?.mode === "cell-range" ? (
+        <RichTextTableCellRangeMark overlay={overlay} target={selectedTarget} />
+      ) : null}
+      {selectedTarget?.mode === "column" && typeof selectedTarget.index === "number" && overlay.columns[selectedTarget.index] ? (
+        <span
+          className="ef-rtp-table-selection-mark ef-rtp-table-selection-mark-column"
+          style={{
+            left: `${overlay.columns[selectedTarget.index].left}px`,
+            top: `${overlay.table.top}px`,
+            width: `${overlay.columns[selectedTarget.index].width}px`,
+            height: `${overlay.table.height}px`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {selectedTarget?.mode === "row" && typeof selectedTarget.index === "number" && overlay.rows[selectedTarget.index] ? (
+        <span
+          className="ef-rtp-table-selection-mark ef-rtp-table-selection-mark-row"
+          style={{
+            left: `${overlay.table.left}px`,
+            top: `${overlay.rows[selectedTarget.index].top}px`,
+            width: `${overlay.table.width}px`,
+            height: `${overlay.rows[selectedTarget.index].height}px`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      <div
+        className="ef-rtp-table-active-outline"
+        style={{
+          left: `${overlay.table.left}px`,
+          top: `${overlay.table.top}px`,
+          width: `${overlay.table.width}px`,
+          height: `${overlay.table.height}px`,
+        }}
+        aria-hidden="true"
+      >
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-nw" />
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-ne" />
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-se" />
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-sw" />
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-n" />
+        <span className="ef-rtp-table-outline-node ef-rtp-table-outline-node-s" />
+      </div>
+      <div
+        className="ef-rtp-table-context-toolbar"
+        style={{
+          left: `${Math.max(0, overlay.table.left + overlay.table.width / 2 - 238)}px`,
+          top: `${Math.max(0, overlay.table.top - 66)}px`,
+        }}
+        role="toolbar"
+        aria-label="Outils tableau"
+        onMouseDown={(event) => event.preventDefault()}
+      >
+        <TableOverlayAction label="Ligne" icon={<Plus size={22} />} disabled={!capabilities.addRow} onClick={onAddRow} />
+        <TableOverlayAction label="Colonne" icon={<Plus size={22} />} disabled={!capabilities.addColumn} onClick={onAddColumn} />
+        <TableOverlayAction label="Fusionner" icon={<TableCellsMerge size={22} />} disabled={!capabilities.mergeCells} onClick={onMergeCells} />
+        <TableOverlayAction label="Scinder" icon={<TableCellsSplit size={22} />} disabled={!capabilities.splitCell} onClick={onSplitCell} />
+        <TableOverlayAction label="Bordures" icon={<Grid2x2 size={22} />} onClick={onToggleBorders} />
+        <TableOverlayAction label="Couleur" icon={<Eraser size={22} />} onClick={onApplySoftColor} />
+        <TableOverlayAction label="Supprimer" icon={<Trash2 size={22} />} disabled={!capabilities.deleteTable} danger onClick={onDelete} />
+      </div>
+      <button
+        type="button"
+        className="ef-rtp-table-select-handle"
+        data-rtp-table-overlay="true"
+        style={{
+          left: `${overlay.table.left - 8}px`,
+          top: `${overlay.table.top - 8}px`,
+        }}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect("table");
+        }}
+        onMouseEnter={() => setHoverTarget({ mode: "table" })}
+        onMouseLeave={() => setHoverTarget(null)}
+        aria-label="Sélectionner le tableau"
+      >
+        <Table2 size={11} aria-hidden />
+      </button>
+      {overlay.columns.map((column) => (
+        <button
+          type="button"
+          key={`column-${column.index}`}
+          className="ef-rtp-table-column-gutter"
+          data-rtp-table-overlay="true"
+          style={{
+            left: `${column.left}px`,
+            top: `${overlay.table.top - 28}px`,
+            width: `${column.width}px`,
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelect("column", column.index);
+          }}
+          onMouseEnter={() => setHoverTarget({ mode: "column", index: column.index })}
+          onMouseLeave={() => setHoverTarget(null)}
+          aria-label={`Sélectionner la colonne ${column.index + 1}`}
+        >
+          <span aria-hidden>↓</span>
+        </button>
+      ))}
+      {overlay.columns.map((column) => (
+        <button
+          type="button"
+          key={`column-resize-${column.index}`}
+          className="ef-rtp-table-column-resize-handle"
+          data-rtp-table-overlay="true"
+          style={{
+            left: `${column.left + column.width - 4}px`,
+            top: `${overlay.table.top}px`,
+            height: `${overlay.table.height}px`,
+          }}
+          onMouseDown={(event) => onColumnResizeStart(column.index, event)}
+          onMouseEnter={() => setHoverTarget({ mode: "column-resize", index: column.index })}
+          onMouseLeave={() => setHoverTarget(null)}
+          aria-label={`Redimensionner la colonne ${column.index + 1}`}
+        />
+      ))}
+      {overlay.rows.map((row) => (
+        <button
+          type="button"
+          key={`row-${row.index}`}
+          className="ef-rtp-table-row-gutter"
+          data-rtp-table-overlay="true"
+          style={{
+            left: `${overlay.table.left - 30}px`,
+            top: `${row.top}px`,
+            height: `${row.height}px`,
+          }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelect("row", row.index);
+          }}
+          onMouseEnter={() => setHoverTarget({ mode: "row", index: row.index })}
+          onMouseLeave={() => setHoverTarget(null)}
+          aria-label={`Sélectionner la ligne ${row.index + 1}`}
+        >
+          <span aria-hidden>→</span>
+        </button>
+      ))}
+      {overlay.rows.map((row) => (
+        <button
+          type="button"
+          key={`row-resize-${row.index}`}
+          className="ef-rtp-table-row-resize-handle"
+          data-rtp-table-overlay="true"
+          style={{
+            left: `${overlay.table.left}px`,
+            top: `${row.top + row.height - 4}px`,
+            width: `${overlay.table.width}px`,
+          }}
+          onMouseDown={(event) => onRowResizeStart(row.index, event)}
+          onMouseEnter={() => setHoverTarget({ mode: "row-resize", index: row.index })}
+          onMouseLeave={() => setHoverTarget(null)}
+          aria-label={`Redimensionner la ligne ${row.index + 1}`}
+        />
+      ))}
+      {resizeGuide?.kind === "column" ? (
+        <span
+          className="ef-rtp-table-resize-guide ef-rtp-table-resize-guide-column"
+          style={{
+            left: `${resizeGuide.x}px`,
+            top: `${resizeGuide.top}px`,
+            height: `${resizeGuide.height}px`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+      {resizeGuide?.kind === "row" ? (
+        <span
+          className="ef-rtp-table-resize-guide ef-rtp-table-resize-guide-row"
+          style={{
+            left: `${resizeGuide.left}px`,
+            top: `${resizeGuide.y}px`,
+            width: `${resizeGuide.width}px`,
+          }}
+          aria-hidden="true"
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function TableOverlayAction({
+  label,
+  icon,
+  active,
+  disabled,
+  danger,
+  onClick,
+}: {
+  label: string;
+  icon: ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  danger?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={[active ? "is-active" : "", danger ? "is-danger" : ""].filter(Boolean).join(" ")}
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={(event) => {
+        event.preventDefault();
+        onClick();
+      }}
+      aria-label={label}
+      title={label}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function RichTextTableCellRangeMark({
+  overlay,
+  target,
+}: {
+  overlay: RichTextTableOverlay;
+  target: Extract<RichTextTableSelectedTarget, { mode: "cell-range" }>;
+}) {
+  const rowStart = Math.min(target.startRow, target.endRow);
+  const rowEnd = Math.max(target.startRow, target.endRow);
+  const columnStart = Math.min(target.startColumn, target.endColumn);
+  const columnEnd = Math.max(target.startColumn, target.endColumn);
+  const firstRow = overlay.rows[rowStart];
+  const lastRow = overlay.rows[rowEnd];
+  const firstColumn = overlay.columns[columnStart];
+  const lastColumn = overlay.columns[columnEnd];
+
+  if (!firstRow || !lastRow || !firstColumn || !lastColumn) return null;
+
+  return (
+    <span
+      className="ef-rtp-table-selection-mark ef-rtp-table-selection-mark-cells"
+      style={{
+        left: `${firstColumn.left}px`,
+        top: `${firstRow.top}px`,
+        width: `${lastColumn.left + lastColumn.width - firstColumn.left}px`,
+        height: `${lastRow.top + lastRow.height - firstRow.top}px`,
+      }}
+      aria-hidden="true"
+    />
+  );
+}
+
+function RichTextTableHoverMark({
+  overlay,
+  target,
+}: {
+  overlay: RichTextTableOverlay;
+  target: RichTextTableHoverTarget;
+}) {
+  if (!target) return null;
+
+  if (target.mode === "table") {
+    return (
+      <span
+        className="ef-rtp-table-hover-mark ef-rtp-table-hover-mark-table"
+        style={{
+          left: `${overlay.table.left}px`,
+          top: `${overlay.table.top}px`,
+          width: `${overlay.table.width}px`,
+          height: `${overlay.table.height}px`,
+        }}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if ((target.mode === "column" || target.mode === "column-resize") && overlay.columns[target.index]) {
+    const column = overlay.columns[target.index];
+    return (
+      <span
+        className={[
+          "ef-rtp-table-hover-mark",
+          target.mode === "column-resize" ? "ef-rtp-table-hover-mark-resize-column" : "ef-rtp-table-hover-mark-column",
+        ].join(" ")}
+        style={{
+          left: `${target.mode === "column-resize" ? column.left + column.width - 1 : column.left}px`,
+          top: `${overlay.table.top}px`,
+          width: `${target.mode === "column-resize" ? 2 : column.width}px`,
+          height: `${overlay.table.height}px`,
+        }}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  if ((target.mode === "row" || target.mode === "row-resize") && overlay.rows[target.index]) {
+    const row = overlay.rows[target.index];
+    return (
+      <span
+        className={[
+          "ef-rtp-table-hover-mark",
+          target.mode === "row-resize" ? "ef-rtp-table-hover-mark-resize-row" : "ef-rtp-table-hover-mark-row",
+        ].join(" ")}
+        style={{
+          left: `${overlay.table.left}px`,
+          top: `${target.mode === "row-resize" ? row.top + row.height - 1 : row.top}px`,
+          width: `${overlay.table.width}px`,
+          height: `${target.mode === "row-resize" ? 2 : row.height}px`,
+        }}
+        aria-hidden="true"
+      />
+    );
+  }
+
+  return null;
 }
 
 function RtpPopover({
@@ -1480,6 +2476,16 @@ function RtpPopover({
         sideOffset={6}
         collisionPadding={12}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onPointerDownOutside={(event) => {
+          if (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "color") {
+            event.preventDefault();
+          }
+        }}
+        onFocusOutside={(event) => {
+          if (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "color") {
+            event.preventDefault();
+          }
+        }}
       >
         <div className="ef-rtp-popover-title">{label}</div>
         {children}

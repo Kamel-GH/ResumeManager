@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 
+import type { CanvasInsertionContext } from "@/features/editor/schema/canvas-insertion";
 import { createCanvasInsertionElement, resolveArcGeometryDraft, isArcToolId } from "@/features/editor/schema/canvas-insertion";
+
+function createInsertionContext(overrides: Partial<CanvasInsertionContext> = {}): CanvasInsertionContext {
+  return {
+    elementId: "element-01",
+    pageId: "page-1",
+    point: { x: 120, y: 180 },
+    layer: {
+      id: "layer-1",
+      pageId: "page-1",
+      name: "Content",
+      order: 1,
+      visible: true,
+      locked: false,
+    },
+    ...overrides,
+  };
+}
 
 describe("canvas insertion", () => {
   it("inserts a preset drop as a canonical list block", () => {
@@ -138,6 +156,79 @@ describe("canvas insertion", () => {
       svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect width=\"64\" height=\"64\" fill=\"#fff\"/></svg>",
     });
     expect(result.element.props?.src).toContain("data:image/svg+xml");
+  });
+
+  it("rejects unsupported insertion sources and invalid canvas-tool payloads", () => {
+    const unsupported = createCanvasInsertionElement({
+      source: {
+        type: "page",
+        payload: { id: "page-1" },
+      },
+      context: createInsertionContext(),
+    });
+    const missingImageSource = createCanvasInsertionElement({
+      source: {
+        type: "image",
+        payload: {
+          name: "Logo",
+        },
+      },
+      context: createInsertionContext({ elementId: "element-image" }),
+    });
+    const insufficientPolygonPoints = createCanvasInsertionElement({
+      source: {
+        type: "canvas-tool",
+        payload: {
+          toolId: "polygon",
+          frame: { x: 60, y: 60, width: 80, height: 80 },
+          points: [0, 0, 80, 80],
+        },
+      },
+      context: createInsertionContext({ elementId: "element-polygon" }),
+    });
+
+    expect(unsupported).toEqual({
+      inserted: false,
+      reason: "type_non_supporte",
+      sourceType: "page",
+    });
+    expect(missingImageSource).toEqual({
+      inserted: false,
+      reason: "source_image_manquante",
+      sourceType: "image",
+    });
+    expect(insufficientPolygonPoints).toEqual({
+      inserted: false,
+      reason: "points_insuffisants",
+      sourceType: "canvas-tool",
+    });
+  });
+
+  it("normalizes text block html into the canonical rich text model", () => {
+    const result = createCanvasInsertionElement({
+      source: {
+        type: "text-block",
+        payload: {
+          name: "Présentation",
+          html: "<p>Bonjour <strong>monde</strong></p>",
+        },
+      },
+      context: createInsertionContext({ elementId: "element-text-block" }),
+    });
+
+    expect(result.inserted).toBe(true);
+    if (!result.inserted) {
+      return;
+    }
+
+    expect(result.element.type).toBe("rich-text");
+    expect(result.element.props).toMatchObject({
+      text: "Bonjour monde",
+      html: "<p>Bonjour <strong>monde</strong></p>",
+      label: "Présentation",
+      name: "Présentation",
+    });
+    expect(result.element.props?.richTextJson).toBeDefined();
   });
 
   it("inserts arrow tools as canonical line blocks without forcing arrowheads", () => {

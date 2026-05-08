@@ -109,6 +109,31 @@ export function resolveImageEditingFromProps(props: RenderNodeProps): ImageEditi
   return normalizeImageEditingState(props.imageEditing);
 }
 
+export function resolveImagePreviewSource(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.startsWith("<svg")) {
+    return `data:image/svg+xml;utf8,${encodeURIComponent(trimmed)}`;
+  }
+
+  if (trimmed.startsWith("data:image/") || trimmed.startsWith("blob:") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("../")) {
+    return trimmed;
+  }
+
+  return "";
+}
+
 export function buildImageCssFilter(editing: ImageEditingState): string {
   const preset = getFilterPresetValues(editing.filter);
   const brightness = 1 + editing.adjustments.brightness + editing.adjustments.exposure * 0.35 + preset.brightness;

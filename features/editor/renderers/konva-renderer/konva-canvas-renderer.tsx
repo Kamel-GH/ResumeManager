@@ -22,7 +22,13 @@ import { isArcToolId, resolveArcGeometryDraft, type CanvasToolDraft, type Canvas
 import type { CanvasObjectAlignmentAction, CanvasObjectOrderAction } from "@/features/editor/schema/canvas-mutation";
 import type { CanonicalRenderTree, RenderNode } from "@/features/editor/schema/render-tree";
 import type { EditorWorkspaceSettings, WorkspaceLayout, WorkspacePageLayout, WorkspaceViewport } from "@/features/editor/schema/workspace-layout";
-import { convertClientPointToWorkspacePoint, findWorkspacePageAtPoint, snapWorkspaceFrame, snapWorkspacePoint } from "@/features/editor/schema/workspace-layout";
+import {
+  convertClientPointToWorkspacePoint,
+  findWorkspacePageAtPoint,
+  type WorkspaceSnapGuide,
+} from "@/features/editor/schema/workspace-layout";
+import { resolveWorkspaceAlignmentSnapResolution, resolveWorkspaceResizeSnapResolution, type WorkspaceSnapSource } from "@/features/editor/schema/workspace-snap-guides";
+import { resolveWorkspaceVisualAids } from "@/features/editor/schema/workspace-layout";
 import { CanvasSelectionActionBar } from "@/features/editor/components/parts/canvas-selection-action-bar";
 import { RichTextEditorPanel } from "@/features/editor/components/parts/rich-text-editor-panel";
 import { ImageEditButton } from "@/features/editor/components/image-editing/image-edit-button";
@@ -53,6 +59,7 @@ import {
   resolveSelectionOrderCapabilities,
   resolveSelectionActionBarPlacement,
   isSelectionBoxTool,
+  resolveRenderNodeOrderGroupKey,
   shouldShowFrameOutline,
 } from "@/features/editor/renderers/konva-renderer/konva-renderer-model";
 
@@ -81,12 +88,14 @@ type KonvaTransformBox = {
 
 export type KonvaCanvasRendererProps = {
   renderTree: CanonicalRenderTree;
+  canvasSize?: { width: number; height: number };
   workspaceLayout: WorkspaceLayout;
   workspaceSettings: EditorWorkspaceSettings;
   viewport: WorkspaceViewport;
   activePageId: string;
   selectedElementIds: string[];
   activeCanvasTool: CanvasToolId;
+  isSpacePanActive?: boolean;
   draftCanvasCreation: CanvasToolDraft | null;
   onSelectElement: (elementIds: string[], options?: { additive?: boolean }) => void;
 };
@@ -96,23 +105,69 @@ type NodeInteractionProps = {
   onClick?: (event: Konva.KonvaEventObject<MouseEvent>) => void;
   onTap?: (event: Konva.KonvaEventObject<TouchEvent>) => void;
   onDragStart?: (event: Konva.KonvaEventObject<DragEvent>) => void;
-  onDragMove?: () => void;
+  onDragMove?: (event: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd?: () => void;
   onTransformEnd?: () => void;
 };
 
+type PaintFrame = { width: number; height: number };
+
+function resolveRenderableColor(value: string | null | undefined, fallback = "transparent"): string {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return fallback;
+  if (/^\{\{theme\.[a-z0-9_.-]+}}$/i.test(trimmed)) return resolveThemeTokenColor(trimmed);
+  if (/^linear-gradient\(/i.test(trimmed)) return parseLinearGradientColors(trimmed)[0] ?? fallback;
+  return trimmed;
+}
+
+function resolveKonvaFillProps(value: string | null | undefined, frame: PaintFrame): Record<string, unknown> {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return { fill: "transparent" };
+
+  if (/^linear-gradient\(/i.test(trimmed)) {
+    const colors = parseLinearGradientColors(trimmed);
+    if (colors.length >= 2) {
+      return {
+        fill: undefined,
+        fillLinearGradientStartPoint: { x: 0, y: 0 },
+        fillLinearGradientEndPoint: { x: Math.max(frame.width, 1), y: Math.max(frame.height, 1) },
+        fillLinearGradientColorStops: [0, colors[0], 1, colors[1]],
+      };
+    }
+  }
+
+  return { fill: resolveRenderableColor(trimmed) };
+}
+
+function parseLinearGradientColors(value: string): string[] {
+  return Array.from(value.matchAll(/#[0-9a-f]{3,6}|rgba?\([^)]+\)/gi)).map((match) => resolveRenderableColor(match[0]));
+}
+
+function resolveThemeTokenColor(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "{{theme.primary}}") return "#2563eb";
+  if (normalized === "{{theme.text}}") return "#111827";
+  if (normalized === "{{theme.border}}") return "#e5e7eb";
+  if (normalized === "{{theme.surface}}") return "#ffffff";
+  return "#2563eb";
+}
+
 export function KonvaCanvasRenderer({
   renderTree,
+  canvasSize,
   workspaceLayout,
   workspaceSettings,
   viewport,
   activePageId,
   selectedElementIds,
   activeCanvasTool,
+  isSpacePanActive = false,
   draftCanvasCreation,
   onSelectElement,
 }: KonvaCanvasRendererProps) {
   const stageRef = useRef<Konva.Stage | null>(null);
+  const surfaceWidth = Math.max(workspaceLayout.width, canvasSize?.width ?? 0);
+  const surfaceHeight = Math.max(workspaceLayout.height, canvasSize?.height ?? 0);
   const transformerRef = useRef<Konva.Transformer | null>(null);
   const selectionDragRef = useRef<{
     pointerId: number;
@@ -122,14 +177,23 @@ export function KonvaCanvasRenderer({
     moved: boolean;
   } | null>(null);
   const [draggingElementIds, setDraggingElementIds] = useState<string[]>([]);
+  const [snapGuideDraft, setSnapGuideDraft] = useState<{ pageId: string; guides: WorkspaceSnapGuide[] } | null>(null);
   const dragSelectionRef = useRef<{
     anchorId: string;
     pageId: string;
+    groupKey: string;
     selectionIds: string[];
     startPositions: Map<string, { x: number; y: number }>;
+    startBounds: { x: number; y: number; width: number; height: number };
+    spacePan: {
+      pointerClient: { x: number; y: number };
+      viewport: { panX: number; panY: number };
+      frozenPositions: Map<string, { x: number; y: number }>;
+    } | null;
   } | null>(null);
   const transformSelectionRef = useRef<{
     pageId: string;
+    groupKey: string;
     selectionIds: string[];
     originalById: Map<
       string,
@@ -148,10 +212,12 @@ export function KonvaCanvasRenderer({
     () => new Map(workspaceLayout.pages.map((layoutPage) => [layoutPage.id, layoutPage] as const)),
     [workspaceLayout.pages],
   );
+  const visualAids = useMemo(() => resolveWorkspaceVisualAids(workspaceSettings), [workspaceSettings]);
   const deleteCanvasElements = useEditorStore((state) => state.deleteCanvasElements);
   const copyCanvasElements = useEditorStore((state) => state.copyCanvasElements);
   const pasteCanvasElements = useEditorStore((state) => state.pasteCanvasElements);
   const duplicateCanvasElements = useEditorStore((state) => state.duplicateCanvasElements);
+  const setViewportPan = useEditorStore((state) => state.setViewportPan);
   const reorderCanvasElements = useEditorStore((state) => state.reorderCanvasElements);
   const alignCanvasElements = useEditorStore((state) => state.alignCanvasElements);
   const flipCanvasElements = useEditorStore((state) => state.flipCanvasElements);
@@ -406,7 +472,7 @@ export function KonvaCanvasRenderer({
     (elementId: string, imageEditing: ImageEditingState) => {
       const result = updateImageElementEditing({
         elementId,
-        imageEditing: imageEditing as unknown as NonNullable<RenderNode["props"]>,
+        imageEditing,
       });
       if (!result.updated) {
         console.warn("[editor] image update rejected", result.reason);
@@ -630,6 +696,7 @@ export function KonvaCanvasRenderer({
   const clearSelectionDraft = useCallback(() => {
     selectionDragRef.current = null;
     setSelectionBoxDraft(null);
+    setSnapGuideDraft(null);
   }, []);
   const handleTransformStart = useCallback(() => {
     if (selectedTransformableIds.length === 0) {
@@ -652,6 +719,8 @@ export function KonvaCanvasRenderer({
         anchorPoint: { x: number; y: number };
       }
     >();
+    const firstNode = renderNodeById.get(selectedTransformableIds[0])?.node ?? null;
+    const groupKey = firstNode ? resolveRenderNodeOrderGroupKey(firstNode) : "root";
     const frames = selectedTransformableIds
       .map((selectionId) => {
         const node = renderNodeById.get(selectionId)?.node;
@@ -693,6 +762,7 @@ export function KonvaCanvasRenderer({
 
     transformSelectionRef.current = {
       pageId,
+      groupKey,
       selectionIds: [...selectedTransformableIds],
       originalById,
       selectionCenter: {
@@ -759,11 +829,18 @@ export function KonvaCanvasRenderer({
         handleSelectElement([anchorId]);
       }
 
-      const startPositions = new Map<string, { x: number; y: number }>();
-      selectionIds.forEach((selectionId) => {
+    const startPositions = new Map<string, { x: number; y: number }>();
+    const startRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const groupKey = resolveRenderNodeOrderGroupKey(node);
+    selectionIds.forEach((selectionId) => {
         const selectedNode = stageRef.current?.findOne<Konva.Node>(`#${selectionId}`);
         if (!selectedNode) {
           return;
+        }
+
+        const renderNode = renderNodeById.get(selectionId)?.node ?? null;
+        if (renderNode) {
+          startRects.push(resolveCommittedFrame(renderNode, selectedNode));
         }
 
         startPositions.set(selectionId, {
@@ -772,30 +849,125 @@ export function KonvaCanvasRenderer({
         });
       });
 
-      dragSelectionRef.current = {
-        anchorId,
-        pageId: node.pageId,
-        selectionIds,
-        startPositions,
-      };
-      setDraggingElementIds(selectionIds);
-    },
-    [canSelect, handleSelectElement, renderNodeById, selectedElementIds, selectedIds],
+      const startBounds = startRects.length > 0 ? unionRects(startRects) : { ...(startRects[0] ?? { x: 0, y: 0, width: 1, height: 1 }) };
+
+    dragSelectionRef.current = {
+      anchorId,
+      pageId: node.pageId,
+      groupKey,
+      selectionIds,
+      startPositions,
+      startBounds,
+      spacePan: null,
+    };
+    setSnapGuideDraft(null);
+    setDraggingElementIds(selectionIds);
+  },
+  [canSelect, handleSelectElement, renderNodeById, selectedElementIds, selectedIds],
   );
-  const handleDragMove = useCallback(() => {
-      const drag = dragSelectionRef.current;
-      if (!drag || drag.selectionIds.length <= 1) {
-        return;
+  const handleDragMove = useCallback((node: RenderNode, event: Konva.KonvaEventObject<DragEvent>) => {
+    const drag = dragSelectionRef.current;
+    if (!drag) {
+      return;
+    }
+
+    const pageLayout = pageLayoutsById.get(drag.pageId ?? node.pageId);
+    const anchorNode = stageRef.current?.findOne<Konva.Node>(`#${drag.anchorId}`);
+    const anchorStart = drag.startPositions.get(drag.anchorId);
+    const eventClient =
+      typeof event.evt.clientX === "number" && typeof event.evt.clientY === "number"
+        ? {
+            x: event.evt.clientX,
+            y: event.evt.clientY,
+          }
+        : null;
+
+    if (isSpacePanActive && anchorNode && anchorStart) {
+      if (!drag.spacePan) {
+        const frozenPositions = new Map<string, { x: number; y: number }>();
+        drag.selectionIds.forEach((selectionId) => {
+          const movingNode = stageRef.current?.findOne<Konva.Node>(`#${selectionId}`);
+          const startPosition = drag.startPositions.get(selectionId);
+          frozenPositions.set(selectionId, movingNode ? { x: movingNode.x(), y: movingNode.y() } : { ...(startPosition ?? { x: 0, y: 0 }) });
+        });
+
+        drag.spacePan = {
+          pointerClient: eventClient ?? { x: 0, y: 0 },
+          viewport: { panX: viewport.panX, panY: viewport.panY },
+          frozenPositions,
+        };
       }
 
-      const anchorNode = stageRef.current?.findOne<Konva.Node>(`#${drag.anchorId}`);
-      const anchorStart = drag.startPositions.get(drag.anchorId);
-      if (!anchorNode || !anchorStart) {
-        return;
+      drag.spacePan.frozenPositions.forEach((position, selectionId) => {
+        const movingNode = stageRef.current?.findOne<Konva.Node>(`#${selectionId}`);
+        movingNode?.position(position);
+      });
+
+      if (eventClient) {
+        setViewportPan({
+          panX: drag.spacePan.viewport.panX + eventClient.x - drag.spacePan.pointerClient.x,
+          panY: drag.spacePan.viewport.panY + eventClient.y - drag.spacePan.pointerClient.y,
+        });
       }
 
-      const deltaX = anchorNode.x() - anchorStart.x;
-      const deltaY = anchorNode.y() - anchorStart.y;
+      setSnapGuideDraft(null);
+      stageRef.current?.batchDraw();
+      refreshSelectionActionBarPlacement();
+      return;
+    }
+
+    if (drag.spacePan && anchorNode && anchorStart) {
+      const frozenAnchor = drag.spacePan.frozenPositions.get(drag.anchorId);
+      if (frozenAnchor) {
+        const frozenDeltaX = frozenAnchor.x - anchorStart.x;
+        const frozenDeltaY = frozenAnchor.y - anchorStart.y;
+        drag.startBounds = {
+          ...drag.startBounds,
+          x: drag.startBounds.x + frozenDeltaX,
+          y: drag.startBounds.y + frozenDeltaY,
+        };
+      }
+
+      drag.spacePan.frozenPositions.forEach((position, selectionId) => {
+        drag.startPositions.set(selectionId, position);
+      });
+      drag.spacePan = null;
+    }
+
+    const resolvedAnchorStart = anchorStart ? (drag.startPositions.get(drag.anchorId) ?? anchorStart) : null;
+
+    if (pageLayout && anchorNode && resolvedAnchorStart) {
+      const currentDeltaX = anchorNode.x() - resolvedAnchorStart.x;
+      const currentDeltaY = anchorNode.y() - resolvedAnchorStart.y;
+      const currentFrame = {
+        x: drag.startBounds.x + currentDeltaX,
+        y: drag.startBounds.y + currentDeltaY,
+        width: drag.startBounds.width,
+        height: drag.startBounds.height,
+      };
+      const snapSources = buildWorkspaceSnapSources(renderNodeById, pageLayoutsById, drag.pageId, drag.selectionIds);
+      const alignmentResolution = resolveWorkspaceAlignmentSnapResolution(currentFrame, pageLayout, workspaceSettings, snapSources, null, viewport.zoom, drag.groupKey);
+      const snapDeltaX = alignmentResolution.point.x - drag.startBounds.x;
+      const snapDeltaY = alignmentResolution.point.y - drag.startBounds.y;
+      anchorNode.position({
+        x: resolvedAnchorStart.x + snapDeltaX,
+        y: resolvedAnchorStart.y + snapDeltaY,
+      });
+      setSnapGuideDraft(
+        alignmentResolution.guides.length > 0
+          ? {
+              pageId: pageLayout.id,
+              guides: alignmentResolution.guides,
+            }
+          : null,
+      );
+    } else {
+      setSnapGuideDraft(null);
+    }
+
+    if (drag.selectionIds.length > 1 && anchorNode && resolvedAnchorStart) {
+      const deltaX = anchorNode.x() - resolvedAnchorStart.x;
+      const deltaY = anchorNode.y() - resolvedAnchorStart.y;
 
       drag.selectionIds.forEach((selectionId) => {
         if (selectionId === drag.anchorId) {
@@ -813,29 +985,23 @@ export function KonvaCanvasRenderer({
           y: start.y + deltaY,
         });
       });
+    }
 
-      stageRef.current?.batchDraw();
-      refreshSelectionActionBarPlacement();
-    },
-    [refreshSelectionActionBarPlacement],
-  );
+    stageRef.current?.batchDraw();
+    refreshSelectionActionBarPlacement();
+  }, [isSpacePanActive, pageLayoutsById, refreshSelectionActionBarPlacement, renderNodeById, setViewportPan, viewport.panX, viewport.panY, viewport.zoom, workspaceSettings]);
   const handleDragEnd = useCallback(
     (node: RenderNode) => {
       const drag = dragSelectionRef.current;
       if (!drag) {
         setDraggingElementIds([]);
+        setSnapGuideDraft(null);
         return;
       }
 
-      const pageLayout = pageLayoutsById.get(drag.pageId ?? node.pageId);
       const anchorStart = drag.startPositions.get(drag.anchorId);
       const anchorNode = stageRef.current?.findOne<Konva.Node>(`#${drag.anchorId}`);
-      const snappedAnchorPoint =
-        pageLayout && anchorStart && anchorNode
-          ? snapWorkspacePoint({ x: anchorNode.x(), y: anchorNode.y() }, pageLayout, workspaceSettings)
-          : anchorNode
-            ? { x: anchorNode.x(), y: anchorNode.y() }
-            : null;
+      const snappedAnchorPoint = anchorNode ? { x: anchorNode.x(), y: anchorNode.y() } : null;
       const deltaX = snappedAnchorPoint && anchorStart ? snappedAnchorPoint.x - anchorStart.x : 0;
       const deltaY = snappedAnchorPoint && anchorStart ? snappedAnchorPoint.y - anchorStart.y : 0;
 
@@ -877,24 +1043,91 @@ export function KonvaCanvasRenderer({
 
       dragSelectionRef.current = null;
       setDraggingElementIds([]);
+      setSnapGuideDraft(null);
     },
     [pageLayoutsById, renderNodeById, workspaceSettings],
   );
   const handleTransformMove = useCallback(() => {
+    const selection = transformSelectionRef.current;
+    const stage = stageRef.current;
+    const pageLayout = selection ? pageLayoutsById.get(selection.pageId) : null;
+    if (selection && pageLayout && stage) {
+      const selectedRects = selection.selectionIds
+        .map((selectionId) => {
+          const renderNode = renderNodeById.get(selectionId)?.node ?? null;
+          const selectedNode = stage.findOne<Konva.Node>(`#${selectionId}`);
+          if (!renderNode || !selectedNode) {
+            return null;
+          }
+
+          return resolveCommittedFrame(renderNode, selectedNode);
+        })
+        .filter((rect): rect is { x: number; y: number; width: number; height: number } => rect !== null);
+
+      const currentFrame = selectedRects.length > 0 ? unionRects(selectedRects) : null;
+      if (currentFrame) {
+        const snapSources = buildWorkspaceSnapSources(renderNodeById, pageLayoutsById, selection.pageId, selection.selectionIds);
+        const activeAnchor = transformerRef.current?.getActiveAnchor?.() ?? null;
+        const guideResolution = resolveWorkspaceAlignmentSnapResolution(currentFrame, pageLayout, workspaceSettings, snapSources, activeAnchor, viewport.zoom, selection.groupKey);
+        const resizeResolution = resolveSelectionResizeSnapResolution({
+          oldBox: currentFrame,
+          newBox: currentFrame,
+          pageId: selection.pageId,
+          selectionIds: selection.selectionIds,
+          groupKey: selection.groupKey,
+          activeAnchor,
+          renderNodeById,
+          pageLayoutsById,
+          workspaceSettings,
+          viewportZoom: viewport.zoom,
+        });
+        const snapDeltaX = guideResolution.point.x - currentFrame.x;
+        const snapDeltaY = guideResolution.point.y - currentFrame.y;
+
+        if (Math.abs(snapDeltaX) > 0.001 || Math.abs(snapDeltaY) > 0.001) {
+          selection.selectionIds.forEach((selectionId) => {
+            const selectedNode = stage.findOne<Konva.Node>(`#${selectionId}`);
+            if (!selectedNode) {
+              return;
+            }
+
+            selectedNode.position({
+              x: selectedNode.x() + snapDeltaX,
+              y: selectedNode.y() + snapDeltaY,
+            });
+          });
+        }
+
+        const guides = [...guideResolution.guides, ...resizeResolution.guides];
+        setSnapGuideDraft(
+          guides.length > 0
+            ? {
+                pageId: pageLayout.id,
+                guides,
+              }
+            : null,
+        );
+      } else {
+        setSnapGuideDraft(null);
+      }
+    }
+
     refreshSelectionActionBarPlacement();
-  }, [refreshSelectionActionBarPlacement]);
+  }, [pageLayoutsById, refreshSelectionActionBarPlacement, renderNodeById, workspaceSettings]);
   const handleTransformEnd = useCallback(() => {
     const selection = transformSelectionRef.current;
     if (!selection || selection.selectionIds.length === 0) {
+      setSnapGuideDraft(null);
       return;
     }
 
     const stage = stageRef.current;
     const anchorNode = stage?.findOne<Konva.Node>(`#${selection.selectionIds[0]}`);
-    if (!anchorNode) {
-      transformSelectionRef.current = null;
-      return;
-    }
+      if (!anchorNode) {
+        transformSelectionRef.current = null;
+        setSnapGuideDraft(null);
+        return;
+      }
 
     if (selection.selectionIds.length === 1) {
       const selectionId = selection.selectionIds[0];
@@ -902,19 +1135,18 @@ export function KonvaCanvasRenderer({
       const selectedNode = stage?.findOne<Konva.Node>(`#${selectionId}`);
       if (!renderNode || !selectedNode) {
         transformSelectionRef.current = null;
+        setSnapGuideDraft(null);
         return;
       }
 
-      const pageLayout = pageLayoutsById.get(renderNode.pageId);
       const frame = resolveCommittedFrame(renderNode, selectedNode);
-      const snappedFrame = pageLayout ? snapWorkspaceFrame(frame, pageLayout, workspaceSettings) : frame;
-      const points = resolveScaledShapePoints(renderNode, snappedFrame);
+      const points = resolveScaledShapePoints(renderNode, frame);
       const result = useEditorStore.getState().commitCanvasObjectGeometry({
         pageId: renderNode.pageId,
         patches: [
           {
             id: selectionId,
-            frame: snappedFrame,
+            frame,
             rotation: selectedNode.rotation(),
             ...(points ? { points } : {}),
           },
@@ -924,6 +1156,7 @@ export function KonvaCanvasRenderer({
       selectedNode.scaleX(1);
       selectedNode.scaleY(1);
       transformSelectionRef.current = null;
+      setSnapGuideDraft(null);
 
       if (!result.committed) {
         console.warn("[editor] canvas transform commit rejected", result.reason);
@@ -934,6 +1167,7 @@ export function KonvaCanvasRenderer({
     const originalAnchor = selection.originalById.get(selection.selectionIds[0]);
     if (!originalAnchor) {
       transformSelectionRef.current = null;
+      setSnapGuideDraft(null);
       return;
     }
 
@@ -957,9 +1191,9 @@ export function KonvaCanvasRenderer({
         const original = selection.originalById.get(selectionId);
         const renderNode = renderNodeById.get(selectionId)?.node;
         const selectedNode = stage?.findOne<Konva.Node>(`#${selectionId}`);
-        if (!original || !renderNode || !selectedNode) {
-          return;
-        }
+      if (!original || !renderNode || !selectedNode) {
+        return;
+      }
 
         const committedFrame = resolveCommittedFrame(renderNode, selectedNode);
         const points = resolveScaledShapePoints(renderNode, committedFrame);
@@ -977,6 +1211,7 @@ export function KonvaCanvasRenderer({
 
       if (resizePatches.length === 0) {
         transformSelectionRef.current = null;
+        setSnapGuideDraft(null);
         return;
       }
 
@@ -990,6 +1225,7 @@ export function KonvaCanvasRenderer({
       }
 
       transformSelectionRef.current = null;
+      setSnapGuideDraft(null);
       return;
     }
 
@@ -1035,6 +1271,7 @@ export function KonvaCanvasRenderer({
 
     if (patches.length === 0) {
       transformSelectionRef.current = null;
+      setSnapGuideDraft(null);
       return;
     }
 
@@ -1048,6 +1285,7 @@ export function KonvaCanvasRenderer({
     }
 
     transformSelectionRef.current = null;
+    setSnapGuideDraft(null);
   }, [pageLayoutsById, renderNodeById, workspaceSettings]);
   const handleDuplicateSelection = useCallback(() => {
     const result = duplicateCanvasElements({
@@ -1266,10 +1504,10 @@ export function KonvaCanvasRenderer({
   }
 
   return (
-    <div className="ef-konva-stage-shell" style={{ position: "relative", width: `${workspaceLayout.width}px`, height: `${workspaceLayout.height}px` }}>
+    <div className="ef-konva-stage-shell" style={{ position: "relative", width: `${surfaceWidth}px`, height: `${surfaceHeight}px` }}>
       <Stage
-        width={workspaceLayout.width}
-        height={workspaceLayout.height}
+        width={surfaceWidth}
+        height={surfaceHeight}
         className="ef-konva-page ef-render-page"
         aria-label="Template CV"
         ref={stageRef}
@@ -1380,14 +1618,7 @@ export function KonvaCanvasRenderer({
       }}
     >
       <Layer name="backgroundLayer" listening={false}>
-        <Rect x={0} y={0} width={workspaceLayout.width} height={workspaceLayout.height} fill="#eef2f7" />
-        {workspaceSettings.gridEnabled ? (
-          <Group {...viewportTransform} listening={false} name="workspaceGridRoot">
-            {workspaceLayout.pages.map((page) => (
-              <WorkspaceGrid key={`grid-${page.id}`} page={page} gridSize={workspaceSettings.gridSize} />
-            ))}
-          </Group>
-        ) : null}
+        <Rect x={0} y={0} width={surfaceWidth} height={surfaceHeight} fill="#eef2f7" />
       </Layer>
 
       <Layer name="pageLayer" listening={false}>
@@ -1436,8 +1667,18 @@ export function KonvaCanvasRenderer({
 
       <Layer name="guideLayer" listening={false}>
         <Group {...viewportTransform} name="guideLayerRoot" listening={false}>
-          {workspaceSettings.guidesVisible && workspaceSettings.marginsVisible
+          {visualAids.gridVisible ? (
+            <Group listening={false} name="workspaceGridRoot">
+              {workspaceLayout.pages.map((page) => (
+                <WorkspaceGrid key={`grid-${page.id}`} page={page} gridSize={workspaceSettings.gridSize} />
+              ))}
+            </Group>
+          ) : null}
+          {visualAids.marginGuidesVisible
             ? workspaceLayout.pages.map((page) => <PageMarginGuides key={`margins-${page.id}`} page={page} />)
+            : null}
+          {visualAids.guidesVisible && snapGuideDraft
+            ? workspaceLayout.pages.map((page) => (page.id === snapGuideDraft.pageId ? <SnapGuideOverlay key={`snap-guides-${page.id}`} page={page} guides={snapGuideDraft.guides} /> : null))
             : null}
           {draftCanvasCreation ? <DraftPreview draft={draftCanvasCreation} pageLayout={pageLayoutsById.get(draftCanvasCreation.pageId)} /> : null}
         </Group>
@@ -1488,7 +1729,39 @@ export function KonvaCanvasRenderer({
                 return oldBox;
               }
 
-              return newBox;
+              const selection = transformSelectionRef.current;
+              const activeAnchor = transformerRef.current?.getActiveAnchor?.() ?? null;
+              if (!selection || !activeAnchor) {
+                return newBox;
+              }
+
+              const resizeResolution = resolveSelectionResizeSnapResolution({
+                oldBox: {
+                  x: oldBox.x,
+                  y: oldBox.y,
+                  width: oldBox.width,
+                  height: oldBox.height,
+                },
+                newBox: {
+                  x: newBox.x,
+                  y: newBox.y,
+                  width: newBox.width,
+                  height: newBox.height,
+                },
+                pageId: selection.pageId,
+                selectionIds: selection.selectionIds,
+                groupKey: selection.groupKey,
+                activeAnchor,
+                renderNodeById,
+                pageLayoutsById,
+                workspaceSettings,
+                viewportZoom: viewport.zoom,
+              });
+
+              return {
+                ...newBox,
+                ...resizeResolution.frame,
+              };
             }}
           />
         </Group>
@@ -1630,6 +1903,103 @@ function resolveSelectionBoundsFromRenderTree(
   return unionRects(rects);
 }
 
+function buildWorkspaceSnapSources(
+  renderNodeById: Map<string, { node: RenderNode; pageId: string }>,
+  pageLayoutsById: Map<string, WorkspacePageLayout>,
+  pageId: string,
+  excludedIds: string[],
+): WorkspaceSnapSource[] {
+  const excluded = new Set(excludedIds);
+  const pageLayout = pageLayoutsById.get(pageId);
+  if (!pageLayout) {
+    return [];
+  }
+
+  const sources: WorkspaceSnapSource[] = [];
+  for (const [id, entry] of renderNodeById) {
+    if (entry.pageId !== pageId || excluded.has(id) || !entry.node.visible) {
+      continue;
+    }
+
+    const workspaceBounds = getWorkspaceSelectionBounds(entry.node, pageLayout);
+    sources.push({
+      id,
+      groupKey: resolveRenderNodeOrderGroupKey(entry.node),
+      parentId:
+        propString(entry.node.props, "parentId") ??
+        propString(entry.node.props, "groupId") ??
+        propString(entry.node.props, "frameId") ??
+        propString(entry.node.props, "containerId") ??
+        propString(entry.node.props, "sectionId"),
+      label: resolveSnapSourceLabel(entry.node),
+      frame: {
+        x: workspaceBounds.x - pageLayout.x,
+        y: workspaceBounds.y - pageLayout.y,
+        width: workspaceBounds.width,
+        height: workspaceBounds.height,
+      },
+    });
+  }
+
+  return sources;
+}
+
+function resolveSelectionResizeSnapResolution({
+  oldBox,
+  newBox,
+  pageId,
+  selectionIds,
+  groupKey,
+  activeAnchor,
+  renderNodeById,
+  pageLayoutsById,
+  workspaceSettings,
+  viewportZoom,
+}: {
+  oldBox: { x: number; y: number; width: number; height: number };
+  newBox: { x: number; y: number; width: number; height: number };
+  pageId: string;
+  selectionIds: string[];
+  groupKey: string;
+  activeAnchor: string | null;
+  renderNodeById: Map<string, { node: RenderNode; pageId: string }>;
+  pageLayoutsById: Map<string, WorkspacePageLayout>;
+  workspaceSettings: EditorWorkspaceSettings;
+  viewportZoom: number;
+}) {
+  const pageLayout = pageLayoutsById.get(pageId);
+  if (!pageLayout) {
+    return { frame: newBox, guides: [] as WorkspaceSnapGuide[] };
+  }
+
+  const snapSources = buildWorkspaceSnapSources(renderNodeById, pageLayoutsById, pageId, selectionIds);
+  return resolveWorkspaceResizeSnapResolution(oldBox, newBox, pageLayout, workspaceSettings, snapSources, activeAnchor, viewportZoom, groupKey);
+}
+
+function resolveSnapSourceLabel(node: RenderNode) {
+  if (node.type === "text" || node.type === "rich-text") {
+    return "Texte";
+  }
+
+  if (node.type === "image") {
+    return "Image";
+  }
+
+  if (node.type === "table") {
+    return "Table";
+  }
+
+  if (node.type === "list") {
+    return "Liste";
+  }
+
+  if (node.type === "shape") {
+    return "Forme";
+  }
+
+  return "Objet";
+}
+
 function unionRects(rects: Array<{ x: number; y: number; width: number; height: number }>) {
   return rects.reduce(
     (acc, rect, index) => {
@@ -1676,7 +2046,7 @@ function KonvaRenderNode({
   onSelectElement: (elementIds: string[], options?: { additive?: boolean }) => void;
   onDeleteElements: (elementIds: string[]) => void;
   onDragStart: (node: RenderNode) => void;
-  onDragMove: () => void;
+  onDragMove: (node: RenderNode, event: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (node: RenderNode) => void;
 }) {
   if (!node.visible) {
@@ -1710,7 +2080,7 @@ function KonvaRenderNode({
         onDragStart: () => {
           onDragStart(node);
         },
-        onDragMove: () => onDragMove(),
+        onDragMove: (event) => onDragMove(node, event),
         onDragEnd: () => onDragEnd(node),
       }
     : {};
@@ -1745,7 +2115,18 @@ function KonvaRenderNode({
       return (
         <>
           {showFrameOutline ? <FrameOutlineRect frame={node.frame} rotation={node.rotation ?? 0} /> : null}
-          <Circle id={node.id} name={`RenderNode:${node.id}`} selectable={selectable} locked={node.locked} {...shapeProps.circle} {...interactionProps} {...dragProps} {...transformProps} />
+          <Circle
+            id={node.id}
+            name={`RenderNode:${node.id}`}
+            selectable={selectable}
+            locked={node.locked}
+            {...shapeProps.circle}
+            {...resolveKonvaFillProps(shapeProps.circle.fill, { width: shapeProps.circle.radius * 2, height: shapeProps.circle.radius * 2 })}
+            stroke={resolveRenderableColor(shapeProps.circle.stroke)}
+            {...interactionProps}
+            {...dragProps}
+            {...transformProps}
+          />
         </>
       );
     }
@@ -1754,7 +2135,18 @@ function KonvaRenderNode({
       return (
         <>
           {showFrameOutline ? <FrameOutlineRect frame={node.frame} rotation={node.rotation ?? 0} /> : null}
-          <Ellipse id={node.id} name={`RenderNode:${node.id}`} selectable={selectable} locked={node.locked} {...shapeProps.ellipse} {...interactionProps} {...dragProps} {...transformProps} />
+          <Ellipse
+            id={node.id}
+            name={`RenderNode:${node.id}`}
+            selectable={selectable}
+            locked={node.locked}
+            {...shapeProps.ellipse}
+            {...resolveKonvaFillProps(shapeProps.ellipse.fill, { width: shapeProps.ellipse.radiusX * 2, height: shapeProps.ellipse.radiusY * 2 })}
+            stroke={resolveRenderableColor(shapeProps.ellipse.stroke)}
+            {...interactionProps}
+            {...dragProps}
+            {...transformProps}
+          />
         </>
       );
     }
@@ -1763,7 +2155,18 @@ function KonvaRenderNode({
       return (
         <>
           {showFrameOutline ? <FrameOutlineRect frame={node.frame} rotation={node.rotation ?? 0} /> : null}
-          <Line id={node.id} name={`RenderNode:${node.id}`} selectable={selectable} locked={node.locked} {...shapeProps.line} {...interactionProps} {...dragProps} {...transformProps} />
+          <Line
+            id={node.id}
+            name={`RenderNode:${node.id}`}
+            selectable={selectable}
+            locked={node.locked}
+            {...shapeProps.line}
+            stroke={resolveRenderableColor(shapeProps.line.stroke)}
+            fill={shapeProps.line.fill ? resolveRenderableColor(shapeProps.line.fill) : undefined}
+            {...interactionProps}
+            {...dragProps}
+            {...transformProps}
+          />
         </>
       );
     }
@@ -1781,8 +2184,8 @@ function KonvaRenderNode({
             y={shapeProps.polygon.y}
             points={shapeProps.polygon.points}
             closed={true}
-            fill={shapeProps.polygon.fill}
-            stroke={shapeProps.polygon.stroke}
+            {...resolveKonvaFillProps(shapeProps.polygon.fill, node.frame)}
+            stroke={resolveRenderableColor(shapeProps.polygon.stroke)}
             strokeWidth={shapeProps.polygon.strokeWidth}
             opacity={shapeProps.polygon.opacity}
             rotation={shapeProps.polygon.rotation}
@@ -1806,8 +2209,8 @@ function KonvaRenderNode({
             x={shapeProps.polyline.x}
             y={shapeProps.polyline.y}
             points={shapeProps.polyline.points}
-            fill={shapeProps.polyline.fill}
-            stroke={shapeProps.polyline.stroke}
+            fill={resolveRenderableColor(shapeProps.polyline.fill)}
+            stroke={resolveRenderableColor(shapeProps.polyline.stroke)}
             strokeWidth={shapeProps.polyline.strokeWidth}
             opacity={shapeProps.polyline.opacity}
             rotation={shapeProps.polyline.rotation}
@@ -1832,8 +2235,8 @@ function KonvaRenderNode({
             y={shapeProps.curve.y}
             points={shapeProps.curve.points}
             tension={shapeProps.curve.tension}
-            fill={shapeProps.curve.fill}
-            stroke={shapeProps.curve.stroke}
+            fill={resolveRenderableColor(shapeProps.curve.fill)}
+            stroke={resolveRenderableColor(shapeProps.curve.stroke)}
             strokeWidth={shapeProps.curve.strokeWidth}
             opacity={shapeProps.curve.opacity}
             rotation={shapeProps.curve.rotation}
@@ -1852,7 +2255,18 @@ function KonvaRenderNode({
     return (
       <>
         {showFrameOutline ? <FrameOutlineRect frame={node.frame} rotation={node.rotation ?? 0} /> : null}
-        <Rect id={node.id} name={`RenderNode:${node.id}`} selectable={selectable} locked={node.locked} {...shapeProps.rect} {...interactionProps} {...dragProps} {...transformProps} />
+        <Rect
+          id={node.id}
+          name={`RenderNode:${node.id}`}
+          selectable={selectable}
+          locked={node.locked}
+          {...shapeProps.rect}
+          {...resolveKonvaFillProps(shapeProps.rect.fill, { width: shapeProps.rect.width, height: shapeProps.rect.height })}
+          stroke={resolveRenderableColor(shapeProps.rect.stroke)}
+          {...interactionProps}
+          {...dragProps}
+          {...transformProps}
+        />
       </>
     );
   }
@@ -1983,8 +2397,8 @@ function ArcKonvaNode({
           }
           context.fillStrokeShape(shape);
         }}
-        fill={shapeProps.fill}
-        stroke={shapeProps.stroke}
+        {...resolveKonvaFillProps(shapeProps.fill, frame)}
+        stroke={resolveRenderableColor(shapeProps.stroke)}
         strokeWidth={shapeProps.strokeWidth}
         opacity={shapeProps.opacity}
       />
@@ -2038,7 +2452,7 @@ function TablePlaceholderNode({
       {...transformProps}
     >
       {showFrameOutline ? <FrameOutlineRect frame={{ x: 0, y: 0, width: node.frame.width, height: node.frame.height }} rotation={0} /> : null}
-      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} fill={fill} stroke={stroke} strokeWidth={strokeWidth} cornerRadius={2} />
+      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} {...resolveKonvaFillProps(fill, node.frame)} stroke={resolveRenderableColor(stroke)} strokeWidth={strokeWidth} cornerRadius={2} />
       {headerRow ? <Rect x={0} y={0} width={node.frame.width} height={cellHeight} fill="rgba(148, 163, 184, 0.12)" cornerRadius={2} /> : null}
       {Array.from({ length: rows - 1 }, (_, index) => index + 1).map((row) => (
         <Line key={`table-row-${node.id}-${row}`} points={[0, row * cellHeight, node.frame.width, row * cellHeight]} stroke="#e2e8f0" strokeWidth={1} listening={false} />
@@ -2124,7 +2538,7 @@ function ListPlaceholderNode({
       {...transformProps}
     >
       {showFrameOutline ? <FrameOutlineRect frame={{ x: 0, y: 0, width: node.frame.width, height: node.frame.height }} rotation={0} /> : null}
-      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} fill={fill} stroke={stroke} strokeWidth={strokeWidth} cornerRadius={4} />
+      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} {...resolveKonvaFillProps(fill, node.frame)} stroke={resolveRenderableColor(stroke)} strokeWidth={strokeWidth} cornerRadius={4} />
       <Rect x={0} y={0} width={node.frame.width} height={headerHeight} fill="rgba(148, 163, 184, 0.12)" cornerRadius={4} />
       <Text x={10} y={6} width={Math.max(node.frame.width - 20, 1)} height={16} text={title} fill="#0f172a" fontFamily="Inter" fontSize={12} fontStyle="bold" listening={false} />
       <Text
@@ -2230,7 +2644,7 @@ function RichTextPlaceholderNode({
       {...transformProps}
     >
       {showFrameOutline ? <FrameOutlineRect frame={{ x: 0, y: 0, width: node.frame.width, height: node.frame.height }} rotation={0} /> : null}
-      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} fill={fill} stroke={stroke} strokeWidth={strokeWidth} cornerRadius={2} />
+      <Rect x={0} y={0} width={node.frame.width} height={node.frame.height} {...resolveKonvaFillProps(fill, node.frame)} stroke={resolveRenderableColor(stroke)} strokeWidth={strokeWidth} cornerRadius={2} />
     </Group>
   );
 }
@@ -2440,8 +2854,8 @@ function WorkspaceGrid({ page, gridSize }: { page: WorkspacePageLayout; gridSize
     return null;
   }
 
-  const minorStroke = "rgba(148, 163, 184, 0.08)";
-  const majorStroke = "rgba(148, 163, 184, 0.16)";
+  const minorStroke = "rgba(148, 163, 184, 0.12)";
+  const majorStroke = "rgba(148, 163, 184, 0.24)";
   const majorEvery = gridSize * 5;
 
   return (
@@ -2492,23 +2906,117 @@ function PageSurface({ page, active }: { page: WorkspacePageLayout; active: bool
 }
 
 function PageMarginGuides({ page }: { page: WorkspacePageLayout }) {
-  const width = Math.max(page.width - page.margin.left - page.margin.right, 1);
-  const height = Math.max(page.height - page.margin.top - page.margin.bottom, 1);
+  const usefulX = page.margin.left;
+  const usefulY = page.margin.top;
+  const usefulWidth = Math.max(page.width - page.margin.left - page.margin.right, 1);
+  const usefulHeight = Math.max(page.height - page.margin.top - page.margin.bottom, 1);
 
   return (
     <Group x={page.x} y={page.y} listening={false} name={`MarginGuide:${page.id}`}>
+      {page.margin.top > 0 ? <Rect x={0} y={0} width={page.width} height={page.margin.top} fill="rgba(148, 163, 184, 0.13)" listening={false} /> : null}
+      {page.margin.left > 0 ? <Rect x={0} y={page.margin.top} width={page.margin.left} height={usefulHeight} fill="rgba(148, 163, 184, 0.11)" listening={false} /> : null}
+      {page.margin.right > 0 ? <Rect x={page.width - page.margin.right} y={page.margin.top} width={page.margin.right} height={usefulHeight} fill="rgba(148, 163, 184, 0.11)" listening={false} /> : null}
+      {page.margin.bottom > 0 ? <Rect x={0} y={page.height - page.margin.bottom} width={page.width} height={page.margin.bottom} fill="rgba(148, 163, 184, 0.13)" listening={false} /> : null}
       <Rect
-        x={page.margin.left}
-        y={page.margin.top}
-        width={width}
-        height={height}
+        x={usefulX}
+        y={usefulY}
+        width={usefulWidth}
+        height={usefulHeight}
         fillEnabled={false}
-        stroke="#d946ef"
-        strokeWidth={1}
+        stroke="#f59e0b"
+        strokeWidth={1.2}
         dash={[6, 4]}
-        opacity={0.7}
+        opacity={0.95}
         listening={false}
       />
+    </Group>
+  );
+}
+
+function SnapGuideOverlay({
+  page,
+  guides,
+}: {
+  page: WorkspacePageLayout;
+  guides: WorkspaceSnapGuide[];
+}) {
+  if (guides.length === 0) {
+    return null;
+  }
+
+  return (
+    <Group x={page.x} y={page.y} listening={false} name={`SnapGuideOverlay:${page.id}`}>
+      {[...guides].sort((left, right) => (right.priority ?? 0) - (left.priority ?? 0)).map((guide, index) => {
+        const isPrimary = index === 0;
+        const isVertical = guide.axis === "x";
+        const stroke =
+          guide.kind === "object"
+            ? "#22c55e"
+            : guide.kind === "container"
+              ? "#0ea5e9"
+            : guide.kind === "dimension"
+              ? "#a855f7"
+            : guide.kind === "page"
+              ? "#8b5cf6"
+              : guide.kind === "bounds"
+                ? "#ef4444"
+                : guide.kind === "margin"
+                  ? "#f59e0b"
+                  : "#22d3ee";
+        const dash = guide.kind === "grid" ? [3, 3] : [7, 4];
+        const label =
+          guide.label ??
+          (guide.kind === "object"
+            ? "Objet"
+            : guide.kind === "page"
+              ? "Page"
+              : guide.kind === "bounds"
+                ? "Bord"
+            : guide.kind === "margin"
+                  ? "Marge"
+                  : guide.kind === "container"
+                    ? "Conteneur"
+                  : guide.kind === "dimension"
+                    ? "Dimension"
+                  : guide.kind === "spacing"
+                    ? "Espacement"
+                  : "Grille");
+        const labelPosition = isVertical ? { x: guide.position + 6, y: Math.min(guide.start + 14, guide.end - 14) } : { x: Math.min(guide.start + 14, guide.end - 14), y: guide.position - 18 };
+        return (
+          <Fragment key={`${page.id}-${guide.axis}-${guide.kind}-${index}`}>
+            <Line
+              points={isVertical ? [guide.position, guide.start, guide.position, guide.end] : [guide.start, guide.position, guide.end, guide.position]}
+              stroke={stroke}
+              strokeWidth={isPrimary ? 3.2 : 2.1}
+              dash={dash}
+              opacity={isPrimary ? 1 : 0.72}
+              listening={false}
+              strokeScaleEnabled={false}
+              perfectDrawEnabled={false}
+            />
+            <Circle
+              x={isVertical ? guide.position : guide.start}
+              y={isVertical ? guide.start : guide.position}
+              radius={isPrimary ? 3 : 2.4}
+              fill={stroke}
+              opacity={isPrimary ? 1 : 0.82}
+              listening={false}
+            />
+            <Circle
+              x={isVertical ? guide.position : guide.end}
+              y={isVertical ? guide.end : guide.position}
+              radius={isPrimary ? 3 : 2.4}
+              fill={stroke}
+              opacity={isPrimary ? 1 : 0.82}
+              listening={false}
+            />
+            <Group x={labelPosition.x} y={labelPosition.y} listening={false}>
+              <Rect width={Math.max(label.length * 5.4, 34)} height={16} fill={isPrimary ? "rgba(15, 23, 42, 0.92)" : "rgba(15, 23, 42, 0.78)"} cornerRadius={8} />
+              <Text x={0} y={1} width={Math.max(label.length * 5.4, 34)} height={14} text={label} fill="#f8fafc" fontFamily="Inter" fontSize={9} align="center" listening={false} />
+            </Group>
+          </Fragment>
+        );
+      })}
     </Group>
   );
 }

@@ -79,6 +79,40 @@ describe("canvas mutation", () => {
     expect(next.elements.find((element) => element.id === "polyline-1")?.props?.points).toEqual([0, 0, 100, 60, 300, 180]);
   });
 
+  it("returns the original template when no geometry or style patch is provided", () => {
+    const template = createOrderTemplate();
+
+    expect(applyCanvasObjectGeometry(template, [])).toBe(template);
+    expect(applyCanvasObjectStyle(template, [])).toBe(template);
+  });
+
+  it("keeps locked elements untouched when geometry and style patches target them directly", () => {
+    const template = createOrderTemplate();
+    const locked = template.elements.find((element) => element.id === "page-1-a-locked");
+
+    const nextGeometry = applyCanvasObjectGeometry(template, [
+      {
+        id: "page-1-a-locked",
+        frame: { x: 280, y: 120, width: 140, height: 60 },
+        rotation: 45,
+      },
+    ]);
+    const nextStyle = applyCanvasObjectStyle(template, [
+      {
+        id: "page-1-a-locked",
+        style: {
+          fill: "#111111",
+          stroke: "#222222",
+          strokeWidth: 4,
+          opacity: 0.25,
+        },
+      },
+    ]);
+
+    expect(nextGeometry.elements.find((element) => element.id === "page-1-a-locked")).toEqual(locked);
+    expect(nextStyle.elements.find((element) => element.id === "page-1-a-locked")).toEqual(locked);
+  });
+
   it("applies canonical styles only to supported canvas objects", () => {
     const template: TemplateSchema = {
       id: "template-1",

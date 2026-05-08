@@ -19,6 +19,7 @@ const {
 const {
   EDITOR_VIEWPORT_MAX_ZOOM,
   EDITOR_VIEWPORT_MIN_ZOOM,
+  normalizePersistedEditorStoreState,
   useEditorStore,
 } = await import("@/features/editor/stores/editor-store");
 const baselineState = useEditorStore.getState();
@@ -1120,7 +1121,12 @@ describe("editor store clipboard", () => {
       elementId: "image-1",
       imageEditing: {
         crop: { ratio: "1:1", zoom: 1.4, x: 0.2, y: -0.1, rotation: 8 },
-        mask: { type: "circle", radius: 0, bounds: { x: 0.1, y: 0.15, width: 0.75, height: 0.6 } },
+        mask: {
+          type: "circle",
+          radius: 0,
+          bounds: { x: 0.1, y: 0.15, width: 0.75, height: 0.6 },
+          border: { width: 0, color: "#000000", style: "solid", shadow: 0 },
+        },
         filter: "grayscale",
         adjustments: {
           brightness: 0.15,
@@ -1184,6 +1190,52 @@ describe("editor store clipboard", () => {
     expect(after?.frame).toEqual({ x: 120, y: 90, width: before.frame.width, height: before.frame.height });
     expect(after?.pageId).toBe(before.pageId);
     expect(after?.props?.layerId).toBe(before.props?.layerId);
+  });
+
+  it("appends operation logs for geometry commits and deletions", () => {
+    useEditorStore.setState({ selectedElementIds: ["shape-1"] });
+
+    const moveResult = useEditorStore.getState().commitCanvasObjectGeometry({
+      pageId: "page-1",
+      patches: [
+        {
+          id: "shape-1",
+          frame: { x: 28, y: 24, width: 40, height: 40 },
+          rotation: 0,
+        },
+      ],
+    });
+
+    expect(moveResult.committed).toBe(true);
+    expect(useEditorStore.getState().operationLogs).toHaveLength(1);
+    expect(useEditorStore.getState().operationLogs[0]).toMatchObject({
+      action: "move",
+      pageId: "page-1",
+      elementId: "shape-1",
+      before: expect.objectContaining({
+        frame: { x: 10, y: 10, width: 40, height: 40 },
+      }),
+      after: expect.objectContaining({
+        frame: { x: 28, y: 24, width: 40, height: 40 },
+      }),
+    });
+
+    const deleteResult = useEditorStore.getState().deleteCanvasElements({
+      elementIds: ["shape-1"],
+    });
+
+    expect(deleteResult.deleted).toBe(true);
+    expect(useEditorStore.getState().operationLogs).toHaveLength(2);
+    expect(useEditorStore.getState().operationLogs[1]).toMatchObject({
+      action: "delete",
+      pageId: "page-1",
+      elementId: "shape-1",
+      before: expect.objectContaining({
+        frame: { x: 28, y: 24, width: 40, height: 40 },
+      }),
+      after: null,
+    });
+    expect(useEditorStore.getState().selectedElementIds).toEqual([]);
   });
 
   it("does not move locked objects through drag geometry commits", () => {
@@ -1254,6 +1306,39 @@ describe("editor store clipboard", () => {
     expect(useEditorStore.getState().workingTemplate).toEqual(beforeTemplate);
   });
 
+  it("persists workspace preferences without persisting the viewport state", () => {
+    useEditorStore.getState().setZoom(1.5);
+    useEditorStore.getState().setViewportPan({ panX: 24, panY: -36 });
+    useEditorStore.getState().setWorkspaceSettings({ workspaceMode: "fit-width" });
+
+    const rawStorage = localStorageMock.getItem("resume-manager-editor-panels-v2");
+    expect(rawStorage).not.toBeNull();
+    const persisted = rawStorage ? (JSON.parse(rawStorage) as { state?: { viewport?: unknown; workspaceSettings?: unknown } }) : null;
+
+    expect(persisted?.state?.viewport).toBeUndefined();
+    expect(persisted?.state?.workspaceSettings).toMatchObject({
+      workspaceMode: "fit-width",
+    });
+  });
+
+  it("migrates legacy persisted workspace settings to fit-space and drops the viewport state", () => {
+    const legacyWorkspaceSettings = structuredClone(useEditorStore.getState().workspaceSettings);
+    legacyWorkspaceSettings.workspaceMode = "fit-width";
+
+    const migrated = normalizePersistedEditorStoreState(
+      {
+        viewport: { zoom: 1.53, panX: 0, panY: -128 },
+        workspaceSettings: legacyWorkspaceSettings,
+      },
+      4,
+    );
+
+    expect(migrated?.viewport).toBeUndefined();
+    expect(migrated?.workspaceSettings).toMatchObject({
+      workspaceMode: "fit-space",
+    });
+  });
+
   it("toggles placement helpers independently from template data", () => {
     const beforeTemplate = structuredClone(useEditorStore.getState().workingTemplate);
 
@@ -1267,6 +1352,30 @@ describe("editor store clipboard", () => {
     expect(useEditorStore.getState().workspaceSettings.rulersVisible).toBe(false);
     expect(useEditorStore.getState().workspaceSettings.snapEnabled).toBe(false);
     expect(useEditorStore.getState().workingTemplate).toEqual(beforeTemplate);
+  });
+
+  it("updates the active page margin without mutating workspace settings", () => {
+    const beforeTemplate = structuredClone(useEditorStore.getState().workingTemplate);
+    const activePageId = useEditorStore.getState().activePageId;
+    const beforeWorkspaceSettings = structuredClone(useEditorStore.getState().workspaceSettings);
+
+    const result = useEditorStore.getState().updatePageMargin({
+      pageId: activePageId,
+      margin: { left: 24.5, top: 32 },
+    });
+
+    expect(result.updated).toBe(true);
+    if (!result.updated) {
+      return;
+    }
+
+    const activePage = useEditorStore.getState().workingTemplate.pages.find((page) => page.id === activePageId);
+    expect(activePage?.margin).toMatchObject({
+      ...beforeTemplate.pages.find((page) => page.id === activePageId)?.margin,
+      left: 24.5,
+      top: 32,
+    });
+    expect(useEditorStore.getState().workspaceSettings).toEqual(beforeWorkspaceSettings);
   });
 
   it("adds a real page with a default layer and activates it", () => {

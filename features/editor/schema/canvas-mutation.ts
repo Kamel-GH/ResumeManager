@@ -1,5 +1,9 @@
 import type { TemplateElement, TemplateElementStyle, TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
+import {
+  compareCanvasElementsByPresentationOrder,
+  groupCanvasElementsByPageAndLayer,
+} from "@/features/editor/schema/canvas-layer-model";
 
 export const DEFAULT_CANVAS_FILL_COLOR = "#d9b86f";
 export const DEFAULT_CANVAS_STROKE_COLOR = "#0f172a";
@@ -46,14 +50,6 @@ export type CanvasObjectAlignmentAction =
   | "align-bottom";
 
 export type CanvasObjectFlipAxis = "horizontal" | "vertical";
-
-export type CanvasElementOrderGroup = {
-  pageId: string;
-  layerKey: string;
-  parentKey: string;
-  layerOrder: number;
-  elements: TemplateElement[];
-};
 
 export function applyCanvasObjectGeometry(template: TemplateSchema, patches: CanvasObjectGeometryPatch[]) {
   if (patches.length === 0) {
@@ -266,7 +262,7 @@ export function reorderTemplateCanvasElements(
     };
   }
 
-  const groups = groupTemplateElementsByPageAndLayer(template);
+  const groups = groupCanvasElementsByPageAndLayer(template);
   const nextElementsById = new Map(template.elements.map((element) => [element.id, structuredClone(element)] as const));
   const changedIds = new Set<string>();
 
@@ -669,67 +665,6 @@ function areStringArraysEqual(a: string[], b: string[]) {
   return a.every((value, index) => value === b[index]);
 }
 
-function compareCanvasElementsByPresentationOrder(template: TemplateSchema) {
-  const pageOrder = new Map(template.pages.map((page, index) => [page.id, index] as const));
-  const sourceIndex = new Map(template.elements.map((element, index) => [element.id, index] as const));
-
-  return (a: TemplateElement, b: TemplateElement) => {
-    const pageDelta = (pageOrder.get(a.pageId) ?? 0) - (pageOrder.get(b.pageId) ?? 0);
-    if (pageDelta !== 0) {
-      return pageDelta;
-    }
-
-    const layerDelta = resolveCanvasElementLayerOrder(a) - resolveCanvasElementLayerOrder(b);
-    if (layerDelta !== 0) {
-      return layerDelta;
-    }
-
-    const zDelta = a.zIndex - b.zIndex;
-    if (zDelta !== 0) {
-      return zDelta;
-    }
-
-    return (sourceIndex.get(a.id) ?? 0) - (sourceIndex.get(b.id) ?? 0);
-  };
-}
-
-function groupTemplateElementsByPageAndLayer(template: TemplateSchema) {
-  const groups = new Map<string, CanvasElementOrderGroup>();
-
-  template.elements.forEach((element) => {
-    const layerKey = resolveCanvasElementLayerKey(element);
-    const parentKey = resolveCanvasElementParentKey(element);
-    const groupKey = `${element.pageId}::${layerKey}::${parentKey}`;
-    const group = groups.get(groupKey);
-    if (group) {
-      group.elements.push(element);
-      return;
-    }
-
-    groups.set(groupKey, {
-      pageId: element.pageId,
-      layerKey,
-      parentKey,
-      layerOrder: resolveCanvasElementLayerOrder(element),
-      elements: [element],
-    });
-  });
-
-  return [...groups.values()].sort((a, b) => {
-    const pageDelta = a.pageId.localeCompare(b.pageId);
-    if (pageDelta !== 0) {
-      return pageDelta;
-    }
-
-    const layerDelta = a.layerOrder - b.layerOrder;
-    if (layerDelta !== 0) {
-      return layerDelta;
-    }
-
-    return a.layerKey.localeCompare(b.layerKey) || a.parentKey.localeCompare(b.parentKey);
-  });
-}
-
 function reorderCanvasElementGroup(elements: TemplateElement[], selectedIds: string[], action: CanvasObjectOrderAction) {
   const selectedSet = new Set(selectedIds);
   const ordered = [...elements].sort((a, b) => a.zIndex - b.zIndex);
@@ -855,26 +790,6 @@ function splitCanvasElementsByLockedAnchors(elements: TemplateElement[]) {
   }
 
   return segments;
-}
-
-function resolveCanvasElementLayerKey(element: TemplateElement) {
-  const layerId = typeof element.props?.layerId === "string" ? element.props.layerId : null;
-  const layerName = typeof element.props?.layerName === "string" ? element.props.layerName : null;
-  return layerId ?? layerName ?? "default";
-}
-
-function resolveCanvasElementParentKey(element: TemplateElement) {
-  const parentId = typeof element.props?.parentId === "string" ? element.props.parentId : null;
-  const groupId = typeof element.props?.groupId === "string" ? element.props.groupId : null;
-  const frameId = typeof element.props?.frameId === "string" ? element.props.frameId : null;
-  const containerId = typeof element.props?.containerId === "string" ? element.props.containerId : null;
-  const sectionId = typeof element.props?.sectionId === "string" ? element.props.sectionId : null;
-
-  return parentId ?? groupId ?? frameId ?? containerId ?? sectionId ?? "root";
-}
-
-function resolveCanvasElementLayerOrder(element: TemplateElement) {
-  return typeof element.props?.layerOrder === "number" ? element.props.layerOrder : 0;
 }
 
 function computeElementBounds(elements: TemplateElement[]) {
