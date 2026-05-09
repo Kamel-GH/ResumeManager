@@ -1,5 +1,5 @@
-import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { BindingData } from "@/features/editor/schema/editor-model-types";
+import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 
 export type TemplateDocument = {
   schema: TemplateSchema;

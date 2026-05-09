@@ -1,10 +1,6 @@
 "use client";
 
-import { EditorContent, useEditor } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
-import { NodeSelection } from "@tiptap/pm/state";
-import { CellSelection, TableMap, findCell, isInTable, selectionCell } from "@tiptap/pm/tables";
-import StarterKit from "@tiptap/starter-kit";
 import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -12,60 +8,90 @@ import TableRow from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
-
-import {
-  AlignCenter, AlignJustify, AlignLeft, AlignRight,
-  Bold, Braces, ChevronDown, Code, Code2,
-  Columns3, Eraser, Eye, Heading1, Heading2, Heading3,
-  Grid2x2, Italic, LayoutList, List, ListOrdered, Minus, Pilcrow,
-  Plus, Quote, Rows3, Search, Strikethrough,
-  Table2, TableCellsMerge, TableCellsSplit, Tag,
-  Trash2, Type, Underline as UnderlineIcon, X,
-} from "lucide-react";
-
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { DragEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { NodeSelection } from "@tiptap/pm/state";
+import { CellSelection, findCell, isInTable, selectionCell, TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  Braces,
+  ChevronDown,
+  Code,
+  Code2,
+  Columns3,
+  Eraser,
+  Eye,
+  Grid2x2,
+  Heading1,
+  Heading2,
+  Heading3,
+  Italic,
+  LayoutList,
+  List,
+  ListOrdered,
+  Minus,
+  Pilcrow,
+  Plus,
+  Quote,
+  Rows3,
+  Search,
+  Strikethrough,
+  Table2,
+  TableCellsMerge,
+  TableCellsSplit,
+  Tag,
+  Trash2,
+  Type,
+  Underline as UnderlineIcon,
+  X,
+} from "lucide-react";
+import type { DragEvent, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import {
-  RICH_TEXT_VARIABLE_INSERT_EVENT,
   buildVariableDragOperationLog,
   parseEditorItemDragPayload,
+  RICH_TEXT_VARIABLE_INSERT_EVENT,
   type VariableDragEnvelope,
 } from "@/features/data-mapping/lib/variable-display";
-import {
-  createRichTextVariableRegistry,
-  parseRichTextHtmlToJson,
-  serializeRichTextJsonToHtml,
-  type RichTextVariableDisplayMode,
-  type RichTextVariableNodeAttrs,
-  type RichTextVariableRegistry,
-} from "@/features/editor/lib/rich-text-variable";
+import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import {
   createRichTextVariableNodeViewExtension,
   RichTextVariableDatasetContext,
   RichTextVariableDisplayModeContext,
   RichTextVariableRegistryContext,
 } from "@/features/editor/components/parts/rich-text-variable-node-view";
+import { RichTextTableInsertDialog } from "@/features/editor/components/rich-text/rich-text-table-insert-dialog";
 import {
   RichTextTableInspector,
   type RichTextTableInspectorTab,
 } from "@/features/editor/components/rich-text/rich-text-table-inspector";
-import { RichTextTableInsertDialog } from "@/features/editor/components/rich-text/rich-text-table-insert-dialog";
+import type {
+  RichTextTableBorderPreset,
+  RtpTableCellStyleAttrs,
+  RtpTableRowStyleAttrs,
+  RtpTableStyleAttrs,
+} from "@/features/editor/components/rich-text/rich-text-table-model";
 import { RichTextTextInspector } from "@/features/editor/components/rich-text/rich-text-text-inspector";
 import { RichTextVariableInspector } from "@/features/editor/components/rich-text/rich-text-variable-inspector";
 import {
-  type RichTextTableBorderPreset,
-  type RtpTableCellStyleAttrs,
-  type RtpTableRowStyleAttrs,
-  type RtpTableStyleAttrs,
-} from "@/features/editor/components/rich-text/rich-text-table-model";
-import { useEditorStore } from "@/features/editor/stores/editor-store";
+  createRichTextVariableRegistry,
+  parseRichTextHtmlToJson,
+  type RichTextVariableDisplayMode,
+  type RichTextVariableNodeAttrs,
+  type RichTextVariableRegistry,
+  serializeRichTextJsonToHtml,
+} from "@/features/editor/lib/rich-text-variable";
 import { insertVariableTokenIntoRichTextEditor } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
 import { resolveCanvasObjectStylePreview } from "@/features/editor/schema/canvas-mutation";
+import { useEditorStore } from "@/features/editor/stores/editor-store";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,7 +236,7 @@ const RtpTableRow = TableRow.extend({
       rowHeight: {
         default: null,
         parseHTML: (el) => el.style.height || null,
-        renderHTML: (attrs) => attrs.rowHeight ? { style: `height:${attrs.rowHeight}` } : {},
+        renderHTML: (attrs) => (attrs.rowHeight ? { style: `height:${attrs.rowHeight}` } : {}),
       },
     };
   },
@@ -230,8 +256,12 @@ const RtpTable = Table.extend({
             attrs.borderWidth ? `--rtp-bw:${attrs.borderWidth}` : null,
             attrs.headerBackgroundColor ? `--rtp-header-bg:${attrs.headerBackgroundColor}` : null,
             attrs.headerTextColor ? `--rtp-header-color:${attrs.headerTextColor}` : null,
-            attrs.firstColumnBackgroundColor ? `--rtp-first-col-bg:${attrs.firstColumnBackgroundColor}` : null,
-            attrs.firstColumnTextColor ? `--rtp-first-col-color:${attrs.firstColumnTextColor}` : null,
+            attrs.firstColumnBackgroundColor
+              ? `--rtp-first-col-bg:${attrs.firstColumnBackgroundColor}`
+              : null,
+            attrs.firstColumnTextColor
+              ? `--rtp-first-col-color:${attrs.firstColumnTextColor}`
+              : null,
             attrs.stripedEvenColor ? `--rtp-striped-even:${attrs.stripedEvenColor}` : null,
             attrs.stripedOddColor ? `--rtp-striped-odd:${attrs.stripedOddColor}` : null,
           ]);
@@ -240,62 +270,63 @@ const RtpTable = Table.extend({
       },
       bordered: {
         default: false,
-        parseHTML: (el) => el.getAttribute('data-bordered') === 'true',
-        renderHTML: (attrs) => attrs.bordered ? { 'data-bordered': 'true' } : {},
+        parseHTML: (el) => el.getAttribute("data-bordered") === "true",
+        renderHTML: (attrs) => (attrs.bordered ? { "data-bordered": "true" } : {}),
       },
       borderPreset: {
         default: null,
-        parseHTML: (el) => el.getAttribute('data-border-preset') || null,
-        renderHTML: (attrs) => attrs.borderPreset ? { 'data-border-preset': attrs.borderPreset } : {},
+        parseHTML: (el) => el.getAttribute("data-border-preset") || null,
+        renderHTML: (attrs) =>
+          attrs.borderPreset ? { "data-border-preset": attrs.borderPreset } : {},
       },
       striped: {
         default: false,
-        parseHTML: (el) => el.getAttribute('data-striped') === 'true',
-        renderHTML: (attrs) => attrs.striped ? { 'data-striped': 'true' } : {},
+        parseHTML: (el) => el.getAttribute("data-striped") === "true",
+        renderHTML: (attrs) => (attrs.striped ? { "data-striped": "true" } : {}),
       },
       firstColumn: {
         default: false,
-        parseHTML: (el) => el.getAttribute('data-first-column') === 'true',
-        renderHTML: (attrs) => attrs.firstColumn ? { 'data-first-column': 'true' } : {},
+        parseHTML: (el) => el.getAttribute("data-first-column") === "true",
+        renderHTML: (attrs) => (attrs.firstColumn ? { "data-first-column": "true" } : {}),
       },
       borderColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-bc') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-bc") || null,
         renderHTML: () => ({}),
       },
       borderWidth: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-bw') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-bw") || null,
         renderHTML: () => ({}),
       },
       headerBackgroundColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-header-bg') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-header-bg") || null,
         renderHTML: () => ({}),
       },
       headerTextColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-header-color') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-header-color") || null,
         renderHTML: () => ({}),
       },
       firstColumnBackgroundColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-first-col-bg') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-first-col-bg") || null,
         renderHTML: () => ({}),
       },
       firstColumnTextColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-first-col-color') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-first-col-color") || null,
         renderHTML: () => ({}),
       },
       stripedEvenColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-striped-even') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-striped-even") || null,
         renderHTML: () => ({}),
       },
       stripedOddColor: {
         default: null,
-        parseHTML: (el) => el.style.getPropertyValue('--rtp-striped-odd') || null,
+        parseHTML: (el) => el.style.getPropertyValue("--rtp-striped-odd") || null,
         renderHTML: () => ({}),
       },
     };
@@ -314,21 +345,29 @@ export function RichTextEditorPanel({
   onClose,
 }: RichTextEditorPanelProps) {
   const [activeTab, setActiveTab] = useState<RtpTab>("content");
-  const [displayMode, setDisplayMode] = useState<RichTextVariableDisplayMode>(initialDisplayMode ?? "label");
+  const [displayMode, setDisplayMode] = useState<RichTextVariableDisplayMode>(
+    initialDisplayMode ?? "label",
+  );
   const [varSearch, setVarSearch] = useState("");
 
   // ── Floating window (drag + resize) ────────────────────────────────────────
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [size, setSize] = useState({ w: 1120, h: 720 });
-  const posRef  = useRef(pos);
+  const posRef = useRef(pos);
   const sizeRef = useRef(size);
-  posRef.current  = pos;   // kept in sync every render (no stale-closure in stable effects)
+  posRef.current = pos; // kept in sync every render (no stale-closure in stable effects)
   sizeRef.current = size;
 
-  const dragRef   = useRef<{ sx: number; sy: number; ix: number; iy: number } | null>(null);
+  const dragRef = useRef<{ sx: number; sy: number; ix: number; iy: number } | null>(null);
   const resizeRef = useRef<{
-    dir: string; sx: number; sy: number; ix: number; iy: number; iw: number; ih: number;
+    dir: string;
+    sx: number;
+    sy: number;
+    ix: number;
+    iy: number;
+    iw: number;
+    ih: number;
   } | null>(null);
 
   // Position near the center on first mount (synchronous -> no flash)
@@ -337,7 +376,7 @@ export function RichTextEditorPanel({
     const H = Math.round(Math.min(window.innerHeight - 48, 760));
     const x = Math.max(16, Math.round((window.innerWidth - W) / 2));
     const y = Math.max(0, Math.round((window.innerHeight - H) / 2));
-    posRef.current  = { x, y };
+    posRef.current = { x, y };
     sizeRef.current = { w: W, h: H };
     setPos({ x, y });
     setSize({ w: W, h: H });
@@ -345,16 +384,20 @@ export function RichTextEditorPanel({
 
   // Stable global handlers — read values from refs only
   useEffect(() => {
-    const MIN_W = 320, MIN_H = 280;
+    const MIN_W = 320,
+      MIN_H = 280;
 
     const onMove = (e: MouseEvent) => {
       const drag = dragRef.current;
-      const rsz  = resizeRef.current;
+      const rsz = resizeRef.current;
 
       if (drag) {
         setPos({
-          x: Math.max(0, Math.min(window.innerWidth  - sizeRef.current.w, drag.ix + e.clientX - drag.sx)),
-          y: Math.max(0, Math.min(window.innerHeight - 64,                 drag.iy + e.clientY - drag.sy)),
+          x: Math.max(
+            0,
+            Math.min(window.innerWidth - sizeRef.current.w, drag.ix + e.clientX - drag.sx),
+          ),
+          y: Math.max(0, Math.min(window.innerHeight - 64, drag.iy + e.clientY - drag.sy)),
         });
         return;
       }
@@ -362,16 +405,25 @@ export function RichTextEditorPanel({
       if (rsz) {
         const dx = e.clientX - rsz.sx;
         const dy = e.clientY - rsz.sy;
-        let nx = rsz.ix, ny = rsz.iy, nw = rsz.iw, nh = rsz.ih;
+        let nx = rsz.ix,
+          ny = rsz.iy,
+          nw = rsz.iw,
+          nh = rsz.ih;
 
-        if (rsz.dir.includes('e')) nw = Math.max(MIN_W, rsz.iw + dx);
-        if (rsz.dir.includes('s')) nh = Math.max(MIN_H, rsz.ih + dy);
-        if (rsz.dir.includes('w')) { nw = Math.max(MIN_W, rsz.iw - dx); nx = rsz.ix + rsz.iw - nw; }
-        if (rsz.dir.includes('n')) { nh = Math.max(MIN_H, rsz.ih - dy); ny = rsz.iy + rsz.ih - nh; }
+        if (rsz.dir.includes("e")) nw = Math.max(MIN_W, rsz.iw + dx);
+        if (rsz.dir.includes("s")) nh = Math.max(MIN_H, rsz.ih + dy);
+        if (rsz.dir.includes("w")) {
+          nw = Math.max(MIN_W, rsz.iw - dx);
+          nx = rsz.ix + rsz.iw - nw;
+        }
+        if (rsz.dir.includes("n")) {
+          nh = Math.max(MIN_H, rsz.ih - dy);
+          ny = rsz.iy + rsz.ih - nh;
+        }
 
         nx = Math.max(0, nx);
         ny = Math.max(0, ny);
-        nw = Math.min(nw, window.innerWidth  - nx);
+        nw = Math.min(nw, window.innerWidth - nx);
         nh = Math.min(nh, window.innerHeight - ny);
 
         setPos({ x: nx, y: ny });
@@ -381,44 +433,54 @@ export function RichTextEditorPanel({
 
     const onUp = () => {
       if (dragRef.current || resizeRef.current) {
-        dragRef.current   = null;
+        dragRef.current = null;
         resizeRef.current = null;
-        document.body.style.userSelect = '';
-        document.body.style.cursor     = '';
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
       }
     };
 
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup',   onUp);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
     };
   }, []); // stable — only reads refs
 
   function startDrag(e: ReactMouseEvent<HTMLElement>) {
-    if ((e.target as Element).closest('.ef-rtp-header-controls')) return;
+    if ((e.target as Element).closest(".ef-rtp-header-controls")) return;
     if (e.button !== 0) return;
     e.preventDefault();
     dragRef.current = { sx: e.clientX, sy: e.clientY, ix: posRef.current.x, iy: posRef.current.y };
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor     = 'grabbing';
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
   }
 
   function startResize(e: ReactMouseEvent<HTMLElement>, dir: string) {
     e.preventDefault();
     e.stopPropagation();
     resizeRef.current = {
-      dir, sx: e.clientX, sy: e.clientY,
-      ix: posRef.current.x,  iy: posRef.current.y,
-      iw: sizeRef.current.w, ih: sizeRef.current.h,
+      dir,
+      sx: e.clientX,
+      sy: e.clientY,
+      ix: posRef.current.x,
+      iy: posRef.current.y,
+      iw: sizeRef.current.w,
+      ih: sizeRef.current.h,
     };
-    document.body.style.userSelect = 'none';
+    document.body.style.userSelect = "none";
     const cursorMap: Record<string, string> = {
-      n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize',
-      ne: 'ne-resize', nw: 'nw-resize', se: 'se-resize', sw: 'sw-resize',
+      n: "ns-resize",
+      s: "ns-resize",
+      e: "ew-resize",
+      w: "ew-resize",
+      ne: "ne-resize",
+      nw: "nw-resize",
+      se: "se-resize",
+      sw: "sw-resize",
     };
-    document.body.style.cursor = cursorMap[dir] ?? 'se-resize';
+    document.body.style.cursor = cursorMap[dir] ?? "se-resize";
   }
 
   // Store
@@ -502,20 +564,29 @@ export function RichTextEditorPanel({
         dragover: (_, event) => {
           const ctx = useEditorStore.getState().dragTraceContext;
           const types = Array.from(event.dataTransfer?.types ?? []);
-          const canAccept = ctx?.type === "variable" || types.includes("application/x-resume-editor-item");
+          const canAccept =
+            ctx?.type === "variable" || types.includes("application/x-resume-editor-item");
           if (!canAccept) return false;
           event.preventDefault();
           if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
           if (ctx?.type === "variable" && dragTraceSessionRef.current !== ctx.sessionId) {
             dragTraceSessionRef.current = ctx.sessionId;
-            appendOperationLogs([buildVariableDragOperationLog(ctx, { action: "dragover", pageId: activePageId, target: `Rich Text (${blockId})`, outcome: "survol" })]);
+            appendOperationLogs([
+              buildVariableDragOperationLog(ctx, {
+                action: "dragover",
+                pageId: activePageId,
+                target: `Rich Text (${blockId})`,
+                outcome: "survol",
+              }),
+            ]);
           }
           return true;
         },
       },
       handleDrop: (view, event) => {
         const ctx = useEditorStore.getState().dragTraceContext;
-        if (ctx?.type === "variable" && handledVarDropSessionRef.current === ctx.sessionId) return false;
+        if (ctx?.type === "variable" && handledVarDropSessionRef.current === ctx.sessionId)
+          return false;
         const raw = event.dataTransfer?.getData("application/x-resume-editor-item") ?? "";
         const payload = parseVarDropPayload(raw, ctx);
         if (!payload) {
@@ -528,7 +599,9 @@ export function RichTextEditorPanel({
         insertVariableTokenIntoRichTextEditor(
           viewToInsertionTarget(view),
           payload.payload,
-          typeof pos === "number" ? { from: pos, to: pos } : { from: view.state.selection.from, to: view.state.selection.to },
+          typeof pos === "number"
+            ? { from: pos, to: pos }
+            : { from: view.state.selection.from, to: view.state.selection.to },
           variableRegistry,
         );
         dragTraceSessionRef.current = null;
@@ -564,7 +637,10 @@ export function RichTextEditorPanel({
     };
     editor.on("selectionUpdate", sync);
     editor.on("transaction", sync);
-    return () => { editor.off("selectionUpdate", sync); editor.off("transaction", sync); };
+    return () => {
+      editor.off("selectionUpdate", sync);
+      editor.off("transaction", sync);
+    };
   }, [editor]);
 
   useEffect(() => {
@@ -573,15 +649,18 @@ export function RichTextEditorPanel({
     }
   }, [inTableCtx]);
 
-  const syncTableOverlay = useCallback((targetTable?: HTMLTableElement | null) => {
-    if (!editor || !editorSurfaceRef.current) {
-      setTableOverlay(null);
-      return;
-    }
+  const syncTableOverlay = useCallback(
+    (targetTable?: HTMLTableElement | null) => {
+      if (!editor || !editorSurfaceRef.current) {
+        setTableOverlay(null);
+        return;
+      }
 
-    const table = targetTable ?? findActiveTableElement(editor.view.dom);
-    setTableOverlay(table ? resolveRichTextTableOverlay(editorSurfaceRef.current, table) : null);
-  }, [editor]);
+      const table = targetTable ?? findActiveTableElement(editor.view.dom);
+      setTableOverlay(table ? resolveRichTextTableOverlay(editorSurfaceRef.current, table) : null);
+    },
+    [editor],
+  );
 
   const handleEditorMouseMove = useCallback(
     (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -597,33 +676,45 @@ export function RichTextEditorPanel({
     [syncTableOverlay],
   );
 
-  const handleEditorMouseDown = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!editor || !editorSurfaceRef.current || event.button !== 0) return;
-    if (event.target instanceof Element && event.target.closest("button, input, select, textarea, [data-rtp-table-overlay]")) {
-      return;
-    }
+  const handleEditorMouseDown = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (!editor || !editorSurfaceRef.current || event.button !== 0) return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest("button, input, select, textarea, [data-rtp-table-overlay]")
+      ) {
+        return;
+      }
 
-    const cell = event.target instanceof Element ? event.target.closest("td, th") : null;
-    const row = cell?.closest("tr");
-    const table = cell?.closest("table");
-    if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement) || !(table instanceof HTMLTableElement)) {
-      return;
-    }
+      const cell = event.target instanceof Element ? event.target.closest("td, th") : null;
+      const row = cell?.closest("tr");
+      const table = cell?.closest("table");
+      if (
+        !(cell instanceof HTMLTableCellElement) ||
+        !(row instanceof HTMLTableRowElement) ||
+        !(table instanceof HTMLTableElement)
+      ) {
+        return;
+      }
 
-    const editorDom = editorSurfaceRef.current.querySelector(".ef-rtp-editor-content");
-    const tableIndex = editorDom ? Array.from(editorDom.querySelectorAll("table")).indexOf(table) : -1;
-    if (tableIndex < 0) return;
+      const editorDom = editorSurfaceRef.current.querySelector(".ef-rtp-editor-content");
+      const tableIndex = editorDom
+        ? Array.from(editorDom.querySelectorAll("table")).indexOf(table)
+        : -1;
+      if (tableIndex < 0) return;
 
-    tableCellDragRef.current = {
-      tableIndex,
-      tableElement: table,
-      startRow: row.rowIndex,
-      startColumn: cell.cellIndex,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      active: false,
-    };
-  }, [editor]);
+      tableCellDragRef.current = {
+        tableIndex,
+        tableElement: table,
+        startRow: row.rowIndex,
+        startColumn: cell.cellIndex,
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        active: false,
+      };
+    },
+    [editor],
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -632,14 +723,20 @@ export function RichTextEditorPanel({
       const drag = tableCellDragRef.current;
       if (!drag || event.buttons !== 1) return;
 
-      const distance = Math.abs(event.clientX - drag.startClientX) + Math.abs(event.clientY - drag.startClientY);
+      const distance =
+        Math.abs(event.clientX - drag.startClientX) + Math.abs(event.clientY - drag.startClientY);
       if (!drag.active && distance < 6) return;
 
       const target = document.elementFromPoint(event.clientX, event.clientY);
       const cell = target instanceof Element ? target.closest("td, th") : null;
       const row = cell?.closest("tr");
       const table = cell?.closest("table");
-      if (!(cell instanceof HTMLTableCellElement) || !(row instanceof HTMLTableRowElement) || table !== drag.tableElement) return;
+      if (
+        !(cell instanceof HTMLTableCellElement) ||
+        !(row instanceof HTMLTableRowElement) ||
+        table !== drag.tableElement
+      )
+        return;
 
       event.preventDefault();
       drag.active = true;
@@ -672,113 +769,129 @@ export function RichTextEditorPanel({
     syncTableOverlay();
   }, [syncTableOverlay, inTableCtx, tableAttrs, tableCellAttrs, tableRowAttrs, tableColumnWidth]);
 
-  const startTableColumnResize = useCallback((
-    overlay: RichTextTableOverlay,
-    columnIndex: number,
-    event: ReactMouseEvent<HTMLButtonElement>,
-  ) => {
-    if (!editor) return;
-    const column = overlay.columns[columnIndex];
-    if (!column) return;
+  const startTableColumnResize = useCallback(
+    (
+      overlay: RichTextTableOverlay,
+      columnIndex: number,
+      event: ReactMouseEvent<HTMLButtonElement>,
+    ) => {
+      if (!editor) return;
+      const column = overlay.columns[columnIndex];
+      if (!column) return;
 
-    event.preventDefault();
-    event.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
 
-    const startX = event.clientX;
-    const startWidth = column.width;
+      const startX = event.clientX;
+      const startWidth = column.width;
 
-    const onMove = (moveEvent: MouseEvent) => {
-      const nextWidth = clampNumber(startWidth + moveEvent.clientX - startX, 24, 1600);
+      const onMove = (moveEvent: MouseEvent) => {
+        const nextWidth = clampNumber(startWidth + moveEvent.clientX - startX, 24, 1600);
+        setTableResizeGuide({
+          kind: "column",
+          x: column.left + nextWidth,
+          top: overlay.table.top,
+          height: overlay.table.height,
+        });
+      };
+
+      const onUp = (upEvent: MouseEvent) => {
+        const nextWidth = clampNumber(startWidth + upEvent.clientX - startX, 24, 1600);
+        const nextWidths = overlay.columns.map((item) => Math.round(item.width));
+        nextWidths[columnIndex] = Math.round(nextWidth);
+        setTableColumnWidthsByTableIndex(editor.view, overlay.tableIndex, nextWidths);
+        setTableResizeGuide(null);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        requestAnimationFrame(() => syncTableOverlay());
+      };
+
       setTableResizeGuide({
         kind: "column",
-        x: column.left + nextWidth,
+        x: column.left + startWidth,
         top: overlay.table.top,
         height: overlay.table.height,
       });
-    };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [editor, syncTableOverlay],
+  );
 
-    const onUp = (upEvent: MouseEvent) => {
-      const nextWidth = clampNumber(startWidth + upEvent.clientX - startX, 24, 1600);
-      const nextWidths = overlay.columns.map((item) => Math.round(item.width));
-      nextWidths[columnIndex] = Math.round(nextWidth);
-      setTableColumnWidthsByTableIndex(editor.view, overlay.tableIndex, nextWidths);
-      setTableResizeGuide(null);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      requestAnimationFrame(() => syncTableOverlay());
-    };
+  const startTableRowResize = useCallback(
+    (
+      overlay: RichTextTableOverlay,
+      rowIndex: number,
+      event: ReactMouseEvent<HTMLButtonElement>,
+    ) => {
+      if (!editor) return;
+      const row = overlay.rows[rowIndex];
+      if (!row) return;
 
-    setTableResizeGuide({
-      kind: "column",
-      x: column.left + startWidth,
-      top: overlay.table.top,
-      height: overlay.table.height,
-    });
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [editor, syncTableOverlay]);
+      event.preventDefault();
+      event.stopPropagation();
 
-  const startTableRowResize = useCallback((
-    overlay: RichTextTableOverlay,
-    rowIndex: number,
-    event: ReactMouseEvent<HTMLButtonElement>,
-  ) => {
-    if (!editor) return;
-    const row = overlay.rows[rowIndex];
-    if (!row) return;
+      const startY = event.clientY;
+      const startHeight = row.height;
 
-    event.preventDefault();
-    event.stopPropagation();
+      const onMove = (moveEvent: MouseEvent) => {
+        const nextHeight = clampNumber(startHeight + moveEvent.clientY - startY, 18, 800);
+        setTableResizeGuide({
+          kind: "row",
+          y: row.top + nextHeight,
+          left: overlay.table.left,
+          width: overlay.table.width,
+        });
+      };
 
-    const startY = event.clientY;
-    const startHeight = row.height;
+      const onUp = (upEvent: MouseEvent) => {
+        const nextHeight = clampNumber(startHeight + upEvent.clientY - startY, 18, 800);
+        setRowHeightByTableIndex(editor.view, overlay.tableIndex, rowIndex, nextHeight);
+        setTableResizeGuide(null);
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        requestAnimationFrame(() => syncTableOverlay());
+      };
 
-    const onMove = (moveEvent: MouseEvent) => {
-      const nextHeight = clampNumber(startHeight + moveEvent.clientY - startY, 18, 800);
       setTableResizeGuide({
         kind: "row",
-        y: row.top + nextHeight,
+        y: row.top + startHeight,
         left: overlay.table.left,
         width: overlay.table.width,
       });
-    };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [editor, syncTableOverlay],
+  );
 
-    const onUp = (upEvent: MouseEvent) => {
-      const nextHeight = clampNumber(startHeight + upEvent.clientY - startY, 18, 800);
-      setRowHeightByTableIndex(editor.view, overlay.tableIndex, rowIndex, nextHeight);
-      setTableResizeGuide(null);
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      requestAnimationFrame(() => syncTableOverlay());
-    };
-
-    setTableResizeGuide({
-      kind: "row",
-      y: row.top + startHeight,
-      left: overlay.table.left,
-      width: overlay.table.width,
-    });
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, [editor, syncTableOverlay]);
-
-  const applyVarStyle = useCallback((patch: Partial<RichTextVariableNodeAttrs>) => {
-    if (!editor) return;
-    const sel = editor.state.selection;
-    if (!(sel instanceof NodeSelection) || sel.node.type.name !== "variable") return;
-    const { tr } = editor.state;
-    tr.setNodeMarkup(sel.from, undefined, { ...sel.node.attrs, ...patch });
-    editor.view.dispatch(tr);
-    editor.view.focus();
-  }, [editor]);
+  const applyVarStyle = useCallback(
+    (patch: Partial<RichTextVariableNodeAttrs>) => {
+      if (!editor) return;
+      const sel = editor.state.selection;
+      if (!(sel instanceof NodeSelection) || sel.node.type.name !== "variable") return;
+      const { tr } = editor.state;
+      tr.setNodeMarkup(sel.from, undefined, { ...sel.node.attrs, ...patch });
+      editor.view.dispatch(tr);
+      editor.view.focus();
+    },
+    [editor],
+  );
 
   // ── Live sync ──────────────────────────────────────────────────────────────
 
-  const doSync = useCallback((mode: RichTextVariableDisplayMode, editorInstance: Editor) => {
-    const json = editorInstance.getJSON();
-    const html = serializeRichTextJsonToHtml(json, { displayMode: mode, registry: variableRegistry, dataset: variableDataset });
-    updateRichTextElementContent({ elementId: blockId, html, json, displayMode: mode });
-  }, [blockId, variableRegistry, variableDataset, updateRichTextElementContent]);
+  const doSync = useCallback(
+    (mode: RichTextVariableDisplayMode, editorInstance: Editor) => {
+      const json = editorInstance.getJSON();
+      const html = serializeRichTextJsonToHtml(json, {
+        displayMode: mode,
+        registry: variableRegistry,
+        dataset: variableDataset,
+      });
+      updateRichTextElementContent({ elementId: blockId, html, json, displayMode: mode });
+    },
+    [blockId, variableRegistry, variableDataset, updateRichTextElementContent],
+  );
 
   useEffect(() => {
     if (!editor) return;
@@ -793,10 +906,13 @@ export function RichTextEditorPanel({
     };
   }, [editor, displayMode, doSync]);
 
-  const handleDisplayMode = useCallback((mode: RichTextVariableDisplayMode) => {
-    setDisplayMode(mode);
-    if (editor) doSync(mode, editor);
-  }, [editor, doSync]);
+  const handleDisplayMode = useCallback(
+    (mode: RichTextVariableDisplayMode) => {
+      setDisplayMode(mode);
+      if (editor) doSync(mode, editor);
+    },
+    [editor, doSync],
+  );
 
   // ── Text selection memory ──────────────────────────────────────────────────
 
@@ -810,20 +926,26 @@ export function RichTextEditorPanel({
     if (!editor) return;
     editor.on("selectionUpdate", rememberSelection);
     editor.on("focus", rememberSelection);
-    return () => { editor.off("selectionUpdate", rememberSelection); editor.off("focus", rememberSelection); };
+    return () => {
+      editor.off("selectionUpdate", rememberSelection);
+      editor.off("focus", rememberSelection);
+    };
   }, [editor, rememberSelection]);
 
-  const runOnSelection = useCallback((command: (e: Editor) => void) => {
-    if (!editor) return;
-    const saved = lastSelectionRef.current;
-    if (saved && saved.to <= editor.state.doc.content.size) {
-      editor.chain().focus().setTextSelection(saved).run();
-    } else {
-      editor.commands.focus();
-    }
-    command(editor);
-    rememberSelection();
-  }, [editor, rememberSelection]);
+  const runOnSelection = useCallback(
+    (command: (e: Editor) => void) => {
+      if (!editor) return;
+      const saved = lastSelectionRef.current;
+      if (saved && saved.to <= editor.state.doc.content.size) {
+        editor.chain().focus().setTextSelection(saved).run();
+      } else {
+        editor.commands.focus();
+      }
+      command(editor);
+      rememberSelection();
+    },
+    [editor, rememberSelection],
+  );
 
   // ── Variable insert event ──────────────────────────────────────────────────
 
@@ -832,11 +954,17 @@ export function RichTextEditorPanel({
     const handler = (event: Event) => {
       const payload = (event as CustomEvent<VariableDragEnvelope["payload"]>).detail;
       if (!payload) return;
-      insertVariableTokenIntoRichTextEditor(editor, payload, lastSelectionRef.current ?? editor.state.selection, variableRegistry);
+      insertVariableTokenIntoRichTextEditor(
+        editor,
+        payload,
+        lastSelectionRef.current ?? editor.state.selection,
+        variableRegistry,
+      );
       rememberSelection();
     };
     window.addEventListener(RICH_TEXT_VARIABLE_INSERT_EVENT, handler as EventListener);
-    return () => window.removeEventListener(RICH_TEXT_VARIABLE_INSERT_EVENT, handler as EventListener);
+    return () =>
+      window.removeEventListener(RICH_TEXT_VARIABLE_INSERT_EVENT, handler as EventListener);
   }, [editor, rememberSelection, variableRegistry]);
 
   useEffect(() => {
@@ -846,14 +974,19 @@ export function RichTextEditorPanel({
   // ── Keyboard ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   // ── Properties ────────────────────────────────────────────────────────────
 
-  const stylePreview = useMemo(() => (element ? resolveCanvasObjectStylePreview(element) : null), [element]);
+  const stylePreview = useMemo(
+    () => (element ? resolveCanvasObjectStylePreview(element) : null),
+    [element],
+  );
 
   const patchStyle = useCallback(
     (patch: Parameters<typeof commitCanvasObjectStyle>[0]["patches"][number]["style"]) => {
@@ -871,10 +1004,14 @@ export function RichTextEditorPanel({
 
   const props = element?.props ?? {};
   const defaultPadding = typeof props.padding === "number" ? (props.padding as number) : 8;
-  const paddingTop = typeof props.paddingTop === "number" ? (props.paddingTop as number) : defaultPadding;
-  const paddingRight = typeof props.paddingRight === "number" ? (props.paddingRight as number) : defaultPadding;
-  const paddingBottom = typeof props.paddingBottom === "number" ? (props.paddingBottom as number) : defaultPadding;
-  const paddingLeft = typeof props.paddingLeft === "number" ? (props.paddingLeft as number) : defaultPadding;
+  const paddingTop =
+    typeof props.paddingTop === "number" ? (props.paddingTop as number) : defaultPadding;
+  const paddingRight =
+    typeof props.paddingRight === "number" ? (props.paddingRight as number) : defaultPadding;
+  const paddingBottom =
+    typeof props.paddingBottom === "number" ? (props.paddingBottom as number) : defaultPadding;
+  const paddingLeft =
+    typeof props.paddingLeft === "number" ? (props.paddingLeft as number) : defaultPadding;
 
   // ── Filtered variables ────────────────────────────────────────────────────
 
@@ -899,8 +1036,12 @@ export function RichTextEditorPanel({
             data-rtp-block-id={blockId}
           >
             {/* ── Resize handles ── */}
-            {(["n","ne","e","se","s","sw","w","nw"] as const).map((dir) => (
-              <div key={dir} className={`ef-rtp-rh ef-rtp-rh-${dir}`} onMouseDown={(e) => startResize(e, dir)} />
+            {(["n", "ne", "e", "se", "s", "sw", "w", "nw"] as const).map((dir) => (
+              <div
+                key={dir}
+                className={`ef-rtp-rh ef-rtp-rh-${dir}`}
+                onMouseDown={(e) => startResize(e, dir)}
+              />
             ))}
 
             {/* ── Header (drag handle) ── */}
@@ -910,15 +1051,31 @@ export function RichTextEditorPanel({
                 <span>{blockId}</span>
               </div>
               <div className="ef-rtp-header-controls">
-                {([
-                  { value: "label",     icon: <Tag    size={14} aria-hidden />, title: "Nom des variables"   },
-                  { value: "value",     icon: <Eye    size={14} aria-hidden />, title: "Aperçu des valeurs"  },
-                  { value: "technical", icon: <Code2  size={14} aria-hidden />, title: "Clé technique {{…}}" },
-                ] as const).map((opt) => (
+                {(
+                  [
+                    {
+                      value: "label",
+                      icon: <Tag size={14} aria-hidden />,
+                      title: "Nom des variables",
+                    },
+                    {
+                      value: "value",
+                      icon: <Eye size={14} aria-hidden />,
+                      title: "Aperçu des valeurs",
+                    },
+                    {
+                      value: "technical",
+                      icon: <Code2 size={14} aria-hidden />,
+                      title: "Clé technique {{…}}",
+                    },
+                  ] as const
+                ).map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
-                    className={["ef-rtp-mode-btn", displayMode === opt.value ? "is-active" : ""].filter(Boolean).join(" ")}
+                    className={["ef-rtp-mode-btn", displayMode === opt.value ? "is-active" : ""]
+                      .filter(Boolean)
+                      .join(" ")}
                     onClick={() => handleDisplayMode(opt.value)}
                     title={opt.title}
                     aria-label={opt.title}
@@ -928,7 +1085,13 @@ export function RichTextEditorPanel({
                   </button>
                 ))}
                 <span className="ef-rtp-header-sep" aria-hidden />
-                <button type="button" className="ef-rtp-close-btn" onClick={onClose} aria-label="Fermer (Échap)" title="Fermer (Échap)">
+                <button
+                  type="button"
+                  className="ef-rtp-close-btn"
+                  onClick={onClose}
+                  aria-label="Fermer (Échap)"
+                  title="Fermer (Échap)"
+                >
                   <X size={15} aria-hidden />
                 </button>
               </div>
@@ -938,7 +1101,9 @@ export function RichTextEditorPanel({
             <nav className="ef-rtp-tabs" aria-label="Onglets d'édition">
               <button
                 type="button"
-                className={["ef-rtp-tab", activeTab === "content" ? "is-active" : ""].filter(Boolean).join(" ")}
+                className={["ef-rtp-tab", activeTab === "content" ? "is-active" : ""]
+                  .filter(Boolean)
+                  .join(" ")}
                 onClick={() => setActiveTab("content")}
                 aria-selected={activeTab === "content"}
               >
@@ -946,7 +1111,9 @@ export function RichTextEditorPanel({
               </button>
               <button
                 type="button"
-                className={["ef-rtp-tab", activeTab === "properties" ? "is-active" : ""].filter(Boolean).join(" ")}
+                className={["ef-rtp-tab", activeTab === "properties" ? "is-active" : ""]
+                  .filter(Boolean)
+                  .join(" ")}
                 onClick={() => setActiveTab("properties")}
                 aria-selected={activeTab === "properties"}
               >
@@ -957,7 +1124,6 @@ export function RichTextEditorPanel({
             {/* ── Tab : Contenu ── */}
             {activeTab === "content" && (
               <div className="ef-rtp-content-tab">
-
                 <RichTextTopToolbar
                   editor={editor}
                   selectedVarAttrs={selectedVarAttrs}
@@ -973,7 +1139,12 @@ export function RichTextEditorPanel({
                     runOnSelection((te) => {
                       insertVariableTokenIntoRichTextEditor(
                         te,
-                        { key: entry.key, label: entry.label, sampleValue: entry.sampleValue, sourceColumn: entry.sourceColumn },
+                        {
+                          key: entry.key,
+                          label: entry.label,
+                          sampleValue: entry.sampleValue,
+                          sourceColumn: entry.sourceColumn,
+                        },
                         te.state.selection,
                         variableRegistry,
                       );
@@ -991,59 +1162,92 @@ export function RichTextEditorPanel({
                     onDragOverCapture={(event: DragEvent<HTMLDivElement>) => {
                       const ctx = useEditorStore.getState().dragTraceContext;
                       const types = Array.from(event.dataTransfer?.types ?? []);
-                      if (!(ctx?.type === "variable" || types.includes("application/x-resume-editor-item"))) return;
+                      if (
+                        !(
+                          ctx?.type === "variable" ||
+                          types.includes("application/x-resume-editor-item")
+                        )
+                      )
+                        return;
                       event.preventDefault();
                       if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
                     }}
                     onDropCapture={(event: DragEvent<HTMLDivElement>) => {
                       const ctx = useEditorStore.getState().dragTraceContext;
-                      const raw = event.dataTransfer?.getData("application/x-resume-editor-item") ?? "";
+                      const raw =
+                        event.dataTransfer?.getData("application/x-resume-editor-item") ?? "";
                       const payload = parseVarDropPayload(raw, ctx);
                       if (!payload || !editor) return;
                       event.preventDefault();
                       event.stopPropagation();
                       handledVarDropSessionRef.current = ctx?.sessionId ?? "__handled__";
-                      const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
-                      const insertAt = typeof pos === "number" ? { from: pos, to: pos } : { from: editor.state.selection.from, to: editor.state.selection.to };
-                      insertVariableTokenIntoRichTextEditor(viewToInsertionTarget(editor.view), payload.payload, insertAt, variableRegistry);
+                      const pos = editor.view.posAtCoords({
+                        left: event.clientX,
+                        top: event.clientY,
+                      })?.pos;
+                      const insertAt =
+                        typeof pos === "number"
+                          ? { from: pos, to: pos }
+                          : { from: editor.state.selection.from, to: editor.state.selection.to };
+                      insertVariableTokenIntoRichTextEditor(
+                        viewToInsertionTarget(editor.view),
+                        payload.payload,
+                        insertAt,
+                        variableRegistry,
+                      );
                       editor.commands.focus();
                     }}
                   >
                     <EditorContent editor={editor} />
                     {tableOverlay && editor ? (
-                    <RichTextTableSelectionOverlay
-                      overlay={tableOverlay}
-                      resizeGuide={tableResizeGuide}
-                      selectedTarget={tableSelectedTarget}
-                      onSelect={(mode, index) => {
-                        setTableSelectedTarget({ mode, index });
-                        selectTableTargetByOverlayIndex(editor.view, tableOverlay.tableIndex, mode, index);
-                        setTablePanelOpen(true);
-                        setTablePanelTab("selection");
-                      }}
-                      onColumnResizeStart={(index, event) => startTableColumnResize(tableOverlay, index, event)}
-                      onRowResizeStart={(index, event) => startTableRowResize(tableOverlay, index, event)}
-                      onAddRow={() => editor.chain().focus().addRowAfter().run()}
-                      onAddColumn={() => editor.chain().focus().addColumnAfter().run()}
-                      onMergeCells={() => editor.chain().focus().mergeCells().run()}
-                      onSplitCell={() => editor.chain().focus().splitCell().run()}
-                      onToggleBorders={() => {
-                        const nextBordered = !getTableAttrs(editor)?.bordered;
-                        updateTableAttr(editor, { bordered: nextBordered, borderPreset: nextBordered ? "all" : "none" }, { focus: true });
-                      }}
-                      onApplySoftColor={() => updateCellAttr(editor, { backgroundColor: "#dbeafe" }, { focus: true })}
-                      onDelete={() => editor.chain().focus().deleteTable().run()}
-                      capabilities={{
-                        addRow: !!editor.can().addRowAfter(),
-                        addColumn: !!editor.can().addColumnAfter(),
-                        deleteRow: !!editor.can().deleteRow(),
-                        deleteColumn: !!editor.can().deleteColumn(),
-                        mergeCells: !!editor.can().mergeCells(),
-                        splitCell: !!editor.can().splitCell(),
-                        deleteTable: !!editor.can().deleteTable(),
-                      }}
-                    />
-                  ) : null}
+                      <RichTextTableSelectionOverlay
+                        overlay={tableOverlay}
+                        resizeGuide={tableResizeGuide}
+                        selectedTarget={tableSelectedTarget}
+                        onSelect={(mode, index) => {
+                          setTableSelectedTarget({ mode, index });
+                          selectTableTargetByOverlayIndex(
+                            editor.view,
+                            tableOverlay.tableIndex,
+                            mode,
+                            index,
+                          );
+                          setTablePanelOpen(true);
+                          setTablePanelTab("selection");
+                        }}
+                        onColumnResizeStart={(index, event) =>
+                          startTableColumnResize(tableOverlay, index, event)
+                        }
+                        onRowResizeStart={(index, event) =>
+                          startTableRowResize(tableOverlay, index, event)
+                        }
+                        onAddRow={() => editor.chain().focus().addRowAfter().run()}
+                        onAddColumn={() => editor.chain().focus().addColumnAfter().run()}
+                        onMergeCells={() => editor.chain().focus().mergeCells().run()}
+                        onSplitCell={() => editor.chain().focus().splitCell().run()}
+                        onToggleBorders={() => {
+                          const nextBordered = !getTableAttrs(editor)?.bordered;
+                          updateTableAttr(
+                            editor,
+                            { bordered: nextBordered, borderPreset: nextBordered ? "all" : "none" },
+                            { focus: true },
+                          );
+                        }}
+                        onApplySoftColor={() =>
+                          updateCellAttr(editor, { backgroundColor: "#dbeafe" }, { focus: true })
+                        }
+                        onDelete={() => editor.chain().focus().deleteTable().run()}
+                        capabilities={{
+                          addRow: !!editor.can().addRowAfter(),
+                          addColumn: !!editor.can().addColumnAfter(),
+                          deleteRow: !!editor.can().deleteRow(),
+                          deleteColumn: !!editor.can().deleteColumn(),
+                          mergeCells: !!editor.can().mergeCells(),
+                          splitCell: !!editor.can().splitCell(),
+                          deleteTable: !!editor.can().deleteTable(),
+                        }}
+                      />
+                    ) : null}
                   </div>
                   <RichTextContextInspector
                     editor={editor}
@@ -1077,7 +1281,6 @@ export function RichTextEditorPanel({
             {/* ── Tab : Propriétés ── */}
             {activeTab === "properties" && (
               <div className="ef-rtp-props-tab">
-
                 {/* Padding */}
                 <section className="ef-rtp-prop-group">
                   <h3 className="ef-rtp-prop-group-title">Padding</h3>
@@ -1085,37 +1288,53 @@ export function RichTextEditorPanel({
                     <label className="ef-rtp-field" style={{ gridArea: "top" }}>
                       <span>Haut</span>
                       <input
-                        type="number" min={0} max={200}
+                        type="number"
+                        min={0}
+                        max={200}
                         className="ef-rtp-input"
                         value={paddingTop}
-                        onChange={(e) => patchContainerProp({ paddingTop: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) =>
+                          patchContainerProp({ paddingTop: Math.max(0, Number(e.target.value)) })
+                        }
                       />
                     </label>
                     <label className="ef-rtp-field" style={{ gridArea: "right" }}>
                       <span>Droite</span>
                       <input
-                        type="number" min={0} max={200}
+                        type="number"
+                        min={0}
+                        max={200}
                         className="ef-rtp-input"
                         value={paddingRight}
-                        onChange={(e) => patchContainerProp({ paddingRight: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) =>
+                          patchContainerProp({ paddingRight: Math.max(0, Number(e.target.value)) })
+                        }
                       />
                     </label>
                     <label className="ef-rtp-field" style={{ gridArea: "bottom" }}>
                       <span>Bas</span>
                       <input
-                        type="number" min={0} max={200}
+                        type="number"
+                        min={0}
+                        max={200}
                         className="ef-rtp-input"
                         value={paddingBottom}
-                        onChange={(e) => patchContainerProp({ paddingBottom: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) =>
+                          patchContainerProp({ paddingBottom: Math.max(0, Number(e.target.value)) })
+                        }
                       />
                     </label>
                     <label className="ef-rtp-field" style={{ gridArea: "left" }}>
                       <span>Gauche</span>
                       <input
-                        type="number" min={0} max={200}
+                        type="number"
+                        min={0}
+                        max={200}
                         className="ef-rtp-input"
                         value={paddingLeft}
-                        onChange={(e) => patchContainerProp({ paddingLeft: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) =>
+                          patchContainerProp({ paddingLeft: Math.max(0, Number(e.target.value)) })
+                        }
                       />
                     </label>
                   </div>
@@ -1127,10 +1346,14 @@ export function RichTextEditorPanel({
                   <label className="ef-rtp-field">
                     <span>Rayon des coins (px)</span>
                     <input
-                      type="number" min={0} max={999}
+                      type="number"
+                      min={0}
+                      max={999}
                       className="ef-rtp-input"
                       value={element?.style?.cornerRadius ?? 0}
-                      onChange={(e) => patchStyle({ cornerRadius: Math.max(0, Number(e.target.value)) })}
+                      onChange={(e) =>
+                        patchStyle({ cornerRadius: Math.max(0, Number(e.target.value)) })
+                      }
                     />
                   </label>
                 </section>
@@ -1142,10 +1365,14 @@ export function RichTextEditorPanel({
                     <label className="ef-rtp-field">
                       <span>Épaisseur (px)</span>
                       <input
-                        type="number" min={0} max={20}
+                        type="number"
+                        min={0}
+                        max={20}
                         className="ef-rtp-input"
                         value={stylePreview?.strokeWidth ?? 0}
-                        onChange={(e) => patchStyle({ strokeWidth: Math.max(0, Number(e.target.value)) })}
+                        onChange={(e) =>
+                          patchStyle({ strokeWidth: Math.max(0, Number(e.target.value)) })
+                        }
                       />
                     </label>
                     <label className="ef-rtp-field">
@@ -1171,19 +1398,22 @@ export function RichTextEditorPanel({
 
                 {/* Opacité */}
                 <section className="ef-rtp-prop-group">
-                  <h3 className="ef-rtp-prop-group-title">Opacité — {Math.round((stylePreview?.opacity ?? 1) * 100)}%</h3>
+                  <h3 className="ef-rtp-prop-group-title">
+                    Opacité — {Math.round((stylePreview?.opacity ?? 1) * 100)}%
+                  </h3>
                   <input
-                    type="range" min={0} max={1} step={0.01}
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
                     className="ef-rtp-range"
                     value={stylePreview?.opacity ?? 1}
                     onChange={(e) => patchStyle({ opacity: Number(e.target.value) })}
                     aria-label="Opacité du bloc"
                   />
                 </section>
-
               </div>
             )}
-
           </div>
         </RichTextVariableDatasetContext.Provider>
       </RichTextVariableRegistryContext.Provider>
@@ -1195,7 +1425,10 @@ export function RichTextEditorPanel({
 
 // ── Table selection helpers ──────────────────────────────────────────────────
 
-function resolveRichTextTableOverlay(surface: HTMLDivElement, table: HTMLTableElement): RichTextTableOverlay | null {
+function resolveRichTextTableOverlay(
+  surface: HTMLDivElement,
+  table: HTMLTableElement,
+): RichTextTableOverlay | null {
   const surfaceRect = surface.getBoundingClientRect();
   const tableRect = table.getBoundingClientRect();
   const rows = Array.from(table.querySelectorAll("tr"));
@@ -1274,7 +1507,9 @@ function execSelectTable(editor: Editor): void {
     const $head = editor.state.doc.resolve(tableStart + map.map[map.map.length - 1]);
     editor.view.dispatch(editor.state.tr.setSelection(new CellSelection($anchor, $head)));
     editor.view.focus();
-  } catch { /* merged-cell edge case */ }
+  } catch {
+    /* merged-cell edge case */
+  }
 }
 
 function execSelectRow(editor: Editor): void {
@@ -1287,7 +1522,9 @@ function execSelectRow(editor: Editor): void {
     const $head = editor.state.doc.resolve(tableStart + map.map[(top + 1) * map.width - 1]);
     editor.view.dispatch(editor.state.tr.setSelection(new CellSelection($anchor, $head)));
     editor.view.focus();
-  } catch { /* merged-cell edge case */ }
+  } catch {
+    /* merged-cell edge case */
+  }
 }
 
 function execSelectColumn(editor: Editor): void {
@@ -1297,10 +1534,14 @@ function execSelectColumn(editor: Editor): void {
   try {
     const { left } = findCell($cell);
     const $anchor = editor.state.doc.resolve(tableStart + map.map[left]);
-    const $head = editor.state.doc.resolve(tableStart + map.map[(map.height - 1) * map.width + left]);
+    const $head = editor.state.doc.resolve(
+      tableStart + map.map[(map.height - 1) * map.width + left],
+    );
     editor.view.dispatch(editor.state.tr.setSelection(new CellSelection($anchor, $head)));
     editor.view.focus();
-  } catch { /* merged-cell edge case */ }
+  } catch {
+    /* merged-cell edge case */
+  }
 }
 
 type RichTextEditorView = {
@@ -1366,7 +1607,9 @@ function selectTableCellRangeByIndex(
     const endRow = Math.min(map.height - 1, Math.max(0, range.endRow));
     const startColumn = Math.min(map.width - 1, Math.max(0, range.startColumn));
     const endColumn = Math.min(map.width - 1, Math.max(0, range.endColumn));
-    const $anchor = view.state.doc.resolve(tableStart + map.map[startRow * map.width + startColumn]);
+    const $anchor = view.state.doc.resolve(
+      tableStart + map.map[startRow * map.width + startColumn],
+    );
     const $head = view.state.doc.resolve(tableStart + map.map[endRow * map.width + endColumn]);
     view.dispatch(view.state.tr.setSelection(new CellSelection($anchor, $head)).scrollIntoView());
     view.focus();
@@ -1375,7 +1618,10 @@ function selectTableCellRangeByIndex(
   }
 }
 
-function getTableCtxByDocumentIndex(view: RichTextEditorView, tableIndex: number): RichTextTableDocumentCtx | null {
+function getTableCtxByDocumentIndex(
+  view: RichTextEditorView,
+  tableIndex: number,
+): RichTextTableDocumentCtx | null {
   let currentIndex = -1;
   let found: RichTextTableDocumentCtx | null = null;
 
@@ -1440,8 +1686,13 @@ function setTableColumnWidthsByTableIndex(
         const cellNode = view.state.doc.nodeAt(cellPos);
         if (!cellNode) continue;
 
-        const existing = Array.isArray(cellNode.attrs.colwidth) ? cellNode.attrs.colwidth as number[] : [];
-        tr.setNodeMarkup(cellPos, undefined, { ...cellNode.attrs, colwidth: [normalizedWidths[column], ...existing.slice(1)] });
+        const existing = Array.isArray(cellNode.attrs.colwidth)
+          ? (cellNode.attrs.colwidth as number[])
+          : [];
+        tr.setNodeMarkup(cellPos, undefined, {
+          ...cellNode.attrs,
+          colwidth: [normalizedWidths[column], ...existing.slice(1)],
+        });
       }
     }
 
@@ -1505,7 +1756,10 @@ function setRowHeightByTableIndex(
     if (rowPos !== null) {
       const rowNode = view.state.doc.nodeAt(rowPos);
       if (rowNode) {
-        tr.setNodeMarkup(rowPos, undefined, { ...rowNode.attrs, rowHeight: `${Math.round(heightPx)}px` });
+        tr.setNodeMarkup(rowPos, undefined, {
+          ...rowNode.attrs,
+          rowHeight: `${Math.round(heightPx)}px`,
+        });
         applied = true;
       }
     }
@@ -1519,7 +1773,10 @@ function setRowHeightByTableIndex(
   }
 }
 
-function findAncestorDepth($pos: Editor["state"]["selection"]["$from"], nodeName: string): number | null {
+function findAncestorDepth(
+  $pos: Editor["state"]["selection"]["$from"],
+  nodeName: string,
+): number | null {
   for (let depth = $pos.depth; depth > 0; depth--) {
     if ($pos.node(depth).type.name === nodeName) {
       return depth;
@@ -1535,10 +1792,12 @@ function getTableAttrs(editor: Editor | null): RtpTableStyleAttrs | null {
   try {
     const $cell = selectionCell(editor.state);
     for (let d = $cell.depth; d > 0; d--) {
-      if ($cell.node(d).type.name === 'table') return $cell.node(d).attrs as RtpTableStyleAttrs;
+      if ($cell.node(d).type.name === "table") return $cell.node(d).attrs as RtpTableStyleAttrs;
     }
     return null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function getSelectedCellAttrs(editor: Editor | null): RtpTableCellStyleAttrs | null {
@@ -1589,12 +1848,16 @@ function getSelectedColumnWidth(editor: Editor | null): number | null {
   return typeof firstWidth === "number" && Number.isFinite(firstWidth) ? firstWidth : null;
 }
 
-function updateTableAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
+function updateTableAttr(
+  editor: Editor,
+  attrPatch: Record<string, unknown>,
+  options: { focus?: boolean } = {},
+): void {
   if (!isInTable(editor.state)) return;
   try {
     const $cell = selectionCell(editor.state);
     for (let d = $cell.depth; d > 0; d--) {
-      if ($cell.node(d).type.name === 'table') {
+      if ($cell.node(d).type.name === "table") {
         const { tr } = editor.state;
         tr.setNodeMarkup($cell.before(d), undefined, { ...$cell.node(d).attrs, ...attrPatch });
         editor.view.dispatch(tr);
@@ -1607,7 +1870,11 @@ function updateTableAttr(editor: Editor, attrPatch: Record<string, unknown>, opt
   } catch {}
 }
 
-function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
+function updateCellAttr(
+  editor: Editor,
+  attrPatch: Record<string, unknown>,
+  options: { focus?: boolean } = {},
+): void {
   if (!isInTable(editor.state)) return;
   try {
     const sel = editor.state.selection;
@@ -1620,7 +1887,7 @@ function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>, opti
       const $from = editor.state.selection.$from;
       for (let d = $from.depth; d > 0; d--) {
         const name = $from.node(d).type.name;
-        if (name === 'tableCell' || name === 'tableHeader') {
+        if (name === "tableCell" || name === "tableHeader") {
           tr.setNodeMarkup($from.before(d), undefined, { ...$from.node(d).attrs, ...attrPatch });
           break;
         }
@@ -1633,12 +1900,16 @@ function updateCellAttr(editor: Editor, attrPatch: Record<string, unknown>, opti
   } catch {}
 }
 
-function updateRowAttr(editor: Editor, attrPatch: Record<string, unknown>, options: { focus?: boolean } = {}): void {
+function updateRowAttr(
+  editor: Editor,
+  attrPatch: Record<string, unknown>,
+  options: { focus?: boolean } = {},
+): void {
   if (!isInTable(editor.state)) return;
   try {
     const $cell = selectionCell(editor.state);
     for (let d = $cell.depth; d > 0; d--) {
-      if ($cell.node(d).type.name === 'tableRow') {
+      if ($cell.node(d).type.name === "tableRow") {
         const { tr } = editor.state;
         tr.setNodeMarkup($cell.before(d), undefined, { ...$cell.node(d).attrs, ...attrPatch });
         editor.view.dispatch(tr);
@@ -1651,7 +1922,11 @@ function updateRowAttr(editor: Editor, attrPatch: Record<string, unknown>, optio
   } catch {}
 }
 
-function setColumnWidth(editor: Editor, widthPx: number | null, options: { focus?: boolean } = {}): void {
+function setColumnWidth(
+  editor: Editor,
+  widthPx: number | null,
+  options: { focus?: boolean } = {},
+): void {
   if (!isInTable(editor.state)) return;
   try {
     const ctx = getTableCtx(editor);
@@ -1667,7 +1942,9 @@ function setColumnWidth(editor: Editor, widthPx: number | null, options: { focus
       const cellPos = tableStart + cellOffset;
       const cellNode = editor.state.doc.nodeAt(cellPos);
       if (!cellNode) continue;
-      const existing = Array.isArray(cellNode.attrs.colwidth) ? cellNode.attrs.colwidth as number[] : [];
+      const existing = Array.isArray(cellNode.attrs.colwidth)
+        ? (cellNode.attrs.colwidth as number[])
+        : [];
       const newColwidth = widthPx === null ? null : [widthPx, ...existing.slice(1)];
       tr.setNodeMarkup(cellPos, undefined, { ...cellNode.attrs, colwidth: newColwidth });
     }
@@ -1726,31 +2003,50 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function parseVarDropPayload(raw: string, context: { type: string; payload: unknown; sourcePanel?: string } | null): VariableDragEnvelope | null {
+function parseVarDropPayload(
+  raw: string,
+  context: { type: string; payload: unknown; sourcePanel?: string } | null,
+): VariableDragEnvelope | null {
   const parsed = raw.trim().length > 0 ? parseEditorItemDragPayload(raw) : null;
   if (parsed?.type === "variable") return parsed as VariableDragEnvelope;
-  if (context?.type === "variable") return { type: "variable", payload: context.payload, sourcePanel: context.sourcePanel } as VariableDragEnvelope;
+  if (context?.type === "variable")
+    return {
+      type: "variable",
+      payload: context.payload,
+      sourcePanel: context.sourcePanel,
+    } as VariableDragEnvelope;
   return null;
 }
 
-function viewToInsertionTarget(rawView: unknown): import("@/features/editor/renderers/konva-renderer/rich-text-drop-utils").RichTextEditorInsertionTarget {
+function viewToInsertionTarget(
+  rawView: unknown,
+): import("@/features/editor/renderers/konva-renderer/rich-text-drop-utils").RichTextEditorInsertionTarget {
   const view = rawView as {
     state: {
       selection: { from: number; to: number };
       doc: { content: { size: number } };
       schema: { nodes: { variable: { create: (attrs: Record<string, unknown>) => unknown } } };
-      tr: { replaceRangeWith: (from: number, to: number, node: unknown) => { scrollIntoView: () => unknown } };
+      tr: {
+        replaceRangeWith: (
+          from: number,
+          to: number,
+          node: unknown,
+        ) => { scrollIntoView: () => unknown };
+      };
     };
     dispatch: (transaction: unknown) => void;
     focus: () => void;
   };
   return {
-    state: view.state as import("@/features/editor/renderers/konva-renderer/rich-text-drop-utils").RichTextEditorInsertionTarget["state"],
+    state:
+      view.state as import("@/features/editor/renderers/konva-renderer/rich-text-drop-utils").RichTextEditorInsertionTarget["state"],
     commands: {
       focus: () => view.focus(),
       insertContentAt: (position, content) => {
         const node = view.state.schema.nodes.variable.create(content.attrs);
-        const tx = view.state.tr.replaceRangeWith(position.from, position.to, node).scrollIntoView();
+        const tx = view.state.tr
+          .replaceRangeWith(position.from, position.to, node)
+          .scrollIntoView();
         view.dispatch(tx);
       },
     },
@@ -1762,7 +2058,10 @@ function promptLink(editor: Editor | null) {
   const prev = editor.getAttributes("link").href as string | undefined;
   const url = window.prompt("URL du lien", prev ?? "https://");
   if (url === null) return;
-  if (!url.trim()) { editor.chain().focus().unsetLink().run(); return; }
+  if (!url.trim()) {
+    editor.chain().focus().unsetLink().run();
+    return;
+  }
   editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
 }
 
@@ -1815,9 +2114,15 @@ function RichTextTopToolbar({
 
       <select
         className="ef-rtp-toolbar-select ef-rtp-toolbar-font-select"
-        value={selectedVarAttrs ? (selectedVarAttrs.fontFamily ?? "") : (textAttrs.fontFamily ?? "")}
+        value={
+          selectedVarAttrs ? (selectedVarAttrs.fontFamily ?? "") : (textAttrs.fontFamily ?? "")
+        }
         onMouseDown={rememberSelection}
-        onChange={(event) => selectedVarAttrs ? applyVarStyle({ fontFamily: event.target.value || null }) : runOnSelection((te) => te.chain().setFontFamily(event.target.value).run())}
+        onChange={(event) =>
+          selectedVarAttrs
+            ? applyVarStyle({ fontFamily: event.target.value || null })
+            : runOnSelection((te) => te.chain().setFontFamily(event.target.value).run())
+        }
         aria-label="Police"
       >
         <option value="">Inter</option>
@@ -1831,28 +2136,76 @@ function RichTextTopToolbar({
         className="ef-rtp-toolbar-select ef-rtp-toolbar-size-select"
         value={selectedVarAttrs ? (selectedVarAttrs.fontSize ?? "") : (textAttrs.fontSize ?? "")}
         onMouseDown={rememberSelection}
-        onChange={(event) => selectedVarAttrs ? applyVarStyle({ fontSize: event.target.value || null }) : runOnSelection((te) => te.chain().setFontSize(event.target.value).run())}
+        onChange={(event) =>
+          selectedVarAttrs
+            ? applyVarStyle({ fontSize: event.target.value || null })
+            : runOnSelection((te) => te.chain().setFontSize(event.target.value).run())
+        }
         aria-label="Taille de police"
       >
         <option value="">14</option>
         {[12, 13, 14, 16, 18, 22, 24, 32].map((size) => (
-          <option key={size} value={`${size}px`}>{size}</option>
+          <option key={size} value={`${size}px`}>
+            {size}
+          </option>
         ))}
       </select>
 
       <span className="ef-rtp-toolbar-separator" aria-hidden />
-      <ToolbarIconButton label="Gras" active={selectedVarAttrs ? !!selectedVarAttrs.bold : editor?.isActive("bold")} onClick={() => selectedVarAttrs ? applyVarStyle({ bold: !selectedVarAttrs.bold || null }) : editor?.chain().focus().toggleBold().run()} icon={<Bold size={15} />} />
-      <ToolbarIconButton label="Italique" active={selectedVarAttrs ? !!selectedVarAttrs.italic : editor?.isActive("italic")} onClick={() => selectedVarAttrs ? applyVarStyle({ italic: !selectedVarAttrs.italic || null }) : editor?.chain().focus().toggleItalic().run()} icon={<Italic size={15} />} />
-      <ToolbarIconButton label="Souligné" active={selectedVarAttrs ? !!selectedVarAttrs.underline : editor?.isActive("underline")} onClick={() => selectedVarAttrs ? applyVarStyle({ underline: !selectedVarAttrs.underline || null }) : editor?.chain().focus().toggleUnderline().run()} icon={<UnderlineIcon size={15} />} />
-      <ToolbarIconButton label="Barré" active={selectedVarAttrs ? !!selectedVarAttrs.strike : editor?.isActive("strike")} onClick={() => selectedVarAttrs ? applyVarStyle({ strike: !selectedVarAttrs.strike || null }) : editor?.chain().focus().toggleStrike().run()} icon={<Strikethrough size={15} />} />
+      <ToolbarIconButton
+        label="Gras"
+        active={selectedVarAttrs ? !!selectedVarAttrs.bold : editor?.isActive("bold")}
+        onClick={() =>
+          selectedVarAttrs
+            ? applyVarStyle({ bold: !selectedVarAttrs.bold || null })
+            : editor?.chain().focus().toggleBold().run()
+        }
+        icon={<Bold size={15} />}
+      />
+      <ToolbarIconButton
+        label="Italique"
+        active={selectedVarAttrs ? !!selectedVarAttrs.italic : editor?.isActive("italic")}
+        onClick={() =>
+          selectedVarAttrs
+            ? applyVarStyle({ italic: !selectedVarAttrs.italic || null })
+            : editor?.chain().focus().toggleItalic().run()
+        }
+        icon={<Italic size={15} />}
+      />
+      <ToolbarIconButton
+        label="Souligné"
+        active={selectedVarAttrs ? !!selectedVarAttrs.underline : editor?.isActive("underline")}
+        onClick={() =>
+          selectedVarAttrs
+            ? applyVarStyle({ underline: !selectedVarAttrs.underline || null })
+            : editor?.chain().focus().toggleUnderline().run()
+        }
+        icon={<UnderlineIcon size={15} />}
+      />
+      <ToolbarIconButton
+        label="Barré"
+        active={selectedVarAttrs ? !!selectedVarAttrs.strike : editor?.isActive("strike")}
+        onClick={() =>
+          selectedVarAttrs
+            ? applyVarStyle({ strike: !selectedVarAttrs.strike || null })
+            : editor?.chain().focus().toggleStrike().run()
+        }
+        icon={<Strikethrough size={15} />}
+      />
 
       <div className="ef-rtp-toolbar-color-picker" onMouseDown={rememberSelection}>
         <ColorPickerControl
           label="Texte"
-          value={selectedVarAttrs ? (selectedVarAttrs.color ?? "#111827") : (textAttrs.color ?? "#111827")}
+          value={
+            selectedVarAttrs
+              ? (selectedVarAttrs.color ?? "#111827")
+              : (textAttrs.color ?? "#111827")
+          }
           onChange={(color) => {
             if (!color) return;
-            selectedVarAttrs ? applyVarStyle({ color }) : runOnSelection((te) => te.chain().setColor(color).run());
+            selectedVarAttrs
+              ? applyVarStyle({ color })
+              : runOnSelection((te) => te.chain().setColor(color).run());
           }}
         />
       </div>
@@ -1862,21 +2215,67 @@ function RichTextTopToolbar({
           value={textAttrs.backgroundColor ?? "#fef08a"}
           disabled={!!selectedVarAttrs}
           allowTransparent
-          onChange={(color) => runOnSelection((te) => color ? te.chain().setBackgroundColor(color).run() : te.chain().unsetBackgroundColor().run())}
+          onChange={(color) =>
+            runOnSelection((te) =>
+              color
+                ? te.chain().setBackgroundColor(color).run()
+                : te.chain().unsetBackgroundColor().run(),
+            )
+          }
         />
       </div>
 
       <span className="ef-rtp-toolbar-separator" aria-hidden />
-      <ToolbarIconButton label="Aligner à gauche" active={editor?.isActive({ textAlign: "left" })} onClick={() => editor?.chain().focus().setTextAlign("left").run()} icon={<AlignLeft size={15} />} />
-      <ToolbarIconButton label="Centrer" active={editor?.isActive({ textAlign: "center" })} onClick={() => editor?.chain().focus().setTextAlign("center").run()} icon={<AlignCenter size={15} />} />
-      <ToolbarIconButton label="Aligner à droite" active={editor?.isActive({ textAlign: "right" })} onClick={() => editor?.chain().focus().setTextAlign("right").run()} icon={<AlignRight size={15} />} />
-      <ToolbarIconButton label="Justifier" active={editor?.isActive({ textAlign: "justify" })} onClick={() => editor?.chain().focus().setTextAlign("justify").run()} icon={<AlignJustify size={15} />} />
+      <ToolbarIconButton
+        label="Aligner à gauche"
+        active={editor?.isActive({ textAlign: "left" })}
+        onClick={() => editor?.chain().focus().setTextAlign("left").run()}
+        icon={<AlignLeft size={15} />}
+      />
+      <ToolbarIconButton
+        label="Centrer"
+        active={editor?.isActive({ textAlign: "center" })}
+        onClick={() => editor?.chain().focus().setTextAlign("center").run()}
+        icon={<AlignCenter size={15} />}
+      />
+      <ToolbarIconButton
+        label="Aligner à droite"
+        active={editor?.isActive({ textAlign: "right" })}
+        onClick={() => editor?.chain().focus().setTextAlign("right").run()}
+        icon={<AlignRight size={15} />}
+      />
+      <ToolbarIconButton
+        label="Justifier"
+        active={editor?.isActive({ textAlign: "justify" })}
+        onClick={() => editor?.chain().focus().setTextAlign("justify").run()}
+        icon={<AlignJustify size={15} />}
+      />
 
       <span className="ef-rtp-toolbar-separator" aria-hidden />
-      <ToolbarIconButton label="Liste à puces" active={editor?.isActive("bulletList")} onClick={() => editor?.chain().focus().toggleBulletList().run()} icon={<List size={15} />} />
-      <ToolbarIconButton label="Liste numérotée" active={editor?.isActive("orderedList")} onClick={() => editor?.chain().focus().toggleOrderedList().run()} icon={<ListOrdered size={15} />} />
-      <ToolbarIconButton label="Lien" active={editor?.isActive("link")} onClick={() => promptLink(editor)} icon={<Code2 size={15} />} />
-      <ToolbarIconButton label="Tableau" active={editor?.isActive("table")} onClick={onOpenTableDialog} icon={<Table2 size={15} />} />
+      <ToolbarIconButton
+        label="Liste à puces"
+        active={editor?.isActive("bulletList")}
+        onClick={() => editor?.chain().focus().toggleBulletList().run()}
+        icon={<List size={15} />}
+      />
+      <ToolbarIconButton
+        label="Liste numérotée"
+        active={editor?.isActive("orderedList")}
+        onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+        icon={<ListOrdered size={15} />}
+      />
+      <ToolbarIconButton
+        label="Lien"
+        active={editor?.isActive("link")}
+        onClick={() => promptLink(editor)}
+        icon={<Code2 size={15} />}
+      />
+      <ToolbarIconButton
+        label="Tableau"
+        active={editor?.isActive("table")}
+        onClick={onOpenTableDialog}
+        icon={<Table2 size={15} />}
+      />
 
       <RtpPopover label="Variables" icon={<Braces size={14} aria-hidden />}>
         <div className="ef-rtp-var-search-wrap">
@@ -1892,18 +2291,29 @@ function RichTextTopToolbar({
         </div>
         {filteredVars.length === 0 ? (
           <p className="ef-rtp-var-empty">
-            {variableRegistry.entries.length === 0 ? "Aucune variable disponible" : "Aucun résultat"}
+            {variableRegistry.entries.length === 0
+              ? "Aucune variable disponible"
+              : "Aucun résultat"}
           </p>
         ) : (
           <div className="ef-rtp-popover-grid">
             {filteredVars.map((entry) => (
-              <RtpActionBtn key={entry.id} label={entry.label} icon={<Braces size={12} />} onClick={() => onInsertVariable(entry)} />
+              <RtpActionBtn
+                key={entry.id}
+                label={entry.label}
+                icon={<Braces size={12} />}
+                onClick={() => onInsertVariable(entry)}
+              />
             ))}
           </div>
         )}
       </RtpPopover>
 
-      <ToolbarIconButton label="Effacer format" onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()} icon={<Eraser size={15} />} />
+      <ToolbarIconButton
+        label="Effacer format"
+        onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()}
+        icon={<Eraser size={15} />}
+      />
     </div>
   );
 }
@@ -1994,7 +2404,9 @@ function RichTextContextInspector({
           <div className="ef-rtp-context-empty">
             <strong>Tableau détecté</strong>
             <span>Le panneau tableau est masqué.</span>
-            <button type="button" onClick={onShowTablePanel}>Afficher les réglages</button>
+            <button type="button" onClick={onShowTablePanel}>
+              Afficher les réglages
+            </button>
           </div>
         </aside>
       );
@@ -2041,7 +2453,11 @@ function RichTextContextInspector({
         }}
         onFirstColumnToggle={() => {
           if (!editor) return;
-          updateTableAttr(editor, { firstColumn: !getTableAttrs(editor)?.firstColumn }, { focus: true });
+          updateTableAttr(
+            editor,
+            { firstColumn: !getTableAttrs(editor)?.firstColumn },
+            { focus: true },
+          );
         }}
         onBorderPresetChange={(borderPreset: RichTextTableBorderPreset) => {
           if (!editor) return;
@@ -2051,31 +2467,88 @@ function RichTextContextInspector({
             { focus: true },
           );
         }}
-        onBorderColorChange={(color) => editor && updateTableAttr(editor, { bordered: true, borderColor: color }, { focus: false })}
-        onCellBackgroundChange={(color) => editor && updateCellAttr(editor, { backgroundColor: color }, { focus: false })}
-        onCellTextAlignChange={(value) => editor && updateCellAttr(editor, { textAlign: value }, { focus: false })}
-        onHeaderBackgroundChange={(color) => editor && updateTableAttr(editor, { headerBackgroundColor: color }, { focus: false })}
-        onHeaderTextColorChange={(color) => editor && updateTableAttr(editor, { headerTextColor: color }, { focus: false })}
-        onFirstColumnBackgroundChange={(color) => editor && updateTableAttr(editor, { firstColumn: true, firstColumnBackgroundColor: color }, { focus: false })}
-        onFirstColumnTextColorChange={(color) => editor && updateTableAttr(editor, { firstColumn: true, firstColumnTextColor: color }, { focus: false })}
-        onStripedEvenColorChange={(color) => editor && updateTableAttr(editor, { striped: true, stripedEvenColor: color }, { focus: false })}
-        onStripedOddColorChange={(color) => editor && updateTableAttr(editor, { striped: true, stripedOddColor: color }, { focus: false })}
+        onBorderColorChange={(color) =>
+          editor &&
+          updateTableAttr(editor, { bordered: true, borderColor: color }, { focus: false })
+        }
+        onCellBackgroundChange={(color) =>
+          editor && updateCellAttr(editor, { backgroundColor: color }, { focus: false })
+        }
+        onCellTextAlignChange={(value) =>
+          editor && updateCellAttr(editor, { textAlign: value }, { focus: false })
+        }
+        onHeaderBackgroundChange={(color) =>
+          editor && updateTableAttr(editor, { headerBackgroundColor: color }, { focus: false })
+        }
+        onHeaderTextColorChange={(color) =>
+          editor && updateTableAttr(editor, { headerTextColor: color }, { focus: false })
+        }
+        onFirstColumnBackgroundChange={(color) =>
+          editor &&
+          updateTableAttr(
+            editor,
+            { firstColumn: true, firstColumnBackgroundColor: color },
+            { focus: false },
+          )
+        }
+        onFirstColumnTextColorChange={(color) =>
+          editor &&
+          updateTableAttr(
+            editor,
+            { firstColumn: true, firstColumnTextColor: color },
+            { focus: false },
+          )
+        }
+        onStripedEvenColorChange={(color) =>
+          editor &&
+          updateTableAttr(editor, { striped: true, stripedEvenColor: color }, { focus: false })
+        }
+        onStripedOddColorChange={(color) =>
+          editor &&
+          updateTableAttr(editor, { striped: true, stripedOddColor: color }, { focus: false })
+        }
         onBorderWidthChange={(value) => {
           if (!editor) return;
           const borderWidth = cssPixelPatch(value, 0, 20);
-          updateTableAttr(editor, { bordered: borderWidth !== null && parseCssPixelValue(borderWidth, 0) > 0, borderWidth }, { focus: false });
+          updateTableAttr(
+            editor,
+            {
+              bordered: borderWidth !== null && parseCssPixelValue(borderWidth, 0) > 0,
+              borderWidth,
+            },
+            { focus: false },
+          );
         }}
-        onTableWidthChange={(value) => editor && updateTableAttr(editor, { tableWidth: cssPixelPatch(value, 50, 2000) }, { focus: false })}
-        onColumnWidthChange={(value) => editor && setColumnWidth(editor, numericPatch(value, 20, 1000), { focus: false })}
-        onRowHeightChange={(value) => editor && updateRowAttr(editor, { rowHeight: cssPixelPatch(value, 16, 500) }, { focus: false })}
-        onCellPaddingChange={(value) => editor && updateCellAttr(editor, { cellPadding: cssPixelPatch(value, 0, 40) }, { focus: false })}
-        onVerticalAlignChange={(value) => editor && updateCellAttr(editor, { verticalAlign: value }, { focus: false })}
+        onTableWidthChange={(value) =>
+          editor &&
+          updateTableAttr(editor, { tableWidth: cssPixelPatch(value, 50, 2000) }, { focus: false })
+        }
+        onColumnWidthChange={(value) =>
+          editor && setColumnWidth(editor, numericPatch(value, 20, 1000), { focus: false })
+        }
+        onRowHeightChange={(value) =>
+          editor &&
+          updateRowAttr(editor, { rowHeight: cssPixelPatch(value, 16, 500) }, { focus: false })
+        }
+        onCellPaddingChange={(value) =>
+          editor &&
+          updateCellAttr(editor, { cellPadding: cssPixelPatch(value, 0, 40) }, { focus: false })
+        }
+        onVerticalAlignChange={(value) =>
+          editor && updateCellAttr(editor, { verticalAlign: value }, { focus: false })
+        }
       />
     );
   }
 
   if (selectedVarAttrs) {
-    return <RichTextVariableInspector attrs={selectedVarAttrs} displayMode={displayMode} onDisplayModeChange={onDisplayModeChange} />;
+    return (
+      <RichTextVariableInspector
+        attrs={selectedVarAttrs}
+        displayMode={displayMode}
+        onDisplayModeChange={onDisplayModeChange}
+      />
+    );
   }
 
   return <RichTextTextInspector editor={editor} />;
@@ -2128,7 +2601,9 @@ function RichTextTableSelectionOverlay({
       {selectedTarget?.mode === "cell-range" ? (
         <RichTextTableCellRangeMark overlay={overlay} target={selectedTarget} />
       ) : null}
-      {selectedTarget?.mode === "column" && typeof selectedTarget.index === "number" && overlay.columns[selectedTarget.index] ? (
+      {selectedTarget?.mode === "column" &&
+      typeof selectedTarget.index === "number" &&
+      overlay.columns[selectedTarget.index] ? (
         <span
           className="ef-rtp-table-selection-mark ef-rtp-table-selection-mark-column"
           style={{
@@ -2140,7 +2615,9 @@ function RichTextTableSelectionOverlay({
           aria-hidden="true"
         />
       ) : null}
-      {selectedTarget?.mode === "row" && typeof selectedTarget.index === "number" && overlay.rows[selectedTarget.index] ? (
+      {selectedTarget?.mode === "row" &&
+      typeof selectedTarget.index === "number" &&
+      overlay.rows[selectedTarget.index] ? (
         <span
           className="ef-rtp-table-selection-mark ef-rtp-table-selection-mark-row"
           style={{
@@ -2179,13 +2656,47 @@ function RichTextTableSelectionOverlay({
         aria-label="Outils tableau"
         onMouseDown={(event) => event.preventDefault()}
       >
-        <TableOverlayAction label="Ligne" icon={<Plus size={22} />} disabled={!capabilities.addRow} onClick={onAddRow} />
-        <TableOverlayAction label="Colonne" icon={<Plus size={22} />} disabled={!capabilities.addColumn} onClick={onAddColumn} />
-        <TableOverlayAction label="Fusionner" icon={<TableCellsMerge size={22} />} disabled={!capabilities.mergeCells} onClick={onMergeCells} />
-        <TableOverlayAction label="Scinder" icon={<TableCellsSplit size={22} />} disabled={!capabilities.splitCell} onClick={onSplitCell} />
-        <TableOverlayAction label="Bordures" icon={<Grid2x2 size={22} />} onClick={onToggleBorders} />
-        <TableOverlayAction label="Couleur" icon={<Eraser size={22} />} onClick={onApplySoftColor} />
-        <TableOverlayAction label="Supprimer" icon={<Trash2 size={22} />} disabled={!capabilities.deleteTable} danger onClick={onDelete} />
+        <TableOverlayAction
+          label="Ligne"
+          icon={<Plus size={22} />}
+          disabled={!capabilities.addRow}
+          onClick={onAddRow}
+        />
+        <TableOverlayAction
+          label="Colonne"
+          icon={<Plus size={22} />}
+          disabled={!capabilities.addColumn}
+          onClick={onAddColumn}
+        />
+        <TableOverlayAction
+          label="Fusionner"
+          icon={<TableCellsMerge size={22} />}
+          disabled={!capabilities.mergeCells}
+          onClick={onMergeCells}
+        />
+        <TableOverlayAction
+          label="Scinder"
+          icon={<TableCellsSplit size={22} />}
+          disabled={!capabilities.splitCell}
+          onClick={onSplitCell}
+        />
+        <TableOverlayAction
+          label="Bordures"
+          icon={<Grid2x2 size={22} />}
+          onClick={onToggleBorders}
+        />
+        <TableOverlayAction
+          label="Couleur"
+          icon={<Eraser size={22} />}
+          onClick={onApplySoftColor}
+        />
+        <TableOverlayAction
+          label="Supprimer"
+          icon={<Trash2 size={22} />}
+          disabled={!capabilities.deleteTable}
+          danger
+          onClick={onDelete}
+        />
       </div>
       <button
         type="button"
@@ -2402,13 +2913,18 @@ function RichTextTableHoverMark({
     );
   }
 
-  if ((target.mode === "column" || target.mode === "column-resize") && overlay.columns[target.index]) {
+  if (
+    (target.mode === "column" || target.mode === "column-resize") &&
+    overlay.columns[target.index]
+  ) {
     const column = overlay.columns[target.index];
     return (
       <span
         className={[
           "ef-rtp-table-hover-mark",
-          target.mode === "column-resize" ? "ef-rtp-table-hover-mark-resize-column" : "ef-rtp-table-hover-mark-column",
+          target.mode === "column-resize"
+            ? "ef-rtp-table-hover-mark-resize-column"
+            : "ef-rtp-table-hover-mark-column",
         ].join(" ")}
         style={{
           left: `${target.mode === "column-resize" ? column.left + column.width - 1 : column.left}px`,
@@ -2427,7 +2943,9 @@ function RichTextTableHoverMark({
       <span
         className={[
           "ef-rtp-table-hover-mark",
-          target.mode === "row-resize" ? "ef-rtp-table-hover-mark-resize-row" : "ef-rtp-table-hover-mark-row",
+          target.mode === "row-resize"
+            ? "ef-rtp-table-hover-mark-resize-row"
+            : "ef-rtp-table-hover-mark-row",
         ].join(" ")}
         style={{
           left: `${overlay.table.left}px`,
@@ -2477,12 +2995,18 @@ function RtpPopover({
         collisionPadding={12}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onPointerDownOutside={(event) => {
-          if (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "color") {
+          if (
+            document.activeElement instanceof HTMLInputElement &&
+            document.activeElement.type === "color"
+          ) {
             event.preventDefault();
           }
         }}
         onFocusOutside={(event) => {
-          if (document.activeElement instanceof HTMLInputElement && document.activeElement.type === "color") {
+          if (
+            document.activeElement instanceof HTMLInputElement &&
+            document.activeElement.type === "color"
+          ) {
             event.preventDefault();
           }
         }}

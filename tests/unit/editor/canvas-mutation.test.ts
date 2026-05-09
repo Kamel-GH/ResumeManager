@@ -75,8 +75,12 @@ describe("canvas mutation", () => {
       },
     ]);
 
-    expect(next.elements.find((element) => element.id === "polygon-1")?.props?.points).toEqual([0, 0, 240, 0, 120, 160]);
-    expect(next.elements.find((element) => element.id === "polyline-1")?.props?.points).toEqual([0, 0, 100, 60, 300, 180]);
+    expect(next.elements.find((element) => element.id === "polygon-1")?.props?.points).toEqual([
+      0, 0, 240, 0, 120, 160,
+    ]);
+    expect(next.elements.find((element) => element.id === "polyline-1")?.props?.points).toEqual([
+      0, 0, 100, 60, 300, 180,
+    ]);
   });
 
   it("returns the original template when no geometry or style patch is provided", () => {
@@ -109,7 +113,9 @@ describe("canvas mutation", () => {
       },
     ]);
 
-    expect(nextGeometry.elements.find((element) => element.id === "page-1-a-locked")).toEqual(locked);
+    expect(nextGeometry.elements.find((element) => element.id === "page-1-a-locked")).toEqual(
+      locked,
+    );
     expect(nextStyle.elements.find((element) => element.id === "page-1-a-locked")).toEqual(locked);
   });
 
@@ -297,7 +303,9 @@ describe("canvas mutation", () => {
     expect(next.elements.find((element) => element.id === "image-1")?.style).toMatchObject({
       opacity: 0.4,
     });
-    expect(next.elements.find((element) => element.id === "image-1")?.style?.stroke).toBeUndefined();
+    expect(
+      next.elements.find((element) => element.id === "image-1")?.style?.stroke,
+    ).toBeUndefined();
   });
 
   it("reorders objects within their parent layer without crossing layers", () => {
@@ -308,10 +316,22 @@ describe("canvas mutation", () => {
       action: "bring-forward",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-1", "page-1-a-3", "page-1-a-2", "page-1-a-locked"]);
-    expect(sortedLayerIds(next.template, "page-1", "layer-b")).toEqual(["page-1-b-1", "page-1-b-2"]);
-    expect(next.template.elements.find((element) => element.id === "page-1-a-2")?.props?.layerOrder).toBe(1);
-    expect(next.template.elements.find((element) => element.id === "page-1-b-1")?.props?.layerOrder).toBe(2);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-1",
+      "page-1-a-3",
+      "page-1-a-2",
+      "page-1-a-locked",
+    ]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-b")).toEqual([
+      "page-1-b-1",
+      "page-1-b-2",
+    ]);
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-a-2")?.props?.layerOrder,
+    ).toBe(1);
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-b-1")?.props?.layerOrder,
+    ).toBe(2);
     expect(next.changedIds).toContain("page-1-a-2");
   });
 
@@ -323,7 +343,12 @@ describe("canvas mutation", () => {
       action: "bring-to-front",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-2", "page-1-a-3", "page-1-a-1", "page-1-a-locked"]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-1",
+      "page-1-a-locked",
+    ]);
   });
 
   it("sends selected objects to the back within a single parent layer", () => {
@@ -334,7 +359,12 @@ describe("canvas mutation", () => {
       action: "send-to-back",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-3", "page-1-a-1", "page-1-a-2", "page-1-a-locked"]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-3",
+      "page-1-a-1",
+      "page-1-a-2",
+      "page-1-a-locked",
+    ]);
   });
 
   it("reorders selected objects independently per layer and preserves their relative order", () => {
@@ -345,8 +375,16 @@ describe("canvas mutation", () => {
       action: "bring-to-front",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-1", "page-1-a-3", "page-1-a-2", "page-1-a-locked"]);
-    expect(sortedLayerIds(next.template, "page-1", "layer-b")).toEqual(["page-1-b-2", "page-1-b-1"]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-1",
+      "page-1-a-3",
+      "page-1-a-2",
+      "page-1-a-locked",
+    ]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-b")).toEqual([
+      "page-1-b-2",
+      "page-1-b-1",
+    ]);
   });
 
   it("reorders selected objects independently per page", () => {
@@ -357,8 +395,16 @@ describe("canvas mutation", () => {
       action: "bring-to-front",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-2", "page-1-a-3", "page-1-a-1", "page-1-a-locked"]);
-    expect(sortedLayerIds(next.template, "page-2", "layer-a")).toEqual(["page-2-c-2", "page-2-c-1"]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-1",
+      "page-1-a-locked",
+    ]);
+    expect(sortedLayerIds(next.template, "page-2", "layer-a")).toEqual([
+      "page-2-c-2",
+      "page-2-c-1",
+    ]);
   });
 
   it("keeps locked objects fixed and no-ops at the boundary", () => {
@@ -374,8 +420,18 @@ describe("canvas mutation", () => {
       action: "bring-forward",
     });
 
-    expect(sortedLayerIds(lockedNoop.template, "page-1", "layer-a")).toEqual(["page-1-a-1", "page-1-a-2", "page-1-a-3", "page-1-a-locked"]);
-    expect(sortedLayerIds(boundaryNoop.template, "page-1", "layer-a")).toEqual(["page-1-a-1", "page-1-a-2", "page-1-a-3", "page-1-a-locked"]);
+    expect(sortedLayerIds(lockedNoop.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-1",
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-locked",
+    ]);
+    expect(sortedLayerIds(boundaryNoop.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-1",
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-locked",
+    ]);
   });
 
   it("keeps object ordering inside the direct logical parent when parent props exist", () => {
@@ -413,8 +469,15 @@ describe("canvas mutation", () => {
     });
 
     expect(next.changedIds).toEqual([]);
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-1", "page-1-a-2", "page-1-a-3", "page-1-a-locked"]);
-    expect(next.template.elements.find((element) => element.id === "page-1-a-2")?.props?.groupId).toBe("group-1");
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-1",
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-locked",
+    ]);
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-a-2")?.props?.groupId,
+    ).toBe("group-1");
   });
 
   it("preserves selected relative order for step moves in both directions", () => {
@@ -429,8 +492,18 @@ describe("canvas mutation", () => {
       action: "send-backward",
     });
 
-    expect(sortedLayerIds(forward.template, "page-1", "layer-a")).toEqual(["page-1-a-3", "page-1-a-1", "page-1-a-2", "page-1-a-locked"]);
-    expect(sortedLayerIds(backward.template, "page-1", "layer-a")).toEqual(["page-1-a-2", "page-1-a-3", "page-1-a-1", "page-1-a-locked"]);
+    expect(sortedLayerIds(forward.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-3",
+      "page-1-a-1",
+      "page-1-a-2",
+      "page-1-a-locked",
+    ]);
+    expect(sortedLayerIds(backward.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-2",
+      "page-1-a-3",
+      "page-1-a-1",
+      "page-1-a-locked",
+    ]);
   });
 
   it("reorders only within movable segments when a locked object splits the layer", () => {
@@ -524,7 +597,12 @@ describe("canvas mutation", () => {
       action: "bring-to-front",
     });
 
-    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual(["page-1-a-2", "page-1-a-1", "page-1-a-locked", "page-1-a-3"]);
+    expect(sortedLayerIds(next.template, "page-1", "layer-a")).toEqual([
+      "page-1-a-2",
+      "page-1-a-1",
+      "page-1-a-locked",
+      "page-1-a-3",
+    ]);
   });
 
   it("aligns three selected objects to the left edge", () => {
@@ -535,9 +613,15 @@ describe("canvas mutation", () => {
       alignment: "align-left",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(40);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(40);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(40);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(
+      40,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(
+      40,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(
+      40,
+    );
   });
 
   it("keeps identity, page, layer and layer order during alignment", () => {
@@ -565,9 +649,15 @@ describe("canvas mutation", () => {
       alignment: "align-center-horizontal",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(120);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(120);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(120);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(
+      120,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(
+      120,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(
+      120,
+    );
   });
 
   it("aligns three selected objects to the right edge", () => {
@@ -578,9 +668,15 @@ describe("canvas mutation", () => {
       alignment: "align-right",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(200);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(200);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(200);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(
+      200,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(
+      200,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.x).toBe(
+      200,
+    );
   });
 
   it("aligns three selected objects to the top edge", () => {
@@ -591,9 +687,15 @@ describe("canvas mutation", () => {
       alignment: "align-top",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(20);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(20);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(20);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(
+      20,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(
+      20,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(
+      20,
+    );
   });
 
   it("aligns three selected objects to the vertical center", () => {
@@ -604,9 +706,15 @@ describe("canvas mutation", () => {
       alignment: "align-center-vertical",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(60);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(60);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(60);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(
+      60,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(
+      60,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(
+      60,
+    );
   });
 
   it("aligns three selected objects to the bottom edge", () => {
@@ -617,9 +725,15 @@ describe("canvas mutation", () => {
       alignment: "align-bottom",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(100);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(100);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(100);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.y).toBe(
+      100,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.y).toBe(
+      100,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-3")?.frame.y).toBe(
+      100,
+    );
   });
 
   it("ignores locked objects during alignment", () => {
@@ -630,8 +744,12 @@ describe("canvas mutation", () => {
       alignment: "align-left",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-locked")?.frame.x).toBe(280);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(40);
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-box-locked")?.frame.x,
+    ).toBe(280);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(
+      40,
+    );
   });
 
   it("keeps single-object alignment as a clean no-op", () => {
@@ -644,7 +762,12 @@ describe("canvas mutation", () => {
 
     expect(next.changedIds).toEqual([]);
     expect(next.template).toBe(template);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame).toEqual({ x: 120, y: 60, width: 40, height: 40 });
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame).toEqual({
+      x: 120,
+      y: 60,
+      width: 40,
+      height: 40,
+    });
   });
 
   it("aligns objects from multiple layers on the same page in the shared page coordinate space", () => {
@@ -655,11 +778,22 @@ describe("canvas mutation", () => {
       alignment: "align-right",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(260);
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(260);
-    expect(next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.frame.x).toBe(240);
-    expect(next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.props?.layerId).toBe("layer-b");
-    expect(next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.props?.layerOrder).toBe(2);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-1")?.frame.x).toBe(
+      260,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(
+      260,
+    );
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.frame.x,
+    ).toBe(240);
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.props?.layerId,
+    ).toBe("layer-b");
+    expect(
+      next.template.elements.find((element) => element.id === "page-1-layer-b-box")?.props
+        ?.layerOrder,
+    ).toBe(2);
   });
 
   it("applies multi-page alignment independently per page and ignores pages with a single selected object", () => {
@@ -670,9 +804,15 @@ describe("canvas mutation", () => {
       alignment: "align-left",
     });
 
-    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(40);
-    expect(next.template.elements.find((element) => element.id === "page-2-box-2")?.frame.x).toBe(50);
-    expect(next.template.elements.find((element) => element.id === "page-3-box-1")?.frame.x).toBe(140);
+    expect(next.template.elements.find((element) => element.id === "page-1-box-2")?.frame.x).toBe(
+      40,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-2-box-2")?.frame.x).toBe(
+      50,
+    );
+    expect(next.template.elements.find((element) => element.id === "page-3-box-1")?.frame.x).toBe(
+      140,
+    );
   });
 
   it("flips objects canonically without changing identity, page, layer or parent", () => {
@@ -690,21 +830,27 @@ describe("canvas mutation", () => {
     expect(horizontal?.props?.layerId).toBe("layer-a");
     expect(horizontal?.props?.layerName).toBe("Layer A");
     expect(horizontal?.frame).toEqual({ x: 120, y: 10, width: 100, height: 40 });
-    expect(flippedX.template.elements.find((element) => element.id === "page-1-a-locked")?.props?.flipX).toBeUndefined();
+    expect(
+      flippedX.template.elements.find((element) => element.id === "page-1-a-locked")?.props?.flipX,
+    ).toBeUndefined();
 
     const flippedBack = flipTemplateCanvasElements(flippedX.template, {
       elementIds: ["page-1-a-2"],
       axis: "horizontal",
     });
 
-    expect(flippedBack.template.elements.find((element) => element.id === "page-1-a-2")?.props?.flipX).toBe(false);
+    expect(
+      flippedBack.template.elements.find((element) => element.id === "page-1-a-2")?.props?.flipX,
+    ).toBe(false);
 
     const flippedY = flipTemplateCanvasElements(template, {
       elementIds: ["page-1-a-1"],
       axis: "vertical",
     });
 
-    expect(flippedY.template.elements.find((element) => element.id === "page-1-a-1")?.props?.flipY).toBe(true);
+    expect(
+      flippedY.template.elements.find((element) => element.id === "page-1-a-1")?.props?.flipY,
+    ).toBe(true);
   });
 
   it("supports independent horizontal and vertical flip flags", () => {
@@ -719,7 +865,9 @@ describe("canvas mutation", () => {
       axis: "vertical",
     });
 
-    const element = flippedBoth.template.elements.find((candidate) => candidate.id === "page-1-a-1");
+    const element = flippedBoth.template.elements.find(
+      (candidate) => candidate.id === "page-1-a-1",
+    );
     expect(element?.props?.flipX).toBe(true);
     expect(element?.props?.flipY).toBe(true);
     expect(element?.id).toBe("page-1-a-1");

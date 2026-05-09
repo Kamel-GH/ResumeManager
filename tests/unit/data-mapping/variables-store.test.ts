@@ -64,7 +64,9 @@ Grace;London`),
       label: "Âge",
     });
 
-    const updated = useVariablesStore.getState().variables.find((variable) => variable.id === lastVariable.id);
+    const updated = useVariablesStore
+      .getState()
+      .variables.find((variable) => variable.id === lastVariable.id);
     expect(updated).toMatchObject({
       key: "age_personne",
       label: "Âge",
@@ -76,7 +78,10 @@ Grace;London`),
       sourceColumn: null,
     });
 
-    expect(useVariablesStore.getState().variables.find((variable) => variable.id === lastVariable.id)?.sampleValue).toBe("");
+    expect(
+      useVariablesStore.getState().variables.find((variable) => variable.id === lastVariable.id)
+        ?.sampleValue,
+    ).toBe("");
   });
 
   it("removes variables and keeps the selection on a surviving row", () => {

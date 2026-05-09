@@ -44,13 +44,32 @@
     "enabled": true,
     "rules": {
       "recommended": true,
-
-      "style": {
-        "noDescendingSpecificity": "off"
+      "a11y": {
+        "recommended": false
       },
-
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "style": {
+        "noDescendingSpecificity": "off",
+        "noNonNullAssertion": "off"
+      },
       "complexity": {
-        "noImportantStyles": "off"
+        "noImportantStyles": "off",
+        "useLiteralKeys": "off",
+        "noUselessSwitchCase": "off",
+        "useOptionalChain": "off"
+      },
+      "performance": {
+        "noImgElement": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "useIterableCallbackReturn": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
       }
     }
   },

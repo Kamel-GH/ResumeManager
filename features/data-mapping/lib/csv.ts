@@ -1,4 +1,10 @@
-import type { CsvDelimiter, CsvRow, CsvSource, MappingVariable, VariableType } from "@/features/data-mapping/types";
+import type {
+  CsvDelimiter,
+  CsvRow,
+  CsvSource,
+  MappingVariable,
+  VariableType,
+} from "@/features/data-mapping/types";
 
 const DELIMITER_CANDIDATES: CsvDelimiter[] = [",", ";", "\t", "|"];
 const BOOLEAN_VALUES = new Set(["true", "false", "yes", "no", "oui", "non"]);
@@ -16,7 +22,9 @@ export function parseCsvText(text: string): ParsedCsv {
   }
 
   const delimiter = resolveCsvDelimiter(content);
-  const records = parseDelimitedRecords(content, delimiter).filter((record) => record.some((cell) => cell.trim().length > 0));
+  const records = parseDelimitedRecords(content, delimiter).filter((record) =>
+    record.some((cell) => cell.trim().length > 0),
+  );
   const [rawHeaders = [], ...rawRows] = records;
   const headers = normalizeCsvHeaders(rawHeaders);
   const rows = rawRows.map((record) => buildRow(headers, record));
@@ -43,7 +51,10 @@ export function createCsvSource(input: {
 
 export function createVariablesFromCsvSource(source: CsvSource): MappingVariable[] {
   return source.columns.map((column, index) => {
-    const samples = source.rows.slice(0, 8).map((row) => row[column] ?? "").filter((value) => value.trim().length > 0);
+    const samples = source.rows
+      .slice(0, 8)
+      .map((row) => row[column] ?? "")
+      .filter((value) => value.trim().length > 0);
     return {
       id: `variable-${index + 1}`,
       key: slugifyVariableKey(column, index + 1),

@@ -1,10 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import type {
-  EditorLeftPanelTab,
-  EditorLeftSubTab,
-} from "@/features/editor/stores/editor-store";
+import type { EditorLeftPanelTab, EditorLeftSubTab } from "@/features/editor/stores/editor-store";
 
 type LeftPanelPrimaryTab = {
   id: EditorLeftPanelTab;

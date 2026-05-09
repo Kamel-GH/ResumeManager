@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   AlignCenterHorizontal,
   AlignCenterVertical,
@@ -20,12 +20,15 @@ import {
   SendToBack,
   Trash2,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import type {
+  CanvasObjectAlignmentAction,
+  CanvasObjectOrderAction,
+} from "@/features/editor/schema/canvas-mutation";
 import { cn } from "@/lib/utils";
-import type { CanvasObjectAlignmentAction, CanvasObjectOrderAction } from "@/features/editor/schema/canvas-mutation";
 
 type SelectionActionBarPlacement = "top" | "bottom";
 
@@ -100,10 +103,20 @@ export function CanvasSelectionActionBar({
   const alignItems = useMemo<ActionItem[]>(
     () => [
       { id: "align-left", label: "Align left", icon: AlignStartHorizontal, disabled: !canAlign },
-      { id: "align-center-horizontal", label: "Align center", icon: AlignCenterHorizontal, disabled: !canAlign },
+      {
+        id: "align-center-horizontal",
+        label: "Align center",
+        icon: AlignCenterHorizontal,
+        disabled: !canAlign,
+      },
       { id: "align-right", label: "Align right", icon: AlignEndHorizontal, disabled: !canAlign },
       { id: "align-top", label: "Align top", icon: AlignStartVertical, disabled: !canAlign },
-      { id: "align-center-vertical", label: "Align middle", icon: AlignCenterVertical, disabled: !canAlign },
+      {
+        id: "align-center-vertical",
+        label: "Align middle",
+        icon: AlignCenterVertical,
+        disabled: !canAlign,
+      },
       { id: "align-bottom", label: "Align bottom", icon: AlignEndVertical, disabled: !canAlign },
     ],
     [canAlign],
@@ -185,7 +198,10 @@ export function CanvasSelectionActionBar({
               type="button"
               variant="ghost"
               size="icon-sm"
-              className={cn("ef-selection-action-bar-button !h-[30px] !w-[30px] !p-0", positionOpen && "is-active")}
+              className={cn(
+                "ef-selection-action-bar-button !h-[30px] !w-[30px] !p-0",
+                positionOpen && "is-active",
+              )}
               title="Position"
               aria-label="Position"
               aria-pressed={positionOpen}
@@ -202,7 +218,11 @@ export function CanvasSelectionActionBar({
             onPointerDownOutside={() => setPositionOpen(false)}
             onEscapeKeyDown={() => setPositionOpen(false)}
           >
-            <div className="ef-selection-action-popover-shell" role="menu" aria-label="Position de l'objet">
+            <div
+              className="ef-selection-action-popover-shell"
+              role="menu"
+              aria-label="Position de l'objet"
+            >
               <section className="ef-selection-action-popover-section" aria-label="Ordre">
                 <div className="ef-selection-action-popover-section-title">Layering</div>
                 <div className="ef-selection-action-popover-grid ef-selection-action-popover-grid--order">

@@ -21,7 +21,10 @@ export function resolveEditorObjectFallbackLayerId(template: TemplateSchema, pag
 
   const explicitLayerKeys = new Set(
     pageElements
-      .map((element) => readElementPropString(element, "layerId") ?? readElementPropString(element, "layerName"))
+      .map(
+        (element) =>
+          readElementPropString(element, "layerId") ?? readElementPropString(element, "layerName"),
+      )
       .filter((value): value is string => Boolean(value)),
   );
 
@@ -32,15 +35,24 @@ export function resolveEditorObjectFallbackLayerId(template: TemplateSchema, pag
   return `${pageId}:layer-1`;
 }
 
-export function resolveEditorObjectLayerIdentity(element: TemplateElement, fallbackLayerId: string | null): EditorObjectLayerIdentity | null {
-  const layerId = readElementPropString(element, "layerId") ?? readElementPropString(element, "layerName") ?? fallbackLayerId;
+export function resolveEditorObjectLayerIdentity(
+  element: TemplateElement,
+  fallbackLayerId: string | null,
+): EditorObjectLayerIdentity | null {
+  const layerId =
+    readElementPropString(element, "layerId") ??
+    readElementPropString(element, "layerName") ??
+    fallbackLayerId;
   if (!layerId) {
     return null;
   }
 
   return {
     key: layerId,
-    name: readElementPropString(element, "layerName") ?? readElementPropString(element, "layerId") ?? "Contenu",
+    name:
+      readElementPropString(element, "layerName") ??
+      readElementPropString(element, "layerId") ??
+      "Contenu",
     order: readElementPropNumber(element, "layerOrder"),
     visible: readElementPropBoolean(element, "layerVisible"),
     locked: readElementPropBoolean(element, "layerLocked"),
@@ -56,12 +68,16 @@ export function resolveEditorObjectGrouping(element: TemplateElement): EditorObj
 }
 
 export function resolveEditorObjectLabel(element: TemplateElement) {
-  const explicitName = readElementPropString(element, "label") ?? readElementPropString(element, "name") ?? readElementPropString(element, "title");
+  const explicitName =
+    readElementPropString(element, "label") ??
+    readElementPropString(element, "name") ??
+    readElementPropString(element, "title");
   if (explicitName) {
     return explicitName;
   }
 
-  const textualContent = readElementPropString(element, "text") ?? readElementPropString(element, "html");
+  const textualContent =
+    readElementPropString(element, "text") ?? readElementPropString(element, "html");
   if (textualContent) {
     const clean = stripRichTextHtml(textualContent);
     if (clean) {

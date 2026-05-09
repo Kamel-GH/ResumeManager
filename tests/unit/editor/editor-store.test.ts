@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CanvasWorkspaceLayer } from "@/features/editor/schema/canvas-insertion";
-import { CANVAS_ARC_PRESETS, CANVAS_SHAPE_PRESETS, createCanvasArcPresetToolPayload, createCanvasShapePresetPayload } from "@/features/editor/schema/canvas-presets";
+import {
+  CANVAS_ARC_PRESETS,
+  CANVAS_SHAPE_PRESETS,
+  createCanvasArcPresetToolPayload,
+  createCanvasShapePresetPayload,
+} from "@/features/editor/schema/canvas-presets";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { EditorStoreState } from "@/features/editor/stores/editor-store";
 
@@ -58,7 +63,9 @@ describe("editor store clipboard", () => {
     expect(pasteResult.ids).not.toContain("shape-1");
     expect(pasteResult.ids).not.toContain("shape-2");
 
-    const pastedElements = state.workingTemplate.elements.filter((element) => pasteResult.ids.includes(element.id));
+    const pastedElements = state.workingTemplate.elements.filter((element) =>
+      pasteResult.ids.includes(element.id),
+    );
     expect(pastedElements).toHaveLength(2);
     expect(pastedElements[0]?.pageId).toBe("page-1");
     expect(pastedElements[0]?.frame.x).toBe(22);
@@ -77,7 +84,9 @@ describe("editor store clipboard", () => {
     expect(copyResult.copied).toBe(true);
     expect(useEditorStore.getState().workingTemplate).toEqual(beforeTemplate);
     expect(useEditorStore.getState().selectedElementIds).toEqual(beforeSelection);
-    expect(useEditorStore.getState().canvasClipboard?.elements.map((element) => element.id)).toEqual(["shape-1"]);
+    expect(
+      useEditorStore.getState().canvasClipboard?.elements.map((element) => element.id),
+    ).toEqual(["shape-1"]);
   });
 
   it("pastes into the active page and active layer when they still exist", () => {
@@ -125,7 +134,9 @@ describe("editor store clipboard", () => {
       return;
     }
 
-    const pasted = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === pasteResult.ids[0]);
+    const pasted = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === pasteResult.ids[0]);
     expect(pasted?.pageId).toBe("page-2");
     expect(pasted?.props?.layerId).toBe("layer-2");
     expect(pasted?.props?.layerName).toBe("Layer 2");
@@ -165,7 +176,13 @@ describe("editor store clipboard", () => {
             zIndex: 1,
             locked: false,
             visible: true,
-            props: { shape: "rect", selectable: true, layerId: "layer-2", layerName: "Layer 2", layerOrder: 1 },
+            props: {
+              shape: "rect",
+              selectable: true,
+              layerId: "layer-2",
+              layerName: "Layer 2",
+              layerOrder: 1,
+            },
           },
         ],
       },
@@ -188,17 +205,31 @@ describe("editor store clipboard", () => {
 
     let state = useEditorStore.getState();
     expect(state.activeWorkspaceLayerIdByPageId["page-1"]).toBe(addResult.layerId);
-    expect(state.workspaceLayersByPageId["page-1"]?.some((layer) => layer.id === addResult.layerId)).toBe(true);
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.some((layer) => layer.id === addResult.layerId),
+    ).toBe(true);
 
-    const visibilityResult = useEditorStore.getState().setWorkspaceLayerVisibility({ pageId: "page-1", layerId: addResult.layerId, visible: false });
+    const visibilityResult = useEditorStore.getState().setWorkspaceLayerVisibility({
+      pageId: "page-1",
+      layerId: addResult.layerId,
+      visible: false,
+    });
     expect(visibilityResult.updated).toBe(true);
     state = useEditorStore.getState();
-    expect(state.workspaceLayersByPageId["page-1"]?.find((layer) => layer.id === addResult.layerId)?.visible).toBe(false);
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.find((layer) => layer.id === addResult.layerId)
+        ?.visible,
+    ).toBe(false);
 
-    const lockResult = useEditorStore.getState().setWorkspaceLayerLocked({ pageId: "page-1", layerId: addResult.layerId, locked: true });
+    const lockResult = useEditorStore
+      .getState()
+      .setWorkspaceLayerLocked({ pageId: "page-1", layerId: addResult.layerId, locked: true });
     expect(lockResult.updated).toBe(true);
     state = useEditorStore.getState();
-    expect(state.workspaceLayersByPageId["page-1"]?.find((layer) => layer.id === addResult.layerId)?.locked).toBe(true);
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.find((layer) => layer.id === addResult.layerId)
+        ?.locked,
+    ).toBe(true);
   });
 
   it("assigns distinct stable layer numbers that do not depend on layer order", () => {
@@ -237,7 +268,9 @@ describe("editor store clipboard", () => {
       afterMoveState.activeWorkspaceLayerIdByPageId,
       afterMoveState.selectedWorkspaceLayerIdByPageId,
     );
-    expect(afterMoveViews.map((layer) => ({ id: layer.id, number: layer.number, order: layer.order }))).toEqual([
+    expect(
+      afterMoveViews.map((layer) => ({ id: layer.id, number: layer.number, order: layer.order })),
+    ).toEqual([
       { id: secondAdd.layerId, number: 3, order: 1 },
       { id: "layer-1", number: 1, order: 2 },
       { id: firstAdd.layerId, number: 2, order: 3 },
@@ -251,8 +284,20 @@ describe("editor store clipboard", () => {
         ...state.workingTemplate,
         pages: [
           ...state.workingTemplate.pages,
-          { id: "page-2", name: "Page 2", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
-          { id: "page-3", name: "Page 3", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+          {
+            id: "page-2",
+            name: "Page 2",
+            width: 400,
+            height: 300,
+            margin: { top: 20, right: 20, bottom: 20, left: 20 },
+          },
+          {
+            id: "page-3",
+            name: "Page 3",
+            width: 400,
+            height: 300,
+            margin: { top: 20, right: 20, bottom: 20, left: 20 },
+          },
         ],
         elements: state.workingTemplate.elements.map((element) => ({
           ...element,
@@ -266,9 +311,36 @@ describe("editor store clipboard", () => {
       },
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
-        "page-1": [{ id: "page-1:layer-1", pageId: "page-1", name: "Contenu", order: 1, visible: true, locked: false }],
-        "page-2": [{ id: "page-2:layer-1", pageId: "page-2", name: "Contenu", order: 1, visible: true, locked: false }],
-        "page-3": [{ id: "page-3:layer-1", pageId: "page-3", name: "Contenu", order: 1, visible: true, locked: false }],
+        "page-1": [
+          {
+            id: "page-1:layer-1",
+            pageId: "page-1",
+            name: "Contenu",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+        ],
+        "page-2": [
+          {
+            id: "page-2:layer-1",
+            pageId: "page-2",
+            name: "Contenu",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+        ],
+        "page-3": [
+          {
+            id: "page-3:layer-1",
+            pageId: "page-3",
+            name: "Contenu",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+        ],
       },
       activeWorkspaceLayerIdByPageId: {
         ...state.activeWorkspaceLayerIdByPageId,
@@ -279,9 +351,22 @@ describe("editor store clipboard", () => {
     }));
 
     const state = useEditorStore.getState();
-    const documentLayers = deriveEditorDocumentLayersView(state.workingTemplate, state.workspaceLayersByPageId, state.activePageId, state.activeWorkspaceLayerIdByPageId, state.selectedWorkspaceLayerIdByPageId);
+    const documentLayers = deriveEditorDocumentLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      state.activePageId,
+      state.activeWorkspaceLayerIdByPageId,
+      state.selectedWorkspaceLayerIdByPageId,
+    );
 
-    expect(documentLayers.map((layer) => ({ id: layer.id, number: layer.number, order: layer.order, active: layer.active }))).toEqual([
+    expect(
+      documentLayers.map((layer) => ({
+        id: layer.id,
+        number: layer.number,
+        order: layer.order,
+        active: layer.active,
+      })),
+    ).toEqual([
       { id: "page-1:layer-1", number: 1, order: 1, active: false },
       { id: "page-2:layer-1", number: 2, order: 1, active: true },
       { id: "page-3:layer-1", number: 3, order: 1, active: false },
@@ -294,9 +379,30 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: true, locked: false },
-          { id: "layer-3", pageId: "page-1", name: "Layer 3", order: 3, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-3",
+            pageId: "page-1",
+            name: "Layer 3",
+            order: 3,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       workingTemplate: {
@@ -342,20 +448,42 @@ describe("editor store clipboard", () => {
     expect(result.reordered).toBe(true);
 
     const state = useEditorStore.getState();
-    expect(state.workspaceLayersByPageId["page-1"]?.map((layer) => ({ id: layer.id, order: layer.order }))).toEqual([
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.map((layer) => ({
+        id: layer.id,
+        order: layer.order,
+      })),
+    ).toEqual([
       { id: "layer-3", order: 1 },
       { id: "layer-1", order: 2 },
       { id: "layer-2", order: 3 },
     ]);
 
-    expect(state.workingTemplate.elements.map((element) => element.id)).toEqual(beforeElements.map((element) => element.id));
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerId).toBe("layer-1");
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerOrder).toBe(2);
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-2")?.props?.layerId).toBe("layer-2");
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-2")?.props?.layerOrder).toBe(3);
+    expect(state.workingTemplate.elements.map((element) => element.id)).toEqual(
+      beforeElements.map((element) => element.id),
+    );
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerId,
+    ).toBe("layer-1");
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerOrder,
+    ).toBe(2);
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-2")?.props?.layerId,
+    ).toBe("layer-2");
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-2")?.props?.layerOrder,
+    ).toBe(3);
 
-    const layerViews = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId);
-    expect(layerViews.map((layer) => ({ id: layer.id, number: layer.number, order: layer.order }))).toEqual([
+    const layerViews = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+    );
+    expect(
+      layerViews.map((layer) => ({ id: layer.id, number: layer.number, order: layer.order })),
+    ).toEqual([
       { id: "layer-3", number: 3, order: 1 },
       { id: "layer-1", number: 1, order: 2 },
       { id: "layer-2", number: 2, order: 3 },
@@ -385,11 +513,22 @@ describe("editor store clipboard", () => {
     }));
 
     const state = useEditorStore.getState();
-    const layerViews = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId);
-    const objectViews = deriveEditorObjectsView(state.workingTemplate, state.selectedElementIds, "page-1");
+    const layerViews = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+    );
+    const objectViews = deriveEditorObjectsView(
+      state.workingTemplate,
+      state.selectedElementIds,
+      "page-1",
+    );
 
     expect(layerViews.find((layer) => layer.id === "layer-1")?.active).toBe(true);
-    expect(objectViews.filter((object) => object.layerId === "layer-1").map((object) => object.id)).toEqual(["shape-1", "shape-2"]);
+    expect(
+      objectViews.filter((object) => object.layerId === "layer-1").map((object) => object.id),
+    ).toEqual(["shape-1", "shape-2"]);
     expect(objectViews.find((object) => object.id === "shape-1")?.grouped).toBe(true);
   });
 
@@ -399,9 +538,30 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: true, locked: false },
-          { id: "layer-3", pageId: "page-1", name: "Layer 3", order: 3, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-3",
+            pageId: "page-1",
+            name: "Layer 3",
+            order: 3,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       workingTemplate: {
@@ -419,8 +579,18 @@ describe("editor store clipboard", () => {
     }));
 
     const state = useEditorStore.getState();
-    const objectViews = deriveEditorObjectsView(state.workingTemplate, state.selectedElementIds, "page-1");
-    expect(objectViews.map((object) => ({ id: object.id, layerNumber: object.layerNumber, selected: object.selected }))).toEqual([
+    const objectViews = deriveEditorObjectsView(
+      state.workingTemplate,
+      state.selectedElementIds,
+      "page-1",
+    );
+    expect(
+      objectViews.map((object) => ({
+        id: object.id,
+        layerNumber: object.layerNumber,
+        selected: object.selected,
+      })),
+    ).toEqual([
       { id: "shape-1", layerNumber: 2, selected: true },
       { id: "shape-2", layerNumber: 3, selected: true },
     ]);
@@ -431,8 +601,22 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       activeWorkspaceLayerIdByPageId: {
@@ -446,7 +630,13 @@ describe("editor store clipboard", () => {
     }));
 
     const state = useEditorStore.getState();
-    const layerViews = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId, state.selectedWorkspaceLayerIdByPageId);
+    const layerViews = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+      state.selectedWorkspaceLayerIdByPageId,
+    );
 
     expect(layerViews.find((layer) => layer.id === "layer-1")?.active).toBe(true);
     expect(layerViews.find((layer) => layer.id === "layer-1")?.selected).toBe(false);
@@ -462,9 +652,14 @@ describe("editor store clipboard", () => {
     });
 
     expect(result.renamed).toBe(true);
-    const layer = useEditorStore.getState().workspaceLayersByPageId["page-1"]?.find((item) => item.id === "layer-1");
+    const layer = useEditorStore
+      .getState()
+      .workspaceLayersByPageId["page-1"]?.find((item) => item.id === "layer-1");
     expect(layer).toMatchObject({ id: "layer-1", name: "Identité", order: 1 });
-    expect(useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerName).toBe("Identité");
+    expect(
+      useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")
+        ?.props?.layerName,
+    ).toBe("Identité");
   });
 
   it("deletes only empty non-last layers and leaves object layers intact", () => {
@@ -472,8 +667,22 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-empty", pageId: "page-1", name: "Empty", order: 2, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-empty",
+            pageId: "page-1",
+            name: "Empty",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       selectedWorkspaceLayerIdByPageId: {
@@ -482,13 +691,23 @@ describe("editor store clipboard", () => {
       },
     }));
 
-    const blocked = useEditorStore.getState().deleteWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-1" });
+    const blocked = useEditorStore
+      .getState()
+      .deleteWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-1" });
     expect(blocked.deleted).toBe(false);
 
-    const deleted = useEditorStore.getState().deleteWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-empty" });
+    const deleted = useEditorStore
+      .getState()
+      .deleteWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-empty" });
     expect(deleted.deleted).toBe(true);
-    expect(useEditorStore.getState().workspaceLayersByPageId["page-1"]?.map((layer) => layer.id)).toEqual(["layer-1"]);
-    expect(useEditorStore.getState().workingTemplate.elements.every((element) => element.props?.layerId === "layer-1")).toBe(true);
+    expect(
+      useEditorStore.getState().workspaceLayersByPageId["page-1"]?.map((layer) => layer.id),
+    ).toEqual(["layer-1"]);
+    expect(
+      useEditorStore
+        .getState()
+        .workingTemplate.elements.every((element) => element.props?.layerId === "layer-1"),
+    ).toBe(true);
   });
 
   it("moves the selected layer up and down by changing only layerOrder", () => {
@@ -496,9 +715,30 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: true, locked: false },
-          { id: "layer-3", pageId: "page-1", name: "Layer 3", order: 3, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-3",
+            pageId: "page-1",
+            name: "Layer 3",
+            order: 3,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       workingTemplate: {
@@ -515,17 +755,29 @@ describe("editor store clipboard", () => {
       },
     }));
 
-    const result = useEditorStore.getState().moveWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-2", direction: "up" });
+    const result = useEditorStore
+      .getState()
+      .moveWorkspaceLayerForPage({ pageId: "page-1", layerId: "layer-2", direction: "up" });
     expect(result.reordered).toBe(true);
 
     const state = useEditorStore.getState();
-    expect(state.workspaceLayersByPageId["page-1"]?.map((layer) => ({ id: layer.id, number: Number(layer.id.replace("layer-", "")), order: layer.order }))).toEqual([
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.map((layer) => ({
+        id: layer.id,
+        number: Number(layer.id.replace("layer-", "")),
+        order: layer.order,
+      })),
+    ).toEqual([
       { id: "layer-2", number: 2, order: 1 },
       { id: "layer-1", number: 1, order: 2 },
       { id: "layer-3", number: 3, order: 3 },
     ]);
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerId).toBe("layer-2");
-    expect(state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerOrder).toBe(1);
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerId,
+    ).toBe("layer-2");
+    expect(
+      state.workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.layerOrder,
+    ).toBe(1);
   });
 
   it("deletes multiple selected empty layers while keeping non-empty layers", () => {
@@ -533,9 +785,30 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-empty-2", pageId: "page-1", name: "Empty 2", order: 2, visible: true, locked: false },
-          { id: "layer-empty-3", pageId: "page-1", name: "Empty 3", order: 3, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-empty-2",
+            pageId: "page-1",
+            name: "Empty 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-empty-3",
+            pageId: "page-1",
+            name: "Empty 3",
+            order: 3,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       activeWorkspaceLayerIdByPageId: {
@@ -555,7 +828,9 @@ describe("editor store clipboard", () => {
     }
     expect(result.layerIds).toEqual(["layer-empty-2", "layer-empty-3"]);
     expect(result.skippedIds).toEqual(["layer-1"]);
-    expect(useEditorStore.getState().workspaceLayersByPageId["page-1"]?.map((layer) => layer.id)).toEqual(["layer-1"]);
+    expect(
+      useEditorStore.getState().workspaceLayersByPageId["page-1"]?.map((layer) => layer.id),
+    ).toEqual(["layer-1"]);
     expect(useEditorStore.getState().activeWorkspaceLayerIdByPageId["page-1"]).toBe("layer-1");
   });
 
@@ -564,8 +839,22 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: false, locked: true },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: false,
+            locked: true,
+          },
         ],
       },
       activeWorkspaceLayerIdByPageId: {
@@ -586,7 +875,11 @@ describe("editor store clipboard", () => {
       },
     }));
 
-    const beforeFrames = useEditorStore.getState().workingTemplate.elements.map((element) => ({ id: element.id, frame: element.frame, zIndex: element.zIndex }));
+    const beforeFrames = useEditorStore.getState().workingTemplate.elements.map((element) => ({
+      id: element.id,
+      frame: element.frame,
+      zIndex: element.zIndex,
+    }));
     const result = useEditorStore.getState().mergeWorkspaceLayersForPage({
       pageId: "page-1",
       layerIds: ["layer-1", "layer-2"],
@@ -600,10 +893,25 @@ describe("editor store clipboard", () => {
     expect(result.removedLayerIds).toEqual(["layer-1"]);
     const state = useEditorStore.getState();
     expect(state.workspaceLayersByPageId["page-1"]?.map((layer) => layer.id)).toEqual(["layer-2"]);
-    expect(deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId).map((layer) => ({ id: layer.id, number: layer.number }))).toEqual([{ id: "layer-2", number: 2 }]);
+    expect(
+      deriveEditorLayersView(
+        state.workingTemplate,
+        state.workspaceLayersByPageId,
+        "page-1",
+        state.activeWorkspaceLayerIdByPageId,
+      ).map((layer) => ({ id: layer.id, number: layer.number })),
+    ).toEqual([{ id: "layer-2", number: 2 }]);
     expect(state.workingTemplate.elements).toHaveLength(2);
-    expect(state.workingTemplate.elements.map((element) => ({ id: element.id, frame: element.frame, zIndex: element.zIndex }))).toEqual(beforeFrames);
-    expect(state.workingTemplate.elements.every((element) => element.props?.layerId === "layer-2")).toBe(true);
+    expect(
+      state.workingTemplate.elements.map((element) => ({
+        id: element.id,
+        frame: element.frame,
+        zIndex: element.zIndex,
+      })),
+    ).toEqual(beforeFrames);
+    expect(
+      state.workingTemplate.elements.every((element) => element.props?.layerId === "layer-2"),
+    ).toBe(true);
   });
 
   it("moves multiple selected layers while preserving their relative order and stable numbers", () => {
@@ -611,10 +919,38 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: true, locked: false },
-          { id: "layer-3", pageId: "page-1", name: "Layer 3", order: 3, visible: true, locked: false },
-          { id: "layer-4", pageId: "page-1", name: "Layer 4", order: 4, visible: true, locked: false },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-3",
+            pageId: "page-1",
+            name: "Layer 3",
+            order: 3,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-4",
+            pageId: "page-1",
+            name: "Layer 4",
+            order: 4,
+            visible: true,
+            locked: false,
+          },
         ],
       },
     }));
@@ -627,13 +963,24 @@ describe("editor store clipboard", () => {
 
     expect(result.reordered).toBe(true);
     const state = useEditorStore.getState();
-    expect(state.workspaceLayersByPageId["page-1"]?.map((layer) => ({ id: layer.id, order: layer.order }))).toEqual([
+    expect(
+      state.workspaceLayersByPageId["page-1"]?.map((layer) => ({
+        id: layer.id,
+        order: layer.order,
+      })),
+    ).toEqual([
       { id: "layer-1", order: 1 },
       { id: "layer-4", order: 2 },
       { id: "layer-2", order: 3 },
       { id: "layer-3", order: 4 },
     ]);
-    const layerViews = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId, state.selectedWorkspaceLayerIdByPageId);
+    const layerViews = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+      state.selectedWorkspaceLayerIdByPageId,
+    );
     expect(layerViews.map((layer) => ({ id: layer.id, number: layer.number }))).toEqual([
       { id: "layer-1", number: 1 },
       { id: "layer-4", number: 4 },
@@ -660,15 +1007,43 @@ describe("editor store clipboard", () => {
       workspaceLayersByPageId: {
         ...state.workspaceLayersByPageId,
         "page-1": [
-          { id: "layer-1", pageId: "page-1", name: "Layer 1", order: 1, visible: true, locked: false },
-          { id: "layer-2", pageId: "page-1", name: "Layer 2", order: 2, visible: false, locked: true },
+          {
+            id: "layer-1",
+            pageId: "page-1",
+            name: "Layer 1",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-2",
+            pageId: "page-1",
+            name: "Layer 2",
+            order: 2,
+            visible: false,
+            locked: true,
+          },
         ],
-        "page-2": [{ id: "page-2:layer-1", pageId: "page-2", name: "Layer P2", order: 1, visible: true, locked: false }],
+        "page-2": [
+          {
+            id: "page-2:layer-1",
+            pageId: "page-2",
+            name: "Layer P2",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+        ],
       },
     }));
 
     const state = useEditorStore.getState();
-    const pageOneLayers = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId);
+    const pageOneLayers = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+    );
     const filtered = filterEditorLayersView(pageOneLayers, {
       page: "1",
       visibility: "hidden",
@@ -714,20 +1089,29 @@ describe("editor store clipboard", () => {
             zIndex: 1,
             locked: false,
             visible: true,
-            props: { text: "Page 2", layerId: "page-2:layer-1", layerName: "Layer P2", layerOrder: 1 },
+            props: {
+              text: "Page 2",
+              layerId: "page-2:layer-1",
+              layerName: "Layer P2",
+              layerOrder: 1,
+            },
           },
         ],
       },
     }));
 
     const state = useEditorStore.getState();
-    const objectViews = state.workingTemplate.pages.flatMap((page) => deriveEditorObjectsView(state.workingTemplate, state.selectedElementIds, page.id));
+    const objectViews = state.workingTemplate.pages.flatMap((page) =>
+      deriveEditorObjectsView(state.workingTemplate, state.selectedElementIds, page.id),
+    );
     const filteredByType = filterEditorObjectsView(objectViews, { type: "text" });
     const filteredByLayer = filterEditorObjectsView(objectViews, { layer: "layer-2" });
     const filteredByPage = filterEditorObjectsView(objectViews, { page: "2" });
 
     expect(filteredByType.map((object) => object.id)).toEqual(["text-page-2"]);
-    expect(filteredByLayer.map((object) => ({ id: object.id, selected: object.selected }))).toEqual([{ id: "shape-2", selected: true }]);
+    expect(filteredByLayer.map((object) => ({ id: object.id, selected: object.selected }))).toEqual(
+      [{ id: "shape-2", selected: true }],
+    );
     expect(filteredByPage.map((object) => object.id)).toEqual(["text-page-2"]);
     expect(objectViews).toHaveLength(3);
     expect(useEditorStore.getState().workingTemplate.elements).toHaveLength(3);
@@ -744,7 +1128,9 @@ describe("editor store clipboard", () => {
     }
 
     const state = useEditorStore.getState();
-    const duplicated = state.workingTemplate.elements.filter((element) => duplicateResult.ids.includes(element.id));
+    const duplicated = state.workingTemplate.elements.filter((element) =>
+      duplicateResult.ids.includes(element.id),
+    );
 
     expect(duplicated).toHaveLength(2);
     expect(state.selectedElementIds).toEqual(duplicateResult.ids);
@@ -766,7 +1152,9 @@ describe("editor store clipboard", () => {
     useEditorStore.setState((state) => ({
       workingTemplate: {
         ...state.workingTemplate,
-        elements: state.workingTemplate.elements.map((element) => (element.id === "shape-2" ? { ...element, locked: true } : element)),
+        elements: state.workingTemplate.elements.map((element) =>
+          element.id === "shape-2" ? { ...element, locked: true } : element,
+        ),
       },
       selectedElementIds: ["shape-1", "shape-2"],
     }));
@@ -830,7 +1218,9 @@ describe("editor store clipboard", () => {
     });
 
     expect(horizontalResult.flipped).toBe(true);
-    const flippedHorizontal = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1");
+    const flippedHorizontal = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "shape-1");
     expect(flippedHorizontal?.props?.flipX).toBe(true);
     expect(flippedHorizontal?.id).toBe("shape-1");
     expect(flippedHorizontal?.pageId).toBe("page-1");
@@ -843,7 +1233,9 @@ describe("editor store clipboard", () => {
     });
 
     expect(verticalResult.flipped).toBe(true);
-    const flippedBoth = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1");
+    const flippedBoth = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "shape-1");
     expect(flippedBoth?.props?.flipX).toBe(true);
     expect(flippedBoth?.props?.flipY).toBe(true);
 
@@ -853,14 +1245,19 @@ describe("editor store clipboard", () => {
     });
 
     expect(flippedBack.flipped).toBe(true);
-    expect(useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.flipX).toBe(false);
+    expect(
+      useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")
+        ?.props?.flipX,
+    ).toBe(false);
   });
 
   it("keeps flip as a no-op for locked selected objects", () => {
     useEditorStore.setState((state) => ({
       workingTemplate: {
         ...state.workingTemplate,
-        elements: state.workingTemplate.elements.map((element) => (element.id === "shape-1" ? { ...element, locked: true } : element)),
+        elements: state.workingTemplate.elements.map((element) =>
+          element.id === "shape-1" ? { ...element, locked: true } : element,
+        ),
       },
       selectedElementIds: ["shape-1"],
     }));
@@ -871,7 +1268,10 @@ describe("editor store clipboard", () => {
     });
 
     expect(result.flipped).toBe(false);
-    expect(useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.flipX).toBeUndefined();
+    expect(
+      useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")
+        ?.props?.flipX,
+    ).toBeUndefined();
     expect(useEditorStore.getState().selectedElementIds).toEqual(["shape-1"]);
   });
 
@@ -895,7 +1295,9 @@ describe("editor store clipboard", () => {
     });
 
     expect(commitResult.committed).toBe(true);
-    const element = useEditorStore.getState().workingTemplate.elements.find((candidate) => candidate.id === "shape-1");
+    const element = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((candidate) => candidate.id === "shape-1");
     expect(element?.frame).toEqual({ x: 96, y: 84, width: 40, height: 40 });
     expect(element?.props?.flipX).toBe(true);
     expect(element?.id).toBe("shape-1");
@@ -905,12 +1307,54 @@ describe("editor store clipboard", () => {
   });
 
   it.each([
-    ["align-left", [{ x: 10, y: 10 }, { x: 10, y: 70 }, { x: 10, y: 130 }]],
-    ["align-center-horizontal", [{ x: 70, y: 10 }, { x: 70, y: 70 }, { x: 70, y: 130 }]],
-    ["align-right", [{ x: 130, y: 10 }, { x: 130, y: 70 }, { x: 130, y: 130 }]],
-    ["align-top", [{ x: 10, y: 10 }, { x: 70, y: 10 }, { x: 130, y: 10 }]],
-    ["align-center-vertical", [{ x: 10, y: 70 }, { x: 70, y: 70 }, { x: 130, y: 70 }]],
-    ["align-bottom", [{ x: 10, y: 130 }, { x: 70, y: 130 }, { x: 130, y: 130 }]],
+    [
+      "align-left",
+      [
+        { x: 10, y: 10 },
+        { x: 10, y: 70 },
+        { x: 10, y: 130 },
+      ],
+    ],
+    [
+      "align-center-horizontal",
+      [
+        { x: 70, y: 10 },
+        { x: 70, y: 70 },
+        { x: 70, y: 130 },
+      ],
+    ],
+    [
+      "align-right",
+      [
+        { x: 130, y: 10 },
+        { x: 130, y: 70 },
+        { x: 130, y: 130 },
+      ],
+    ],
+    [
+      "align-top",
+      [
+        { x: 10, y: 10 },
+        { x: 70, y: 10 },
+        { x: 130, y: 10 },
+      ],
+    ],
+    [
+      "align-center-vertical",
+      [
+        { x: 10, y: 70 },
+        { x: 70, y: 70 },
+        { x: 130, y: 70 },
+      ],
+    ],
+    [
+      "align-bottom",
+      [
+        { x: 10, y: 130 },
+        { x: 70, y: 130 },
+        { x: 130, y: 130 },
+      ],
+    ],
   ] as const)("aligns selected objects through the store with %s", (alignment, expectedPositions) => {
     useEditorStore.setState((state) => ({
       workingTemplate: {
@@ -990,7 +1434,9 @@ describe("editor store clipboard", () => {
     }
 
     const state = useEditorStore.getState();
-    const inserted = state.workingTemplate.elements.find((element) => element.id === result.elementId);
+    const inserted = state.workingTemplate.elements.find(
+      (element) => element.id === result.elementId,
+    );
 
     expect(state.selectedElementIds).toEqual([result.elementId]);
     expect(inserted).toBeDefined();
@@ -1022,7 +1468,9 @@ describe("editor store clipboard", () => {
     }
 
     const state = useEditorStore.getState();
-    const inserted = state.workingTemplate.elements.find((element) => element.id === result.elementId);
+    const inserted = state.workingTemplate.elements.find(
+      (element) => element.id === result.elementId,
+    );
     expect(state.workingTemplate.elements).toHaveLength(beforeCount + 1);
     expect(state.selectedElementIds).toEqual([result.elementId]);
     expect(inserted?.props).toMatchObject({
@@ -1039,7 +1487,12 @@ describe("editor store clipboard", () => {
       return;
     }
 
-    const frame = { x: 90, y: 100, width: arcPreset.defaultFrame.width, height: arcPreset.defaultFrame.height };
+    const frame = {
+      x: 90,
+      y: 100,
+      width: arcPreset.defaultFrame.width,
+      height: arcPreset.defaultFrame.height,
+    };
     const beforeCount = useEditorStore.getState().workingTemplate.elements.length;
     const result = useEditorStore.getState().insertCanvasToolPayload({
       pageId: "page-1",
@@ -1056,7 +1509,9 @@ describe("editor store clipboard", () => {
     }
 
     const state = useEditorStore.getState();
-    const inserted = state.workingTemplate.elements.find((element) => element.id === result.elementId);
+    const inserted = state.workingTemplate.elements.find(
+      (element) => element.id === result.elementId,
+    );
     expect(state.workingTemplate.elements).toHaveLength(beforeCount + 1);
     expect(state.selectedElementIds).toEqual([result.elementId]);
     expect(inserted?.props).toMatchObject({
@@ -1076,7 +1531,7 @@ describe("editor store clipboard", () => {
       sourcePanel: "libraries",
       payload: {
         name: "Image",
-        src: "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+        src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
       },
     });
 
@@ -1105,7 +1560,7 @@ describe("editor store clipboard", () => {
             locked: false,
             visible: true,
             props: {
-              src: "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+              src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
               layerId: "layer-1",
               layerName: "Layer 1",
               layerOrder: 1,
@@ -1116,7 +1571,9 @@ describe("editor store clipboard", () => {
       selectedElementIds: ["image-1"],
     }));
 
-    const before = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "image-1");
+    const before = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "image-1");
     const result = useEditorStore.getState().updateImageElementEditing({
       elementId: "image-1",
       imageEditing: {
@@ -1147,7 +1604,9 @@ describe("editor store clipboard", () => {
     });
 
     expect(result.updated).toBe(true);
-    const after = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "image-1");
+    const after = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "image-1");
     expect(after?.props?.imageEditing).toMatchObject({
       crop: { ratio: "1:1", zoom: 1.4 },
       mask: { type: "circle", bounds: { x: 0.1, y: 0.15, width: 0.75, height: 0.6 } },
@@ -1164,7 +1623,9 @@ describe("editor store clipboard", () => {
   });
 
   it("commits canvas drag geometry at drag end while preserving selection and layer parent", () => {
-    const before = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1");
+    const before = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "shape-1");
     expect(before).toBeDefined();
     if (!before) {
       return;
@@ -1187,7 +1648,12 @@ describe("editor store clipboard", () => {
 
     expect(state.workingTemplate.elements).toHaveLength(2);
     expect(state.selectedElementIds).toEqual(["shape-1"]);
-    expect(after?.frame).toEqual({ x: 120, y: 90, width: before.frame.width, height: before.frame.height });
+    expect(after?.frame).toEqual({
+      x: 120,
+      y: 90,
+      width: before.frame.width,
+      height: before.frame.height,
+    });
     expect(after?.pageId).toBe(before.pageId);
     expect(after?.props?.layerId).toBe(before.props?.layerId);
   });
@@ -1242,12 +1708,16 @@ describe("editor store clipboard", () => {
     useEditorStore.setState((state) => ({
       workingTemplate: {
         ...state.workingTemplate,
-        elements: state.workingTemplate.elements.map((element) => (element.id === "shape-1" ? { ...element, locked: true } : element)),
+        elements: state.workingTemplate.elements.map((element) =>
+          element.id === "shape-1" ? { ...element, locked: true } : element,
+        ),
       },
       selectedElementIds: ["shape-1"],
     }));
 
-    const before = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1");
+    const before = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "shape-1");
     expect(before).toBeDefined();
     if (!before) {
       return;
@@ -1265,7 +1735,9 @@ describe("editor store clipboard", () => {
     });
 
     expect(result.committed).toBe(false);
-    const after = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1");
+    const after = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "shape-1");
     expect(after?.frame).toEqual(before.frame);
     expect(useEditorStore.getState().selectedElementIds).toEqual(["shape-1"]);
   });
@@ -1313,7 +1785,9 @@ describe("editor store clipboard", () => {
 
     const rawStorage = localStorageMock.getItem("resume-manager-editor-panels-v2");
     expect(rawStorage).not.toBeNull();
-    const persisted = rawStorage ? (JSON.parse(rawStorage) as { state?: { viewport?: unknown; workspaceSettings?: unknown } }) : null;
+    const persisted = rawStorage
+      ? (JSON.parse(rawStorage) as { state?: { viewport?: unknown; workspaceSettings?: unknown } })
+      : null;
 
     expect(persisted?.state?.viewport).toBeUndefined();
     expect(persisted?.state?.workspaceSettings).toMatchObject({
@@ -1369,7 +1843,9 @@ describe("editor store clipboard", () => {
       return;
     }
 
-    const activePage = useEditorStore.getState().workingTemplate.pages.find((page) => page.id === activePageId);
+    const activePage = useEditorStore
+      .getState()
+      .workingTemplate.pages.find((page) => page.id === activePageId);
     expect(activePage?.margin).toMatchObject({
       ...beforeTemplate.pages.find((page) => page.id === activePageId)?.margin,
       left: 24.5,
@@ -1443,14 +1919,18 @@ describe("editor store clipboard", () => {
       selectedElementIds: ["rich-1"],
     }));
 
-    const before = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "rich-1");
+    const before = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "rich-1");
     const result = useEditorStore.getState().updateRichTextElementContent({
       elementId: "rich-1",
       html: "<p>Après <strong>édition</strong></p>",
     });
 
     expect(result.updated).toBe(true);
-    const after = useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "rich-1");
+    const after = useEditorStore
+      .getState()
+      .workingTemplate.elements.find((element) => element.id === "rich-1");
     expect(after).toMatchObject({
       id: before?.id,
       pageId: before?.pageId,
@@ -1505,8 +1985,15 @@ describe("editor store clipboard", () => {
 
     expect(locked).toEqual({ updated: false, reason: "bloc_verrouille" });
     expect(shape).toEqual({ updated: false, reason: "type_non_rich_text" });
-    expect(useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "rich-locked")?.props?.html).toBe("<p>Verrouillé</p>");
-    expect(useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")?.props?.html).toBeUndefined();
+    expect(
+      useEditorStore
+        .getState()
+        .workingTemplate.elements.find((element) => element.id === "rich-locked")?.props?.html,
+    ).toBe("<p>Verrouillé</p>");
+    expect(
+      useEditorStore.getState().workingTemplate.elements.find((element) => element.id === "shape-1")
+        ?.props?.html,
+    ).toBeUndefined();
   });
 });
 

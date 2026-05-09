@@ -5,19 +5,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import type { RenderNode } from "@/features/editor/schema/render-tree";
-
-import type { ImageEditingState, ImageEditorTab, ImageFilterPreset, ImageMaskBounds, ImageMaskType } from "./image-editor-types";
+import { ImageCropManipulator } from "./image-crop-manipulator";
+import type {
+  ImageEditingState,
+  ImageEditorTab,
+  ImageFilterPreset,
+  ImageMaskBounds,
+  ImageMaskType,
+} from "./image-editor-types";
 import {
   buildImageCssFilter,
   buildImageMaskPathData,
   defaultImageEditingState,
   normalizeImageEditingState,
-  resolveImagePreviewSource,
   resolveImageMaskBorderPresentation,
   resolveImageMaskFrame,
+  resolveImagePreviewSource,
   resolveImagePreviewSvgGeometry,
 } from "./image-editor-utils";
-import { ImageCropManipulator } from "./image-crop-manipulator";
 import { ImageMaskManipulator } from "./image-mask-manipulator";
 
 type ImageEditorDialogProps = {
@@ -58,7 +63,10 @@ const maskOptions: Array<{ id: ImageMaskType; label: string }> = [
   { id: "blob", label: "Blob" },
 ];
 
-const maskBorderStyleOptions: Array<{ id: ImageEditingState["mask"]["border"]["style"]; label: string }> = [
+const maskBorderStyleOptions: Array<{
+  id: ImageEditingState["mask"]["border"]["style"];
+  label: string;
+}> = [
   { id: "solid", label: "Solid" },
   { id: "dashed", label: "Dashed" },
   { id: "dashed-round", label: "Dashed Round" },
@@ -68,19 +76,41 @@ const maskBorderStyleOptions: Array<{ id: ImageEditingState["mask"]["border"]["s
 ];
 
 export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialogProps) {
-  const initialEditing = useMemo(() => normalizeImageEditingState(node.props.imageEditing), [node.props.imageEditing]);
+  const initialEditing = useMemo(
+    () => normalizeImageEditingState(node.props.imageEditing),
+    [node.props.imageEditing],
+  );
   const [activeTab, setActiveTab] = useState<ImageEditorTab>("crop");
   const [draft, setDraft] = useState<ImageEditingState>(initialEditing);
   const source = useMemo(() => resolveImagePreviewSource(node.props.src), [node.props.src]);
   const previewClipId = useMemo(() => `ef-image-editor-preview-clip-${node.id}`, [node.id]);
-  const previewFrameWidth = Number.isFinite(node.frame.width) && node.frame.width > 0 ? node.frame.width : 1;
-  const previewFrameHeight = Number.isFinite(node.frame.height) && node.frame.height > 0 ? node.frame.height : 1;
-  const previewAspectRatio = useMemo(() => `${previewFrameWidth} / ${previewFrameHeight}`, [previewFrameHeight, previewFrameWidth]);
-  const previewSvgGeometry = useMemo(() => resolveImagePreviewSvgGeometry(draft, previewFrameWidth, previewFrameHeight), [draft, previewFrameHeight, previewFrameWidth]);
-  const maskFrame = useMemo(() => resolveImageMaskFrame(draft.mask.bounds, previewFrameWidth, previewFrameHeight), [draft.mask.bounds, previewFrameHeight, previewFrameWidth]);
-  const maskBorderPresentation = useMemo(() => resolveImageMaskBorderPresentation(draft.mask.border), [draft.mask.border]);
+  const previewFrameWidth =
+    Number.isFinite(node.frame.width) && node.frame.width > 0 ? node.frame.width : 1;
+  const previewFrameHeight =
+    Number.isFinite(node.frame.height) && node.frame.height > 0 ? node.frame.height : 1;
+  const previewAspectRatio = useMemo(
+    () => `${previewFrameWidth} / ${previewFrameHeight}`,
+    [previewFrameHeight, previewFrameWidth],
+  );
+  const previewSvgGeometry = useMemo(
+    () => resolveImagePreviewSvgGeometry(draft, previewFrameWidth, previewFrameHeight),
+    [draft, previewFrameHeight, previewFrameWidth],
+  );
+  const maskFrame = useMemo(
+    () => resolveImageMaskFrame(draft.mask.bounds, previewFrameWidth, previewFrameHeight),
+    [draft.mask.bounds, previewFrameHeight, previewFrameWidth],
+  );
+  const maskBorderPresentation = useMemo(
+    () => resolveImageMaskBorderPresentation(draft.mask.border),
+    [draft.mask.border],
+  );
   const maskPathData = useMemo(
-    () => buildImageMaskPathData(maskFrame, draft.mask.type, draft.mask.type === "rounded-rect" ? draft.mask.radius : 0),
+    () =>
+      buildImageMaskPathData(
+        maskFrame,
+        draft.mask.type,
+        draft.mask.type === "rounded-rect" ? draft.mask.radius : 0,
+      ),
     [draft.mask.radius, draft.mask.type, maskFrame],
   );
   const hasSource = source.length > 0;
@@ -90,18 +120,15 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
       crop,
     }));
   }, []);
-  const handleMaskBoundsChange = useCallback(
-    (bounds: ImageMaskBounds) => {
-      setDraft((current) => ({
-        ...current,
-        mask: {
-          ...current.mask,
-          bounds,
-        },
-      }));
-    },
-    [],
-  );
+  const handleMaskBoundsChange = useCallback((bounds: ImageMaskBounds) => {
+    setDraft((current) => ({
+      ...current,
+      mask: {
+        ...current.mask,
+        bounds,
+      },
+    }));
+  }, []);
   const handleReset = useCallback(() => {
     setDraft(structuredClone(defaultImageEditingState));
     setActiveTab("crop");
@@ -125,14 +152,25 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
   }, [onCancel]);
 
   return (
-    <div className="ef-image-editor-backdrop" role="dialog" aria-label="Éditeur d’image" aria-modal="true">
+    <div
+      className="ef-image-editor-backdrop"
+      role="dialog"
+      aria-label="Éditeur d’image"
+      aria-modal="true"
+    >
       <div className="ef-image-editor-dialog">
         <header className="ef-image-editor-header">
           <div>
             <strong>Éditer l’image</strong>
             <span>{node.id}</span>
           </div>
-          <button type="button" className="ef-image-editor-icon-button" onClick={onCancel} aria-label="Fermer" title="Fermer">
+          <button
+            type="button"
+            className="ef-image-editor-icon-button"
+            onClick={onCancel}
+            aria-label="Fermer"
+            title="Fermer"
+          >
             <X size={16} aria-hidden="true" />
           </button>
         </header>
@@ -156,15 +194,27 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
             {activeTab === "crop" ? <CropPanel draft={draft} setDraft={setDraft} /> : null}
             {activeTab === "mask" ? <MaskPanel draft={draft} setDraft={setDraft} /> : null}
             {activeTab === "filters" ? <FiltersPanel draft={draft} setDraft={setDraft} /> : null}
-            {activeTab === "adjustments" ? <AdjustmentsPanel draft={draft} setDraft={setDraft} /> : null}
+            {activeTab === "adjustments" ? (
+              <AdjustmentsPanel draft={draft} setDraft={setDraft} />
+            ) : null}
             {activeTab === "effects" ? <EffectsPanel draft={draft} setDraft={setDraft} /> : null}
-            {activeTab === "transform" ? <TransformPanel draft={draft} setDraft={setDraft} /> : null}
+            {activeTab === "transform" ? (
+              <TransformPanel draft={draft} setDraft={setDraft} />
+            ) : null}
           </section>
 
           <section className="ef-image-editor-preview">
-            <div className="ef-image-editor-preview-frame" style={{ aspectRatio: previewAspectRatio }}>
+            <div
+              className="ef-image-editor-preview-frame"
+              style={{ aspectRatio: previewAspectRatio }}
+            >
               {hasSource ? (
-                <svg className="ef-image-editor-preview-svg" viewBox={`0 0 ${previewFrameWidth} ${previewFrameHeight}`} preserveAspectRatio="none" aria-hidden="true">
+                <svg
+                  className="ef-image-editor-preview-svg"
+                  viewBox={`0 0 ${previewFrameWidth} ${previewFrameHeight}`}
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
                   <defs>
                     <clipPath id={previewClipId}>
                       <path d={maskPathData} />
@@ -191,7 +241,11 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
                       fill="none"
                       stroke={draft.mask.border.color}
                       strokeWidth={draft.mask.border.width}
-                      strokeDasharray={maskBorderPresentation.dash.length > 0 ? maskBorderPresentation.dash.join(" ") : undefined}
+                      strokeDasharray={
+                        maskBorderPresentation.dash.length > 0
+                          ? maskBorderPresentation.dash.join(" ")
+                          : undefined
+                      }
                       strokeLinecap={maskBorderPresentation.lineCap}
                       strokeLinejoin={maskBorderPresentation.lineJoin}
                       vectorEffect="non-scaling-stroke"
@@ -205,12 +259,30 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
                   ) : null}
                 </svg>
               ) : (
-                <span className="ef-image-editor-preview-empty">{typeof node.props.src === "string" && node.props.src.trim() ? "Source image invalide" : "Aucune image"}</span>
+                <span className="ef-image-editor-preview-empty">
+                  {typeof node.props.src === "string" && node.props.src.trim()
+                    ? "Source image invalide"
+                    : "Aucune image"}
+                </span>
               )}
-              {draft.adjustments.vignette > 0 ? <div className="ef-image-editor-vignette" style={{ opacity: draft.adjustments.vignette }} /> : null}
-              {draft.adjustments.grain > 0 ? <div className="ef-image-editor-grain" style={{ opacity: draft.adjustments.grain }} /> : null}
-              {(activeTab === "crop" || activeTab === "mask") && hasSource ? <ImageCropManipulator editing={draft} onChange={handleCropChange} /> : null}
-              {activeTab === "mask" && hasSource ? <ImageMaskManipulator editing={draft} onChange={handleMaskBoundsChange} /> : null}
+              {draft.adjustments.vignette > 0 ? (
+                <div
+                  className="ef-image-editor-vignette"
+                  style={{ opacity: draft.adjustments.vignette }}
+                />
+              ) : null}
+              {draft.adjustments.grain > 0 ? (
+                <div
+                  className="ef-image-editor-grain"
+                  style={{ opacity: draft.adjustments.grain }}
+                />
+              ) : null}
+              {(activeTab === "crop" || activeTab === "mask") && hasSource ? (
+                <ImageCropManipulator editing={draft} onChange={handleCropChange} />
+              ) : null}
+              {activeTab === "mask" && hasSource ? (
+                <ImageMaskManipulator editing={draft} onChange={handleMaskBoundsChange} />
+              ) : null}
             </div>
           </section>
         </div>
@@ -223,7 +295,13 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
             <RotateCcw size={14} aria-hidden="true" />
             Réinitialiser
           </button>
-          <button type="button" className="ef-image-editor-primary" onClick={() => onApply(draft)} disabled={!hasSource} title={hasSource ? "Appliquer" : "L'image source est invalide"}>
+          <button
+            type="button"
+            className="ef-image-editor-primary"
+            onClick={() => onApply(draft)}
+            disabled={!hasSource}
+            title={hasSource ? "Appliquer" : "L'image source est invalide"}
+          >
             Appliquer
           </button>
         </footer>
@@ -235,12 +313,52 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
 function CropPanel({ draft, setDraft }: PanelProps) {
   return (
     <>
-      <ControlSelect label="Ratio" value={draft.crop.ratio} onChange={(ratio) => setDraft({ ...draft, crop: { ...draft.crop, ratio: ratio as ImageEditingState["crop"]["ratio"] } })} options={["free", "1:1", "4:3", "3:4", "16:9", "9:16", "block"]} />
-      <ControlSlider label="Zoom image" min={0.25} max={5} step={0.05} value={draft.crop.zoom} onChange={(zoom) => setDraft({ ...draft, crop: { ...draft.crop, zoom } })} />
-      <ControlSlider label="Déplacement X" min={-1} max={1} step={0.01} value={draft.crop.x} onChange={(x) => setDraft({ ...draft, crop: { ...draft.crop, x } })} />
-      <ControlSlider label="Déplacement Y" min={-1} max={1} step={0.01} value={draft.crop.y} onChange={(y) => setDraft({ ...draft, crop: { ...draft.crop, y } })} />
-      <ControlSlider label="Rotation crop" min={-180} max={180} step={1} value={draft.crop.rotation} onChange={(rotation) => setDraft({ ...draft, crop: { ...draft.crop, rotation } })} />
-      <p className="ef-image-editor-hint">Glissez l’image dans l’aperçu pour la déplacer. Utilisez les coins pour ajuster le zoom.</p>
+      <ControlSelect
+        label="Ratio"
+        value={draft.crop.ratio}
+        onChange={(ratio) =>
+          setDraft({
+            ...draft,
+            crop: { ...draft.crop, ratio: ratio as ImageEditingState["crop"]["ratio"] },
+          })
+        }
+        options={["free", "1:1", "4:3", "3:4", "16:9", "9:16", "block"]}
+      />
+      <ControlSlider
+        label="Zoom image"
+        min={0.25}
+        max={5}
+        step={0.05}
+        value={draft.crop.zoom}
+        onChange={(zoom) => setDraft({ ...draft, crop: { ...draft.crop, zoom } })}
+      />
+      <ControlSlider
+        label="Déplacement X"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.crop.x}
+        onChange={(x) => setDraft({ ...draft, crop: { ...draft.crop, x } })}
+      />
+      <ControlSlider
+        label="Déplacement Y"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.crop.y}
+        onChange={(y) => setDraft({ ...draft, crop: { ...draft.crop, y } })}
+      />
+      <ControlSlider
+        label="Rotation crop"
+        min={-180}
+        max={180}
+        step={1}
+        value={draft.crop.rotation}
+        onChange={(rotation) => setDraft({ ...draft, crop: { ...draft.crop, rotation } })}
+      />
+      <p className="ef-image-editor-hint">
+        Glissez l’image dans l’aperçu pour la déplacer. Utilisez les coins pour ajuster le zoom.
+      </p>
     </>
   );
 }
@@ -266,12 +384,24 @@ function MaskPanel({ draft, setDraft }: PanelProps) {
     <>
       <div className="ef-image-editor-choice-grid">
         {maskOptions.map((mask) => (
-          <button key={mask.id} type="button" className={draft.mask.type === mask.id ? "is-active" : ""} onClick={() => setDraft({ ...draft, mask: { ...draft.mask, type: mask.id } })}>
+          <button
+            key={mask.id}
+            type="button"
+            className={draft.mask.type === mask.id ? "is-active" : ""}
+            onClick={() => setDraft({ ...draft, mask: { ...draft.mask, type: mask.id } })}
+          >
             {mask.label}
           </button>
         ))}
       </div>
-      <ControlSlider label="Rayon" min={0} max={80} step={1} value={draft.mask.radius} onChange={(radius) => setDraft({ ...draft, mask: { ...draft.mask, radius } })} />
+      <ControlSlider
+        label="Rayon"
+        min={0}
+        max={80}
+        step={1}
+        value={draft.mask.radius}
+        onChange={(radius) => setDraft({ ...draft, mask: { ...draft.mask, radius } })}
+      />
       <div className="ef-image-editor-subsection">
         <span className="ef-image-editor-section-title">Contour</span>
         <ControlSlider
@@ -308,7 +438,9 @@ function MaskPanel({ draft, setDraft }: PanelProps) {
           onChange={(shadow) => handleBorderChange({ shadow })}
         />
       </div>
-      <p className="ef-image-editor-hint">Glissez le masque pour le déplacer. Utilisez les coins pour redimensionner.</p>
+      <p className="ef-image-editor-hint">
+        Glissez le masque pour le déplacer. Utilisez les coins pour redimensionner.
+      </p>
     </>
   );
 }
@@ -317,7 +449,12 @@ function FiltersPanel({ draft, setDraft }: PanelProps) {
   return (
     <div className="ef-image-editor-choice-grid">
       {filterOptions.map((filter) => (
-        <button key={filter.id} type="button" className={draft.filter === filter.id ? "is-active" : ""} onClick={() => setDraft({ ...draft, filter: filter.id })}>
+        <button
+          key={filter.id}
+          type="button"
+          className={draft.filter === filter.id ? "is-active" : ""}
+          onClick={() => setDraft({ ...draft, filter: filter.id })}
+        >
           {filter.label}
         </button>
       ))}
@@ -326,29 +463,115 @@ function FiltersPanel({ draft, setDraft }: PanelProps) {
 }
 
 function AdjustmentsPanel({ draft, setDraft }: PanelProps) {
-  const update = (key: keyof ImageEditingState["adjustments"], value: number) => setDraft({ ...draft, adjustments: { ...draft.adjustments, [key]: value } });
+  const update = (key: keyof ImageEditingState["adjustments"], value: number) =>
+    setDraft({ ...draft, adjustments: { ...draft.adjustments, [key]: value } });
   return (
     <>
-      <ControlSlider label="Luminosité" min={-1} max={1} step={0.01} value={draft.adjustments.brightness} onChange={(value) => update("brightness", value)} />
-      <ControlSlider label="Contraste" min={-1} max={1} step={0.01} value={draft.adjustments.contrast} onChange={(value) => update("contrast", value)} />
-      <ControlSlider label="Saturation" min={-1} max={1} step={0.01} value={draft.adjustments.saturation} onChange={(value) => update("saturation", value)} />
-      <ControlSlider label="Exposition" min={-1} max={1} step={0.01} value={draft.adjustments.exposure} onChange={(value) => update("exposure", value)} />
-      <ControlSlider label="Température" min={-1} max={1} step={0.01} value={draft.adjustments.temperature} onChange={(value) => update("temperature", value)} />
-      <ControlSlider label="Teinte" min={-180} max={180} step={1} value={draft.adjustments.hue} onChange={(value) => update("hue", value)} />
-      <ControlSlider label="Opacité" min={0} max={1} step={0.01} value={draft.adjustments.opacity} onChange={(value) => update("opacity", value)} />
+      <ControlSlider
+        label="Luminosité"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.brightness}
+        onChange={(value) => update("brightness", value)}
+      />
+      <ControlSlider
+        label="Contraste"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.contrast}
+        onChange={(value) => update("contrast", value)}
+      />
+      <ControlSlider
+        label="Saturation"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.saturation}
+        onChange={(value) => update("saturation", value)}
+      />
+      <ControlSlider
+        label="Exposition"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.exposure}
+        onChange={(value) => update("exposure", value)}
+      />
+      <ControlSlider
+        label="Température"
+        min={-1}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.temperature}
+        onChange={(value) => update("temperature", value)}
+      />
+      <ControlSlider
+        label="Teinte"
+        min={-180}
+        max={180}
+        step={1}
+        value={draft.adjustments.hue}
+        onChange={(value) => update("hue", value)}
+      />
+      <ControlSlider
+        label="Opacité"
+        min={0}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.opacity}
+        onChange={(value) => update("opacity", value)}
+      />
     </>
   );
 }
 
 function EffectsPanel({ draft, setDraft }: PanelProps) {
-  const update = (key: keyof ImageEditingState["adjustments"], value: number) => setDraft({ ...draft, adjustments: { ...draft.adjustments, [key]: value } });
+  const update = (key: keyof ImageEditingState["adjustments"], value: number) =>
+    setDraft({ ...draft, adjustments: { ...draft.adjustments, [key]: value } });
   return (
     <>
-      <ControlSlider label="Flou" min={0} max={20} step={0.5} value={draft.adjustments.blur} onChange={(value) => update("blur", value)} />
-      <ControlSlider label="Netteté" min={0} max={1} step={0.01} value={draft.adjustments.sharpness} onChange={(value) => update("sharpness", value)} />
-      <ControlSlider label="Ombre" min={0} max={1} step={0.01} value={draft.adjustments.shadow} onChange={(value) => update("shadow", value)} />
-      <ControlSlider label="Vignette" min={0} max={1} step={0.01} value={draft.adjustments.vignette} onChange={(value) => update("vignette", value)} />
-      <ControlSlider label="Grain" min={0} max={1} step={0.01} value={draft.adjustments.grain} onChange={(value) => update("grain", value)} />
+      <ControlSlider
+        label="Flou"
+        min={0}
+        max={20}
+        step={0.5}
+        value={draft.adjustments.blur}
+        onChange={(value) => update("blur", value)}
+      />
+      <ControlSlider
+        label="Netteté"
+        min={0}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.sharpness}
+        onChange={(value) => update("sharpness", value)}
+      />
+      <ControlSlider
+        label="Ombre"
+        min={0}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.shadow}
+        onChange={(value) => update("shadow", value)}
+      />
+      <ControlSlider
+        label="Vignette"
+        min={0}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.vignette}
+        onChange={(value) => update("vignette", value)}
+      />
+      <ControlSlider
+        label="Grain"
+        min={0}
+        max={1}
+        step={0.01}
+        value={draft.adjustments.grain}
+        onChange={(value) => update("grain", value)}
+      />
     </>
   );
 }
@@ -357,21 +580,62 @@ function TransformPanel({ draft, setDraft }: PanelProps) {
   return (
     <>
       <div className="ef-image-editor-choice-grid">
-        <button type="button" className={draft.transform.flipX ? "is-active" : ""} onClick={() => setDraft({ ...draft, transform: { ...draft.transform, flipX: !draft.transform.flipX } })}>
+        <button
+          type="button"
+          className={draft.transform.flipX ? "is-active" : ""}
+          onClick={() =>
+            setDraft({ ...draft, transform: { ...draft.transform, flipX: !draft.transform.flipX } })
+          }
+        >
           Miroir horizontal
         </button>
-        <button type="button" className={draft.transform.flipY ? "is-active" : ""} onClick={() => setDraft({ ...draft, transform: { ...draft.transform, flipY: !draft.transform.flipY } })}>
+        <button
+          type="button"
+          className={draft.transform.flipY ? "is-active" : ""}
+          onClick={() =>
+            setDraft({ ...draft, transform: { ...draft.transform, flipY: !draft.transform.flipY } })
+          }
+        >
           Miroir vertical
         </button>
-        <button type="button" onClick={() => setDraft({ ...draft, transform: { ...draft.transform, rotation: draft.transform.rotation - 90 } })}>
+        <button
+          type="button"
+          onClick={() =>
+            setDraft({
+              ...draft,
+              transform: { ...draft.transform, rotation: draft.transform.rotation - 90 },
+            })
+          }
+        >
           90° gauche
         </button>
-        <button type="button" onClick={() => setDraft({ ...draft, transform: { ...draft.transform, rotation: draft.transform.rotation + 90 } })}>
+        <button
+          type="button"
+          onClick={() =>
+            setDraft({
+              ...draft,
+              transform: { ...draft.transform, rotation: draft.transform.rotation + 90 },
+            })
+          }
+        >
           90° droite
         </button>
       </div>
-      <ControlSlider label="Rotation libre" min={-180} max={180} step={1} value={draft.transform.rotation} onChange={(rotation) => setDraft({ ...draft, transform: { ...draft.transform, rotation } })} />
-      <button type="button" className="ef-image-editor-wide-button" onClick={() => setDraft({ ...draft, transform: { flipX: false, flipY: false, rotation: 0 } })}>
+      <ControlSlider
+        label="Rotation libre"
+        min={-180}
+        max={180}
+        step={1}
+        value={draft.transform.rotation}
+        onChange={(rotation) => setDraft({ ...draft, transform: { ...draft.transform, rotation } })}
+      />
+      <button
+        type="button"
+        className="ef-image-editor-wide-button"
+        onClick={() =>
+          setDraft({ ...draft, transform: { flipX: false, flipY: false, rotation: 0 } })
+        }
+      >
         Reset transformation
       </button>
     </>
@@ -383,19 +647,50 @@ type PanelProps = {
   setDraft: (draft: ImageEditingState) => void;
 };
 
-function ControlSlider({ label, max, min, onChange, step, value }: { label: string; max: number; min: number; onChange: (value: number) => void; step: number; value: number }) {
+function ControlSlider({
+  label,
+  max,
+  min,
+  onChange,
+  step,
+  value,
+}: {
+  label: string;
+  max: number;
+  min: number;
+  onChange: (value: number) => void;
+  step: number;
+  value: number;
+}) {
   return (
     <label className="ef-image-editor-control">
       <span>
         {label}
         <b>{Number.isInteger(value) ? value : value.toFixed(2)}</b>
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
     </label>
   );
 }
 
-function ControlSelect({ label, onChange, options, value }: { label: string; onChange: (value: string) => void; options: string[]; value: string }) {
+function ControlSelect({
+  label,
+  onChange,
+  options,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: string[];
+  value: string;
+}) {
   return (
     <label className="ef-image-editor-control">
       <span>{label}</span>
@@ -410,10 +705,22 @@ function ControlSelect({ label, onChange, options, value }: { label: string; onC
   );
 }
 
-function ControlColor({ label, onChange, value }: { label: string; onChange: (value: string) => void; value: string }) {
+function ControlColor({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  value: string;
+}) {
   return (
     <div className="ef-image-editor-control">
-      <ColorPickerControl label={label} value={value} onChange={(color) => color && onChange(color)} />
+      <ColorPickerControl
+        label={label}
+        value={value}
+        onChange={(color) => color && onChange(color)}
+      />
     </div>
   );
 }

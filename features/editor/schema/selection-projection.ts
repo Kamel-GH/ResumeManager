@@ -1,4 +1,9 @@
-import type { CanonicalRenderTree, RenderNode, RenderNodeProps, RenderPageNode } from "@/features/editor/schema/render-tree";
+import type {
+  CanonicalRenderTree,
+  RenderNode,
+  RenderNodeProps,
+  RenderPageNode,
+} from "@/features/editor/schema/render-tree";
 import type { Rect } from "@/features/editor/types";
 
 export type KonvaSelectionType =
@@ -53,7 +58,11 @@ export type KonvaSelectionLayer = {
   locked: boolean | null;
 };
 
-export function projectKonvaSelection(renderTree: CanonicalRenderTree, activePageId: string, selectedElementIds: string[]): KonvaSelectionProjection {
+export function projectKonvaSelection(
+  renderTree: CanonicalRenderTree,
+  activePageId: string,
+  selectedElementIds: string[],
+): KonvaSelectionProjection {
   const pageById = new Map(renderTree.pages.map((page) => [page.id, page]));
   const activePage = pageById.get(activePageId) ?? renderTree.pages[0] ?? null;
   const selectedCount = selectedElementIds.length;
@@ -66,14 +75,19 @@ export function projectKonvaSelection(renderTree: CanonicalRenderTree, activePag
   if (selectedCount > 1) {
     const selectedNodes = selectedElementIds
       .map((elementId) => {
-        const page = renderTree.pages.find((candidatePage) => candidatePage.children.some((node) => node.id === elementId)) ?? null;
+        const page =
+          renderTree.pages.find((candidatePage) =>
+            candidatePage.children.some((node) => node.id === elementId),
+          ) ?? null;
         const node = page?.children.find((candidateNode) => candidateNode.id === elementId) ?? null;
         return page && node ? { page, node } : null;
       })
       .filter((entry): entry is { page: RenderPageNode; node: RenderNode } => entry !== null);
 
     const firstPage = selectedNodes[0]?.page ?? activePage;
-    const allOnSamePage = selectedNodes.length === selectedCount && selectedNodes.every((entry) => entry.page.id === firstPage?.id);
+    const allOnSamePage =
+      selectedNodes.length === selectedCount &&
+      selectedNodes.every((entry) => entry.page.id === firstPage?.id);
 
     if (firstPage && allOnSamePage) {
       return {
@@ -100,8 +114,11 @@ export function projectKonvaSelection(renderTree: CanonicalRenderTree, activePag
     return buildPageProjection(selectedPage, selectedElementIds);
   }
 
-  const pageWithSelectedNode = renderTree.pages.find((page) => page.children.some((node) => node.id === selectedId)) ?? activePage;
-  const selectedNode = pageWithSelectedNode?.children.find((node) => node.id === selectedId) ?? null;
+  const pageWithSelectedNode =
+    renderTree.pages.find((page) => page.children.some((node) => node.id === selectedId)) ??
+    activePage;
+  const selectedNode =
+    pageWithSelectedNode?.children.find((node) => node.id === selectedId) ?? null;
 
   if (!selectedNode || !pageWithSelectedNode) {
     return buildPageProjection(activePage, selectedElementIds);
@@ -137,7 +154,10 @@ export function projectKonvaSelection(renderTree: CanonicalRenderTree, activePag
   };
 }
 
-function buildPageProjection(page: RenderPageNode | null, selectedElementIds: string[]): KonvaSelectionProjection {
+function buildPageProjection(
+  page: RenderPageNode | null,
+  selectedElementIds: string[],
+): KonvaSelectionProjection {
   if (!page) {
     return {
       selectionIds: selectedElementIds,
@@ -171,7 +191,10 @@ function buildPageProjection(page: RenderPageNode | null, selectedElementIds: st
 }
 
 function resolveSelectionType(node: RenderNode): KonvaSelectionType {
-  const hint = propString(node.props, "selectionType") ?? propString(node.props, "entityType") ?? propString(node.props, "kind");
+  const hint =
+    propString(node.props, "selectionType") ??
+    propString(node.props, "entityType") ??
+    propString(node.props, "kind");
   if (isSelectionType(hint)) {
     return hint;
   }
@@ -213,7 +236,11 @@ function resolveUserFacingLayer(node: RenderNode, pageId: string): KonvaSelectio
   };
 }
 
-function resolveSelectionLabel(node: RenderNode, type: KonvaSelectionType, userFacingLayer: KonvaSelectionLayer | null): string {
+function resolveSelectionLabel(
+  node: RenderNode,
+  type: KonvaSelectionType,
+  userFacingLayer: KonvaSelectionLayer | null,
+): string {
   const explicitLabel = propString(node.props, "label") ?? propString(node.props, "name");
   const fallbackLabel = propString(node.props, "text") ?? node.id;
   const baseLabel = explicitLabel ?? fallbackLabel;
@@ -256,7 +283,20 @@ function labelForSelectionType(type: KonvaSelectionType): string {
 }
 
 function isSelectionType(value: string | undefined): value is KonvaSelectionType {
-  return value === "none" || value === "page" || value === "text" || value === "richText" || value === "image" || value === "shape" || value === "group" || value === "variable" || value === "dynamicPreset" || value === "userFacingLayer" || value === "table" || value === "list";
+  return (
+    value === "none" ||
+    value === "page" ||
+    value === "text" ||
+    value === "richText" ||
+    value === "image" ||
+    value === "shape" ||
+    value === "group" ||
+    value === "variable" ||
+    value === "dynamicPreset" ||
+    value === "userFacingLayer" ||
+    value === "table" ||
+    value === "list"
+  );
 }
 
 function propString(props: RenderNodeProps, key: string): string | undefined {

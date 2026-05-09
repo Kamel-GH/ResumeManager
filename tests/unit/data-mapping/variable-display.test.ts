@@ -1,20 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
-
-import type { MappingVariable } from "@/features/data-mapping/types";
 import {
   buildVariableDragEnvelope,
   buildVariableDragOperationLog,
   createVariableDragContext,
+  parseEditorItemDragPayload,
   RICH_TEXT_VARIABLE_INSERT_EVENT,
   requestRichTextVariableInsert,
-  parseEditorItemDragPayload,
-  scheduleVariableDragTraceClear,
   resolveVariableDisplayKind,
   resolveVariableDisplayLabel,
   resolveVariableMappedPath,
   resolveVariableTooltip,
   resolveVariableValue,
+  scheduleVariableDragTraceClear,
 } from "@/features/data-mapping/lib/variable-display";
+import type { MappingVariable } from "@/features/data-mapping/types";
 
 function createVariable(overrides: Partial<MappingVariable> = {}): MappingVariable {
   return {
@@ -40,9 +39,21 @@ describe("variable display", () => {
   });
 
   it("detects image and list styles from variable names", () => {
-    expect(resolveVariableDisplayKind(createVariable({ key: "photo", label: "Photo", sourceColumn: "Photo" }))).toBe("IMAGE");
-    expect(resolveVariableDisplayKind(createVariable({ key: "competences", label: "Compétences", sourceColumn: "Compétences" }))).toBe("LISTE");
-    expect(resolveVariableDisplayKind(createVariable({ key: "tableau", label: "Tableau", sourceColumn: "Tableau" }))).toBe("TABLE");
+    expect(
+      resolveVariableDisplayKind(
+        createVariable({ key: "photo", label: "Photo", sourceColumn: "Photo" }),
+      ),
+    ).toBe("IMAGE");
+    expect(
+      resolveVariableDisplayKind(
+        createVariable({ key: "competences", label: "Compétences", sourceColumn: "Compétences" }),
+      ),
+    ).toBe("LISTE");
+    expect(
+      resolveVariableDisplayKind(
+        createVariable({ key: "tableau", label: "Tableau", sourceColumn: "Tableau" }),
+      ),
+    ).toBe("TABLE");
   });
 
   it("builds a shared drag payload understood by the editor and the canvas", () => {
@@ -88,7 +99,13 @@ describe("variable display", () => {
 
   it("parses the shared drag payload format", () => {
     const payload = buildVariableDragEnvelope(createVariable());
-    const parsed = parseEditorItemDragPayload(JSON.stringify({ type: payload.type, payload: payload.payload, sourcePanel: "data-variables" }));
+    const parsed = parseEditorItemDragPayload(
+      JSON.stringify({
+        type: payload.type,
+        payload: payload.payload,
+        sourcePanel: "data-variables",
+      }),
+    );
 
     expect(parsed).toEqual({
       type: "variable",

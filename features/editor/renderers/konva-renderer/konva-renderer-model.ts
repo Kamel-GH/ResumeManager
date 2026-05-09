@@ -1,5 +1,9 @@
 import type { CanvasToolId } from "@/features/editor/schema/canvas-insertion";
-import type { CanonicalRenderTree, RenderNode, RenderNodeProps } from "@/features/editor/schema/render-tree";
+import type {
+  CanonicalRenderTree,
+  RenderNode,
+  RenderNodeProps,
+} from "@/features/editor/schema/render-tree";
 
 export type SelectionActionBarPlacement = {
   left: number;
@@ -208,7 +212,11 @@ export function resolveSelectionActionBarPlacement(
   const rotationHandleSafeZone = 58;
   const paddedWidth = Math.max(workspaceWidth - viewportPadding * 2, barWidth);
   const paddedHeight = Math.max(workspaceHeight - viewportPadding * 2, barHeight);
-  const left = clampNumber(bounds.x + bounds.width / 2 - barWidth / 2, viewportPadding, paddedWidth - barWidth + viewportPadding);
+  const left = clampNumber(
+    bounds.x + bounds.width / 2 - barWidth / 2,
+    viewportPadding,
+    paddedWidth - barWidth + viewportPadding,
+  );
   const aboveTop = bounds.y - rotationHandleSafeZone - barHeight - gap;
   const belowTop = bounds.y + bounds.height + gap;
   const canPlaceAbove = aboveTop >= viewportPadding;
@@ -224,7 +232,9 @@ export function resolveSelectionActionBarPlacement(
 
   return {
     left,
-    top: canPlaceBelow ? belowTop : clampNumber(belowTop, viewportPadding, paddedHeight - barHeight + viewportPadding),
+    top: canPlaceBelow
+      ? belowTop
+      : clampNumber(belowTop, viewportPadding, paddedHeight - barHeight + viewportPadding),
     placement: "top",
   };
 }
@@ -248,7 +258,10 @@ export function resolveDragSelectionIds(input: {
   return draggableSelectionIds.length > 0 ? draggableSelectionIds : [input.anchorId];
 }
 
-function resolveOriginFlipTransform(frame: { x: number; y: number; width: number; height: number }, props: RenderNodeProps) {
+function resolveOriginFlipTransform(
+  frame: { x: number; y: number; width: number; height: number },
+  props: RenderNodeProps,
+) {
   const flipX = propBoolean(props, "flipX");
   const flipY = propBoolean(props, "flipY");
 
@@ -281,7 +294,11 @@ function resolveCenterFlipTransform(props: RenderNodeProps) {
 export function getKonvaShapeProps(node: RenderNode): KonvaShapeRenderProps {
   const { frame, props } = node;
   const shape = propString(props, "shape");
-  const strokeOnlyShape = shape === "line" || shape === "polyline" || shape === "curve" || (shape === "arc" && propString(props, "arcType") !== "pie");
+  const strokeOnlyShape =
+    shape === "line" ||
+    shape === "polyline" ||
+    shape === "curve" ||
+    (shape === "arc" && propString(props, "arcType") !== "pie");
   const fill = propString(props, "fill") ?? (strokeOnlyShape ? "transparent" : "#ffffff");
   const stroke = propString(props, "stroke") ?? (strokeOnlyShape ? "#0f172a" : "transparent");
   const strokeWidth = propNumber(props, "strokeWidth") ?? (strokeOnlyShape ? 2 : 1);
@@ -328,7 +345,12 @@ export function getKonvaShapeProps(node: RenderNode): KonvaShapeRenderProps {
   }
 
   if (shape === "line") {
-    const points = propNumberArray(props, "points") ?? [0, 0, Math.max(frame.width, 1), Math.max(frame.height, 1)];
+    const points = propNumberArray(props, "points") ?? [
+      0,
+      0,
+      Math.max(frame.width, 1),
+      Math.max(frame.height, 1),
+    ];
     return {
       shape: "line",
       line: {
@@ -351,7 +373,12 @@ export function getKonvaShapeProps(node: RenderNode): KonvaShapeRenderProps {
   }
 
   if (shape === "polygon" || shape === "polyline" || shape === "curve") {
-    const points = propNumberArray(props, "points") ?? [0, 0, Math.max(frame.width, 1), Math.max(frame.height, 1)];
+    const points = propNumberArray(props, "points") ?? [
+      0,
+      0,
+      Math.max(frame.width, 1),
+      Math.max(frame.height, 1),
+    ];
     return shape === "polygon"
       ? {
           shape: "polygon",
@@ -409,7 +436,8 @@ export function getKonvaShapeProps(node: RenderNode): KonvaShapeRenderProps {
         radiusX: Math.max(frame.width / 2, 1),
         radiusY: Math.max(frame.height / 2, 1),
         innerRadius: propNumber(props, "innerRadius") ?? 0,
-        outerRadius: propNumber(props, "outerRadius") ?? Math.max(Math.min(frame.width, frame.height) / 2, 1),
+        outerRadius:
+          propNumber(props, "outerRadius") ?? Math.max(Math.min(frame.width, frame.height) / 2, 1),
         startAngle: propNumber(props, "startAngle") ?? 0,
         endAngle: propNumber(props, "endAngle") ?? 180,
         arcType: propString(props, "arcType") === "pie" ? "pie" : "open",
@@ -497,7 +525,13 @@ export function isTransformableNode(node: RenderNode): boolean {
     return false;
   }
 
-  if (node.type === "text" || node.type === "rich-text" || node.type === "image" || node.type === "table" || node.type === "list") {
+  if (
+    node.type === "text" ||
+    node.type === "rich-text" ||
+    node.type === "image" ||
+    node.type === "table" ||
+    node.type === "list"
+  ) {
     return true;
   }
 
@@ -506,15 +540,33 @@ export function isTransformableNode(node: RenderNode): boolean {
   }
 
   const shape = propString(node.props, "shape");
-  return shape === "rect" || shape === "circle" || shape === "ellipse" || shape === "line" || shape === "arc" || shape === "polygon" || shape === "polyline" || shape === "curve";
+  return (
+    shape === "rect" ||
+    shape === "circle" ||
+    shape === "ellipse" ||
+    shape === "line" ||
+    shape === "arc" ||
+    shape === "polygon" ||
+    shape === "polyline" ||
+    shape === "curve"
+  );
 }
 
-export function resolveCanonicalFrameFromProjectedGeometry(renderNode: RenderNode, projected: ProjectedKonvaGeometry) {
+export function resolveCanonicalFrameFromProjectedGeometry(
+  renderNode: RenderNode,
+  projected: ProjectedKonvaGeometry,
+) {
   const baseFrame = renderNode.frame;
   const rawWidth = Math.abs(projected.width);
   const rawHeight = Math.abs(projected.height);
-  const width = Math.max(1, Math.abs((rawWidth > 1 ? rawWidth : baseFrame.width) * projected.scaleX));
-  const height = Math.max(1, Math.abs((rawHeight > 1 ? rawHeight : baseFrame.height) * projected.scaleY));
+  const width = Math.max(
+    1,
+    Math.abs((rawWidth > 1 ? rawWidth : baseFrame.width) * projected.scaleX),
+  );
+  const height = Math.max(
+    1,
+    Math.abs((rawHeight > 1 ? rawHeight : baseFrame.height) * projected.scaleY),
+  );
   const anchorMode = resolveRenderNodeAnchorMode(renderNode);
   const flipX = propBoolean(renderNode.props, "flipX");
   const flipY = propBoolean(renderNode.props, "flipY");
@@ -531,7 +583,10 @@ export function shouldShowFrameOutline(nodeId: string, draggingElementIds: strin
   return !draggingElementIds.includes(nodeId);
 }
 
-export function resolveSelectionOrderCapabilities(renderTree: CanonicalRenderTree, selectedEditableIds: string[]): SelectionOrderCapabilities {
+export function resolveSelectionOrderCapabilities(
+  renderTree: CanonicalRenderTree,
+  selectedEditableIds: string[],
+): SelectionOrderCapabilities {
   const selectedSet = new Set(selectedEditableIds);
   const capabilities: SelectionOrderCapabilities = {
     bringToFront: false,
@@ -544,7 +599,9 @@ export function resolveSelectionOrderCapabilities(renderTree: CanonicalRenderTre
     const groups = groupRenderNodesByOrderContext(page.children);
 
     groups.forEach((group) => {
-      const ordered = group.nodes.filter((node) => node.visible).sort(compareRenderNodesForObjectOrder);
+      const ordered = group.nodes
+        .filter((node) => node.visible)
+        .sort(compareRenderNodesForObjectOrder);
       if (ordered.length === 0) {
         return;
       }
@@ -562,8 +619,12 @@ export function resolveSelectionOrderCapabilities(renderTree: CanonicalRenderTre
           return;
         }
 
-        const hasStationaryAfterSelected = selectedIndices.some((selectedIndex) => segment.slice(selectedIndex + 1).some((node) => !selectedSet.has(node.id)));
-        const hasStationaryBeforeSelected = selectedIndices.some((selectedIndex) => segment.slice(0, selectedIndex).some((node) => !selectedSet.has(node.id)));
+        const hasStationaryAfterSelected = selectedIndices.some((selectedIndex) =>
+          segment.slice(selectedIndex + 1).some((node) => !selectedSet.has(node.id)),
+        );
+        const hasStationaryBeforeSelected = selectedIndices.some((selectedIndex) =>
+          segment.slice(0, selectedIndex).some((node) => !selectedSet.has(node.id)),
+        );
 
         capabilities.bringToFront ||= hasStationaryAfterSelected;
         capabilities.bringForward ||= hasStationaryAfterSelected;
@@ -597,7 +658,8 @@ function groupRenderNodesByOrderContext(nodes: RenderNode[]) {
 }
 
 export function resolveRenderNodeOrderGroupKey(node: RenderNode) {
-  const layerId = propString(node.props, "layerId") ?? propString(node.props, "layerName") ?? "default";
+  const layerId =
+    propString(node.props, "layerId") ?? propString(node.props, "layerName") ?? "default";
   const parentId =
     propString(node.props, "parentId") ??
     propString(node.props, "groupId") ??
@@ -662,7 +724,9 @@ function propNumber(props: RenderNodeProps, key: string): number | undefined {
 
 function propNumberArray(props: RenderNodeProps, key: string): number[] | undefined {
   const value = props[key];
-  return Array.isArray(value) && value.every((item) => typeof item === "number") ? value : undefined;
+  return Array.isArray(value) && value.every((item) => typeof item === "number")
+    ? value
+    : undefined;
 }
 
 function propBoolean(props: RenderNodeProps, key: string): boolean {

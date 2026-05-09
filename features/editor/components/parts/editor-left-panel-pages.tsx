@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-
+import {
+  NoResult,
+  smallMutedText,
+} from "@/features/editor/components/parts/editor-left-panel-common";
 import type { EditorPageView } from "@/features/editor/selectors";
-import { NoResult, smallMutedText } from "@/features/editor/components/parts/editor-left-panel-common";
 
 export function EditorLeftPagesPanel({
   pages,
@@ -14,12 +16,29 @@ export function EditorLeftPagesPanel({
   filter: string;
   onSelectPage: (pageId: string) => void;
 }) {
-  const rows = useMemo(() => pages.filter((page) => matchesFilter(page, filter, [page.name, String(page.index), `${page.width}x${page.height}`, String(page.elementCount)])), [filter, pages]);
+  const rows = useMemo(
+    () =>
+      pages.filter((page) =>
+        matchesFilter(page, filter, [
+          page.name,
+          String(page.index),
+          `${page.width}x${page.height}`,
+          String(page.elementCount),
+        ]),
+      ),
+    [filter, pages],
+  );
 
   return (
     <div className="ef-page-list">
       {rows.map((page) => (
-        <button key={page.id} className={["ef-page-card", page.active ? "is-active" : ""].join(" ")} type="button" onClick={() => onSelectPage(page.id)} title={page.name}>
+        <button
+          key={page.id}
+          className={["ef-page-card", page.active ? "is-active" : ""].join(" ")}
+          type="button"
+          onClick={() => onSelectPage(page.id)}
+          title={page.name}
+        >
           <span className="ef-page-preview" aria-hidden="true">
             <span className="ef-page-preview-fallback">
               <span>{page.index}</span>
@@ -31,7 +50,9 @@ export function EditorLeftPagesPanel({
             <span style={smallMutedText}>
               {page.width} × {page.height}
             </span>
-            <span style={smallMutedText}>{page.elementCount} élément{page.elementCount > 1 ? "s" : ""}</span>
+            <span style={smallMutedText}>
+              {page.elementCount} élément{page.elementCount > 1 ? "s" : ""}
+            </span>
           </span>
         </button>
       ))}
@@ -56,4 +77,3 @@ function matchesFilter<T>(
       .includes(needle),
   );
 }
-

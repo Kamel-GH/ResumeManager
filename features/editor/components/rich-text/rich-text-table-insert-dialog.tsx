@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Table2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export interface RichTextTableInsertDialogProps {
   open: boolean;
@@ -9,7 +9,11 @@ export interface RichTextTableInsertDialogProps {
   onInsert: (rows: number, columns: number, withHeaderRow: boolean) => void;
 }
 
-export function RichTextTableInsertDialog({ open, onClose, onInsert }: RichTextTableInsertDialogProps) {
+export function RichTextTableInsertDialog({
+  open,
+  onClose,
+  onInsert,
+}: RichTextTableInsertDialogProps) {
   const [rows, setRows] = useState("3");
   const [columns, setColumns] = useState("3");
   const [withHeaderRow, setWithHeaderRow] = useState(true);
@@ -55,7 +59,11 @@ export function RichTextTableInsertDialog({ open, onClose, onInsert }: RichTextT
 
         <div className="ef-rtp-table-dialog-preview" aria-hidden>
           <Table2 size={22} />
-          <span>{canInsert ? `${parsedColumns} colonnes × ${parsedRows} lignes` : "Dimensions invalides"}</span>
+          <span>
+            {canInsert
+              ? `${parsedColumns} colonnes × ${parsedRows} lignes`
+              : "Dimensions invalides"}
+          </span>
         </div>
 
         <div className="ef-rtp-table-dialog-fields">

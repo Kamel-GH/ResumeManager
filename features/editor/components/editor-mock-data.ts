@@ -1,10 +1,13 @@
+import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   ChartColumn,
   CircleHelp,
+  Copy,
   Database,
-  FileText,
+  Eye,
   FilePlus2,
+  FileText,
   FolderOpen,
   Image,
   Layers,
@@ -15,16 +18,13 @@ import {
   PenLine,
   Save,
   Search,
-  Share2,
-  Copy,
-  Eye,
-  Upload,
   Shapes,
+  Share2,
   Star,
   Table2,
   Type,
+  Upload,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 export type EditorNavItem = {
   label: string;
@@ -97,10 +97,34 @@ export const layers = [
 ];
 
 export const mappingRows = [
-  { source: "Nom & Prenom", field: "Nom + Prenom", target: "[Nom] [Prenom]", preview: "Lucas Dupont", status: "Valide" },
-  { source: "Poste", field: "Poste", target: "[Poste]", preview: "Directeur Artistique", status: "Valide" },
-  { source: "Telephone", field: "Telephone", target: "[Telephone]", preview: "+33 6 12 34 56 78", status: "Valide" },
-  { source: "Email", field: "Email", target: "[Email]", preview: "lucas.dupont@email.com", status: "Valide" },
+  {
+    source: "Nom & Prenom",
+    field: "Nom + Prenom",
+    target: "[Nom] [Prenom]",
+    preview: "Lucas Dupont",
+    status: "Valide",
+  },
+  {
+    source: "Poste",
+    field: "Poste",
+    target: "[Poste]",
+    preview: "Directeur Artistique",
+    status: "Valide",
+  },
+  {
+    source: "Telephone",
+    field: "Telephone",
+    target: "[Telephone]",
+    preview: "+33 6 12 34 56 78",
+    status: "Valide",
+  },
+  {
+    source: "Email",
+    field: "Email",
+    target: "[Email]",
+    preview: "lucas.dupont@email.com",
+    status: "Valide",
+  },
 ];
 
 export const repeaterRows = [
@@ -109,12 +133,7 @@ export const repeaterRows = [
   { label: "Langues", items: "3 items", target: "[Langues]" },
 ];
 
-export const dataPreview = [
-  "Dupont",
-  "Lucas",
-  "Directeur Artistique",
-  "+33 6 18 42 77 10",
-];
+export const dataPreview = ["Dupont", "Lucas", "Directeur Artistique", "+33 6 18 42 77 10"];
 
 export const chartBars = [
   { label: "Design", value: 92 },

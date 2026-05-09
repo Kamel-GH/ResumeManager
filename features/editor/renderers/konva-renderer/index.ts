@@ -10,8 +10,8 @@ export {
   isTransformableNode,
   resolveCanonicalFrameFromProjectedGeometry,
   resolveDragSelectionIds,
-  resolveSelectionOrderCapabilities,
   resolveSelectionActionBarPlacement,
+  resolveSelectionOrderCapabilities,
   shouldShowFrameOutline,
 } from "@/features/editor/renderers/konva-renderer/konva-renderer-model";
 

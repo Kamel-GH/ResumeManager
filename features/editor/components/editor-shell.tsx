@@ -30,12 +30,22 @@ export function EditorShell() {
         <EditorSidebar />
 
         {leftCollapsed ? (
-          <button className="ef-panel-affordance ef-panel-affordance-left" type="button" onClick={() => setLeftCollapsed(false)} aria-label="Rouvrir le volet gauche">
+          <button
+            className="ef-panel-affordance ef-panel-affordance-left"
+            type="button"
+            onClick={() => setLeftCollapsed(false)}
+            aria-label="Rouvrir le volet gauche"
+          >
             <ChevronRight size={14} aria-hidden="true" />
           </button>
         ) : (
           <div className="ef-left-area">
-            <button className="ef-panel-collapse-button is-left" type="button" onClick={() => setLeftCollapsed(true)} aria-label="Replier le volet gauche">
+            <button
+              className="ef-panel-collapse-button is-left"
+              type="button"
+              onClick={() => setLeftCollapsed(true)}
+              aria-label="Replier le volet gauche"
+            >
               <ChevronLeft size={13} aria-hidden="true" />
             </button>
             <EditorLeftPanel />
@@ -45,12 +55,22 @@ export function EditorShell() {
         <CanvasViewport />
 
         {rightCollapsed ? (
-          <button className="ef-panel-affordance ef-panel-affordance-right" type="button" onClick={() => setRightCollapsed(false)} aria-label="Rouvrir le volet droit">
+          <button
+            className="ef-panel-affordance ef-panel-affordance-right"
+            type="button"
+            onClick={() => setRightCollapsed(false)}
+            aria-label="Rouvrir le volet droit"
+          >
             <ChevronLeft size={14} aria-hidden="true" />
           </button>
         ) : (
           <div className="ef-right-area">
-            <button className="ef-panel-collapse-button is-right" type="button" onClick={() => setRightCollapsed(true)} aria-label="Replier le volet droit">
+            <button
+              className="ef-panel-collapse-button is-right"
+              type="button"
+              onClick={() => setRightCollapsed(true)}
+              aria-label="Replier le volet droit"
+            >
               <ChevronRight size={13} aria-hidden="true" />
             </button>
             <InspectorPanel />

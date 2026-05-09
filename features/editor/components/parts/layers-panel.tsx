@@ -1,12 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, LockOpen, Search, Settings2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
+  Search,
+  Settings2,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 
-import {
-  deriveEditorLayersView,
-  deriveEditorPagesView,
-} from "@/features/editor/selectors";
+import { deriveEditorLayersView, deriveEditorPagesView } from "@/features/editor/selectors";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 
 export function LayersPanel({
@@ -26,12 +33,25 @@ export function LayersPanel({
   const activePageId = useEditorStore((state) => state.activePageId);
   const workingTemplate = useEditorStore((state) => state.workingTemplate);
   const workspaceLayersByPageId = useEditorStore((state) => state.workspaceLayersByPageId);
-  const activeWorkspaceLayerIdByPageId = useEditorStore((state) => state.activeWorkspaceLayerIdByPageId);
+  const activeWorkspaceLayerIdByPageId = useEditorStore(
+    (state) => state.activeWorkspaceLayerIdByPageId,
+  );
   const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
-  const setActiveWorkspaceLayerIdForPage = useEditorStore((state) => state.setActiveWorkspaceLayerIdForPage);
-  const pages = useMemo(() => deriveEditorPagesView(workingTemplate, activePageId), [activePageId, workingTemplate]);
+  const setActiveWorkspaceLayerIdForPage = useEditorStore(
+    (state) => state.setActiveWorkspaceLayerIdForPage,
+  );
+  const pages = useMemo(
+    () => deriveEditorPagesView(workingTemplate, activePageId),
+    [activePageId, workingTemplate],
+  );
   const layers = useMemo(
-    () => deriveEditorLayersView(workingTemplate, workspaceLayersByPageId, activePageId, activeWorkspaceLayerIdByPageId),
+    () =>
+      deriveEditorLayersView(
+        workingTemplate,
+        workspaceLayersByPageId,
+        activePageId,
+        activeWorkspaceLayerIdByPageId,
+      ),
     [activePageId, activeWorkspaceLayerIdByPageId, workingTemplate, workspaceLayersByPageId],
   );
   const [sortKey, setSortKey] = useState<"order" | "name" | "objectCount">("order");
@@ -41,7 +61,13 @@ export function LayersPanel({
   const rows = useMemo(
     () =>
       layers.filter((layer) => {
-        const matchesQuery = matchesFilter(layer, filter, [layer.name, String(layer.order), layer.visible ? "visible" : "hidden", layer.locked ? "locked" : "unlocked", String(layer.objectCount)]);
+        const matchesQuery = matchesFilter(layer, filter, [
+          layer.name,
+          String(layer.order),
+          layer.visible ? "visible" : "hidden",
+          layer.locked ? "locked" : "unlocked",
+          String(layer.objectCount),
+        ]);
         const matchesPage = !pageFilter || pageFilter === String(activePageNumber);
         const matchesState =
           !stateFilter ||
@@ -85,7 +111,9 @@ export function LayersPanel({
         setSortDir("asc");
         return nextKey;
       }
-      setSortDir((currentDir) => (currentDir === "asc" ? "desc" : currentDir === "desc" ? null : "asc"));
+      setSortDir((currentDir) =>
+        currentDir === "asc" ? "desc" : currentDir === "desc" ? null : "asc",
+      );
       return current;
     });
   }
@@ -98,7 +126,12 @@ export function LayersPanel({
     <aside className={["ef-layers", embedded ? "is-embedded" : ""].join(" ")}>
       <div className="ef-left-panel-toolbar">
         <span />
-        <button className="ef-square-button ef-icon-28" type="button" title="Paramètres" aria-label="Paramètres">
+        <button
+          className="ef-square-button ef-icon-28"
+          type="button"
+          title="Paramètres"
+          aria-label="Paramètres"
+        >
           <Settings2 size={18} aria-hidden="true" />
         </button>
       </div>
@@ -106,9 +139,19 @@ export function LayersPanel({
       <div className="ef-search-line">
         <label className="ef-search-box ef-left-search">
           <Search size={18} aria-hidden="true" />
-          <input type="search" value={filter} placeholder="Filtrer calques..." aria-label="Filtrer calques" onChange={(event) => setPanelFilter("layers", event.target.value)} />
+          <input
+            type="search"
+            value={filter}
+            placeholder="Filtrer calques..."
+            aria-label="Filtrer calques"
+            onChange={(event) => setPanelFilter("layers", event.target.value)}
+          />
         </label>
-        <select className="ef-filter-select" value={pageFilter} onChange={(event) => onPageFilterChange?.(event.target.value)}>
+        <select
+          className="ef-filter-select"
+          value={pageFilter}
+          onChange={(event) => onPageFilterChange?.(event.target.value)}
+        >
           <option value="">Pg</option>
           {pages.map((page) => (
             <option key={page.id} value={String(page.index)}>
@@ -116,7 +159,11 @@ export function LayersPanel({
             </option>
           ))}
         </select>
-        <select className="ef-filter-select" value={stateFilter} onChange={(event) => onStateFilterChange?.(event.target.value)}>
+        <select
+          className="ef-filter-select"
+          value={stateFilter}
+          onChange={(event) => onStateFilterChange?.(event.target.value)}
+        >
           <option value="">STATUT</option>
           {["all", "active", "visible", "hidden", "locked", "unlocked"].map((value) => (
             <option key={value} value={value}>
@@ -128,19 +175,65 @@ export function LayersPanel({
 
       <div className="ef-layer-table">
         <div className="ef-layer-head">
-          <SortHeaderButton label="N°" dir={sortDir && sortKey === "order" ? sortDir : null} onClick={() => toggleSort("order")} width={34} align="center" />
-          <SortHeaderButton label="Nom" dir={sortDir && sortKey === "name" ? sortDir : null} onClick={() => toggleSort("name")} />
-          <SortHeaderButton label="Obj." dir={sortDir && sortKey === "objectCount" ? sortDir : null} onClick={() => toggleSort("objectCount")} width={34} align="center" />
-          <SortHeaderButton label="V" dir={null} onClick={() => undefined} width={26} align="center" />
-          <SortHeaderButton label="L" dir={null} onClick={() => undefined} width={26} align="center" />
+          <SortHeaderButton
+            label="N°"
+            dir={sortDir && sortKey === "order" ? sortDir : null}
+            onClick={() => toggleSort("order")}
+            width={34}
+            align="center"
+          />
+          <SortHeaderButton
+            label="Nom"
+            dir={sortDir && sortKey === "name" ? sortDir : null}
+            onClick={() => toggleSort("name")}
+          />
+          <SortHeaderButton
+            label="Obj."
+            dir={sortDir && sortKey === "objectCount" ? sortDir : null}
+            onClick={() => toggleSort("objectCount")}
+            width={34}
+            align="center"
+          />
+          <SortHeaderButton
+            label="V"
+            dir={null}
+            onClick={() => undefined}
+            width={26}
+            align="center"
+          />
+          <SortHeaderButton
+            label="L"
+            dir={null}
+            onClick={() => undefined}
+            width={26}
+            align="center"
+          />
         </div>
         {sorted.map((layer) => (
-          <button key={layer.id} className={["ef-layer-table-row", layer.active ? "is-active-layer" : ""].join(" ")} type="button" title={layer.name} onClick={() => handleLayerSelect(layer.id)}>
+          <button
+            key={layer.id}
+            className={["ef-layer-table-row", layer.active ? "is-active-layer" : ""].join(" ")}
+            type="button"
+            title={layer.name}
+            onClick={() => handleLayerSelect(layer.id)}
+          >
             <span>{layer.order}</span>
             <strong>{layer.name}</strong>
             <span>{layer.objectCount}</span>
-            <span>{layer.visible ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}</span>
-            <span>{layer.locked ? <Lock size={18} aria-hidden="true" /> : <LockOpen size={18} aria-hidden="true" />}</span>
+            <span>
+              {layer.visible ? (
+                <Eye size={18} aria-hidden="true" />
+              ) : (
+                <EyeOff size={18} aria-hidden="true" />
+              )}
+            </span>
+            <span>
+              {layer.locked ? (
+                <Lock size={18} aria-hidden="true" />
+              ) : (
+                <LockOpen size={18} aria-hidden="true" />
+              )}
+            </span>
           </button>
         ))}
         {rows.length === 0 ? <div className="ef-no-result">Aucun résultat</div> : null}
@@ -162,7 +255,14 @@ function SortHeaderButton({
   width?: number;
   align?: "left" | "center" | "right";
 }) {
-  const icon = dir === "asc" ? <ArrowUp size={11} aria-hidden="true" /> : dir === "desc" ? <ArrowDown size={11} aria-hidden="true" /> : <ArrowUpDown size={11} aria-hidden="true" />;
+  const icon =
+    dir === "asc" ? (
+      <ArrowUp size={11} aria-hidden="true" />
+    ) : dir === "desc" ? (
+      <ArrowDown size={11} aria-hidden="true" />
+    ) : (
+      <ArrowUpDown size={11} aria-hidden="true" />
+    );
   return (
     <button
       type="button"

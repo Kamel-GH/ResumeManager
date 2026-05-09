@@ -15,10 +15,16 @@ const measurementUnitDefinitions: MeasurementUnitDefinition[] = [
   { value: "in", label: "Pouces (in)", suffix: "in", pixelsPerUnit: 96 },
 ];
 
-export const measurementUnitOptions = measurementUnitDefinitions.map(({ value, label }) => ({ value, label }));
+export const measurementUnitOptions = measurementUnitDefinitions.map(({ value, label }) => ({
+  value,
+  label,
+}));
 
 export function getMeasurementUnitDefinition(unit: MeasurementUnit): MeasurementUnitDefinition {
-  return measurementUnitDefinitions.find((definition) => definition.value === unit) ?? measurementUnitDefinitions[0];
+  return (
+    measurementUnitDefinitions.find((definition) => definition.value === unit) ??
+    measurementUnitDefinitions[0]
+  );
 }
 
 export function getMeasurementUnitLabel(unit: MeasurementUnit): string {
@@ -29,7 +35,11 @@ export function getMeasurementUnitSuffix(unit: MeasurementUnit): string {
   return getMeasurementUnitDefinition(unit).suffix;
 }
 
-export function convertMeasurementValue(value: number, fromUnit: MeasurementUnit, toUnit: MeasurementUnit): number {
+export function convertMeasurementValue(
+  value: number,
+  fromUnit: MeasurementUnit,
+  toUnit: MeasurementUnit,
+): number {
   if (!Number.isFinite(value)) {
     return 0;
   }
@@ -40,7 +50,11 @@ export function convertMeasurementValue(value: number, fromUnit: MeasurementUnit
   return valueInPx / toPixelsPerUnit;
 }
 
-export function formatMeasurementValue(valuePx: number, unit: MeasurementUnit, maximumFractionDigits = 2): string {
+export function formatMeasurementValue(
+  valuePx: number,
+  unit: MeasurementUnit,
+  maximumFractionDigits = 2,
+): string {
   const convertedValue = convertMeasurementValue(valuePx, "px", unit);
   return formatRoundedNumber(convertedValue, maximumFractionDigits);
 }

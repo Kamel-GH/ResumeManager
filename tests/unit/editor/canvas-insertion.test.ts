@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import type { CanvasInsertionContext } from "@/features/editor/schema/canvas-insertion";
-import { createCanvasInsertionElement, resolveArcGeometryDraft, isArcToolId } from "@/features/editor/schema/canvas-insertion";
+import {
+  createCanvasInsertionElement,
+  isArcToolId,
+  resolveArcGeometryDraft,
+} from "@/features/editor/schema/canvas-insertion";
 
-function createInsertionContext(overrides: Partial<CanvasInsertionContext> = {}): CanvasInsertionContext {
+function createInsertionContext(
+  overrides: Partial<CanvasInsertionContext> = {},
+): CanvasInsertionContext {
   return {
     elementId: "element-01",
     pageId: "page-1",
@@ -81,7 +87,7 @@ describe("canvas insertion", () => {
           name: "Badge premium",
           type: "badge",
           fillMode: "color",
-          svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect width=\"100\" height=\"100\" rx=\"24\" fill=\"#fff\"/></svg>",
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#fff"/></svg>',
         },
       },
       context: {
@@ -110,7 +116,7 @@ describe("canvas insertion", () => {
       entityType: "shape",
       kind: "shape",
       shape: "rect",
-      svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect width=\"100\" height=\"100\" rx=\"24\" fill=\"#fff\"/></svg>",
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#fff"/></svg>',
       label: "Badge premium",
       name: "Badge premium",
     });
@@ -123,7 +129,7 @@ describe("canvas insertion", () => {
         payload: {
           id: "icon-01",
           name: "LinkedIn",
-          svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect width=\"64\" height=\"64\" fill=\"#fff\"/></svg>",
+          svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#fff"/></svg>',
         },
       },
       context: {
@@ -153,7 +159,7 @@ describe("canvas insertion", () => {
       kind: "icon",
       label: "LinkedIn",
       name: "LinkedIn",
-      svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect width=\"64\" height=\"64\" fill=\"#fff\"/></svg>",
+      svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#fff"/></svg>',
     });
     expect(result.element.props?.src).toContain("data:image/svg+xml");
   });
@@ -532,5 +538,4 @@ describe("canvas insertion", () => {
       name: "Polyligne",
     });
   });
-
 });

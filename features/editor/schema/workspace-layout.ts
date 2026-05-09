@@ -1,5 +1,5 @@
-import type { PageMargin } from "@/features/editor/schema/template-schema";
 import { formatMeasurementValue, type MeasurementUnit } from "@/features/editor/lib/measurement";
+import type { PageMargin } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
 
 export type { MeasurementUnit } from "@/features/editor/lib/measurement";
@@ -104,7 +104,15 @@ export type WorkspaceRulerTicks = {
   vertical: RulerTick[];
 };
 
-export type WorkspaceSnapGuideKind = "grid" | "margin" | "bounds" | "page" | "object" | "spacing" | "dimension" | "container";
+export type WorkspaceSnapGuideKind =
+  | "grid"
+  | "margin"
+  | "bounds"
+  | "page"
+  | "object"
+  | "spacing"
+  | "dimension"
+  | "container";
 
 export type WorkspaceSnapGuide = {
   axis: "x" | "y";
@@ -133,7 +141,10 @@ export type WorkspaceVisualAids = {
   marginGuidesVisible: boolean;
 };
 
-export function buildWorkspaceLayout(pages: WorkspacePageSource[], settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">): WorkspaceLayout {
+export function buildWorkspaceLayout(
+  pages: WorkspacePageSource[],
+  settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">,
+): WorkspaceLayout {
   const maxWidth = pages.reduce((max, page) => Math.max(max, page.width), 0);
   const pageLayouts: WorkspacePageLayout[] = [];
   let cursorY = settings.pagePadding;
@@ -150,7 +161,10 @@ export function buildWorkspaceLayout(pages: WorkspacePageSource[], settings: Pic
   });
 
   const width = maxWidth + settings.pagePadding * 2;
-  const height = pageLayouts.length > 0 ? cursorY - settings.pageGap + settings.pagePadding : settings.pagePadding * 2;
+  const height =
+    pageLayouts.length > 0
+      ? cursorY - settings.pageGap + settings.pagePadding
+      : settings.pagePadding * 2;
 
   return {
     width,
@@ -159,20 +173,32 @@ export function buildWorkspaceLayout(pages: WorkspacePageSource[], settings: Pic
   };
 }
 
-export function buildActiveWorkspaceLayout(pages: WorkspacePageSource[], activePageId: string | null | undefined, settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">): WorkspaceLayout {
+export function buildActiveWorkspaceLayout(
+  pages: WorkspacePageSource[],
+  activePageId: string | null | undefined,
+  settings: Pick<EditorWorkspaceSettings, "pageGap" | "pagePadding">,
+): WorkspaceLayout {
   const activePage = pages.find((page) => page.id === activePageId) ?? pages[0];
   return buildWorkspaceLayout(activePage ? [activePage] : [], settings);
 }
 
-export function resolveWorkspaceContentBounds(layout: WorkspaceLayout): WorkspaceContentBounds | null {
+export function resolveWorkspaceContentBounds(
+  layout: WorkspaceLayout,
+): WorkspaceContentBounds | null {
   if (layout.pages.length === 0) {
     return null;
   }
 
   const left = layout.pages.reduce((min, page) => Math.min(min, page.x), Number.POSITIVE_INFINITY);
   const top = layout.pages.reduce((min, page) => Math.min(min, page.y), Number.POSITIVE_INFINITY);
-  const right = layout.pages.reduce((max, page) => Math.max(max, page.x + page.width), Number.NEGATIVE_INFINITY);
-  const bottom = layout.pages.reduce((max, page) => Math.max(max, page.y + page.height), Number.NEGATIVE_INFINITY);
+  const right = layout.pages.reduce(
+    (max, page) => Math.max(max, page.x + page.width),
+    Number.NEGATIVE_INFINITY,
+  );
+  const bottom = layout.pages.reduce(
+    (max, page) => Math.max(max, page.y + page.height),
+    Number.NEGATIVE_INFINITY,
+  );
 
   return {
     x: left,
@@ -182,11 +208,15 @@ export function resolveWorkspaceContentBounds(layout: WorkspaceLayout): Workspac
   };
 }
 
-export function resolveEffectiveRulerMode(settings: Pick<EditorWorkspaceSettings, "rulerMode">): RulerMode {
+export function resolveEffectiveRulerMode(
+  settings: Pick<EditorWorkspaceSettings, "rulerMode">,
+): RulerMode {
   return settings.rulerMode;
 }
 
-export function resolveEffectiveWorkspaceMode(mode: WorkspaceMode | "document" | string | null | undefined): WorkspaceMode {
+export function resolveEffectiveWorkspaceMode(
+  mode: WorkspaceMode | "document" | string | null | undefined,
+): WorkspaceMode {
   switch (mode) {
     case "fit-space":
     case "fit-width":
@@ -202,7 +232,14 @@ export function resolveEffectiveWorkspaceMode(mode: WorkspaceMode | "document" |
 export function resolveWorkspaceVisualAids(
   settings: Pick<
     EditorWorkspaceSettings,
-    "rulersVisible" | "gridEnabled" | "marginsVisible" | "guidesVisible" | "snapEnabled" | "snapToGrid" | "snapToMargins" | "snapToPageBounds"
+    | "rulersVisible"
+    | "gridEnabled"
+    | "marginsVisible"
+    | "guidesVisible"
+    | "snapEnabled"
+    | "snapToGrid"
+    | "snapToMargins"
+    | "snapToPageBounds"
   >,
 ): WorkspaceVisualAids {
   return {
@@ -218,7 +255,10 @@ export function resolveWorkspaceVisualAids(
   };
 }
 
-export function derivePageOrientation(width: number, height: number): "portrait" | "landscape" | "square" {
+export function derivePageOrientation(
+  width: number,
+  height: number,
+): "portrait" | "landscape" | "square" {
   if (Math.abs(width - height) <= 1) {
     return "square";
   }
@@ -226,8 +266,18 @@ export function derivePageOrientation(width: number, height: number): "portrait"
   return width > height ? "landscape" : "portrait";
 }
 
-export function findWorkspacePageAtPoint(layout: WorkspaceLayout, point: WorkspacePoint, fallbackPageId?: string | null): WorkspacePageLayout | null {
-  const hit = layout.pages.find((page) => point.x >= page.x && point.x <= page.x + page.width && point.y >= page.y && point.y <= page.y + page.height);
+export function findWorkspacePageAtPoint(
+  layout: WorkspaceLayout,
+  point: WorkspacePoint,
+  fallbackPageId?: string | null,
+): WorkspacePageLayout | null {
+  const hit = layout.pages.find(
+    (page) =>
+      point.x >= page.x &&
+      point.x <= page.x + page.width &&
+      point.y >= page.y &&
+      point.y <= page.y + page.height,
+  );
   if (hit) {
     return hit;
   }
@@ -239,8 +289,19 @@ export function findWorkspacePageAtPoint(layout: WorkspaceLayout, point: Workspa
   return layout.pages[0] ?? null;
 }
 
-export function findWorkspacePageAtPointStrict(layout: WorkspaceLayout, point: WorkspacePoint): WorkspacePageLayout | null {
-  return layout.pages.find((page) => point.x >= page.x && point.x <= page.x + page.width && point.y >= page.y && point.y <= page.y + page.height) ?? null;
+export function findWorkspacePageAtPointStrict(
+  layout: WorkspaceLayout,
+  point: WorkspacePoint,
+): WorkspacePageLayout | null {
+  return (
+    layout.pages.find(
+      (page) =>
+        point.x >= page.x &&
+        point.x <= page.x + page.width &&
+        point.y >= page.y &&
+        point.y <= page.y + page.height,
+    ) ?? null
+  );
 }
 
 export function convertClientPointToWorkspacePoint(
@@ -254,30 +315,53 @@ export function convertClientPointToWorkspacePoint(
   };
 }
 
-export function convertWorkspacePointToPagePoint(point: WorkspacePoint, page: WorkspacePageLayout): WorkspacePoint {
+export function convertWorkspacePointToPagePoint(
+  point: WorkspacePoint,
+  page: WorkspacePageLayout,
+): WorkspacePoint {
   return {
     x: point.x - page.x,
     y: point.y - page.y,
   };
 }
 
-export function snapWorkspacePoint(point: WorkspacePoint, page: WorkspacePageLayout, settings: EditorWorkspaceSettings, screenScale = 1): WorkspacePoint {
+export function snapWorkspacePoint(
+  point: WorkspacePoint,
+  page: WorkspacePageLayout,
+  settings: EditorWorkspaceSettings,
+  screenScale = 1,
+): WorkspacePoint {
   return resolveWorkspaceSnapResolution(point, page, settings, screenScale).point;
 }
 
-export function snapWorkspaceFrame(frame: Rect, page: WorkspacePageLayout, settings: EditorWorkspaceSettings, screenScale = 1): Rect {
+export function snapWorkspaceFrame(
+  frame: Rect,
+  page: WorkspacePageLayout,
+  settings: EditorWorkspaceSettings,
+  screenScale = 1,
+): Rect {
   if (!resolveWorkspaceVisualAids(settings).snapEnabled) {
     return clampFrameToPage(frame, page);
   }
 
   const snappedStart = snapWorkspacePoint({ x: frame.x, y: frame.y }, page, settings, screenScale);
-  const snappedEnd = snapWorkspacePoint({ x: frame.x + frame.width, y: frame.y + frame.height }, page, settings, screenScale);
+  const snappedEnd = snapWorkspacePoint(
+    { x: frame.x + frame.width, y: frame.y + frame.height },
+    page,
+    settings,
+    screenScale,
+  );
   const nextFrame = normalizeFrame(snappedStart, snappedEnd);
 
   return clampFrameToPage(nextFrame, page);
 }
 
-export function resolveWorkspaceSnapResolution(point: WorkspacePoint, page: WorkspacePageLayout, settings: EditorWorkspaceSettings, screenScale = 1): WorkspaceSnapResolution {
+export function resolveWorkspaceSnapResolution(
+  point: WorkspacePoint,
+  page: WorkspacePageLayout,
+  settings: EditorWorkspaceSettings,
+  screenScale = 1,
+): WorkspaceSnapResolution {
   const visualAids = resolveWorkspaceVisualAids(settings);
   if (!visualAids.snapEnabled) {
     return { point, guides: [] };
@@ -289,7 +373,12 @@ export function resolveWorkspaceSnapResolution(point: WorkspacePoint, page: Work
   const snapTolerance = settings.snapTolerance / screenScaleFactor;
 
   const pushGuide = (guide: WorkspaceSnapGuide) => {
-    const exists = guides.some((current) => current.axis === guide.axis && current.kind === guide.kind && Math.abs(current.position - guide.position) <= 0.001);
+    const exists = guides.some(
+      (current) =>
+        current.axis === guide.axis &&
+        current.kind === guide.kind &&
+        Math.abs(current.position - guide.position) <= 0.001,
+    );
     if (!exists) {
       guides.push(guide);
     }
@@ -299,10 +388,24 @@ export function resolveWorkspaceSnapResolution(point: WorkspacePoint, page: Work
     const snappedX = Math.round(nextPoint.x / settings.gridSize) * settings.gridSize;
     const snappedY = Math.round(nextPoint.y / settings.gridSize) * settings.gridSize;
     if (Math.abs(snappedX - nextPoint.x) > 0.001) {
-      pushGuide({ axis: "x", kind: "grid", position: snappedX, start: 0, end: page.height, priority: 10 });
+      pushGuide({
+        axis: "x",
+        kind: "grid",
+        position: snappedX,
+        start: 0,
+        end: page.height,
+        priority: 10,
+      });
     }
     if (Math.abs(snappedY - nextPoint.y) > 0.001) {
-      pushGuide({ axis: "y", kind: "grid", position: snappedY, start: 0, end: page.width, priority: 10 });
+      pushGuide({
+        axis: "y",
+        kind: "grid",
+        position: snappedY,
+        start: 0,
+        end: page.width,
+        priority: 10,
+      });
     }
     nextPoint = { x: snappedX, y: snappedY };
   }
@@ -317,11 +420,25 @@ export function resolveWorkspaceSnapResolution(point: WorkspacePoint, page: Work
 
     for (const target of marginTargets) {
       if (target.axis === "x" && Math.abs(nextPoint.x - target.value) <= snapTolerance) {
-        pushGuide({ axis: "x", kind: target.kind, position: target.value, start: 0, end: page.height, priority: 80 });
+        pushGuide({
+          axis: "x",
+          kind: target.kind,
+          position: target.value,
+          start: 0,
+          end: page.height,
+          priority: 80,
+        });
         nextPoint = { ...nextPoint, x: target.value };
       }
       if (target.axis === "y" && Math.abs(nextPoint.y - target.value) <= snapTolerance) {
-        pushGuide({ axis: "y", kind: target.kind, position: target.value, start: 0, end: page.width, priority: 80 });
+        pushGuide({
+          axis: "y",
+          kind: target.kind,
+          position: target.value,
+          start: 0,
+          end: page.width,
+          priority: 80,
+        });
         nextPoint = { ...nextPoint, y: target.value };
       }
     }
@@ -331,10 +448,24 @@ export function resolveWorkspaceSnapResolution(point: WorkspacePoint, page: Work
     const clampedX = clamp(nextPoint.x, 0, page.width);
     const clampedY = clamp(nextPoint.y, 0, page.height);
     if (Math.abs(clampedX - nextPoint.x) > 0.001) {
-      pushGuide({ axis: "x", kind: "bounds", position: clampedX, start: 0, end: page.height, priority: 60 });
+      pushGuide({
+        axis: "x",
+        kind: "bounds",
+        position: clampedX,
+        start: 0,
+        end: page.height,
+        priority: 60,
+      });
     }
     if (Math.abs(clampedY - nextPoint.y) > 0.001) {
-      pushGuide({ axis: "y", kind: "bounds", position: clampedY, start: 0, end: page.width, priority: 60 });
+      pushGuide({
+        axis: "y",
+        kind: "bounds",
+        position: clampedY,
+        start: 0,
+        end: page.width,
+        priority: 60,
+      });
     }
     nextPoint = { x: clampedX, y: clampedY };
   }
@@ -353,7 +484,9 @@ export function buildRulerTicks(
   const ticks: RulerTick[] = [];
   const positions = new Map<string, number>();
   const epsilon = 0.0001;
-  const baseStep = [majorStep, minorStep, fineStep].filter((step) => Number.isFinite(step) && step > 0).reduce((min, step) => Math.min(min, step), Number.POSITIVE_INFINITY);
+  const baseStep = [majorStep, minorStep, fineStep]
+    .filter((step) => Number.isFinite(step) && step > 0)
+    .reduce((min, step) => Math.min(min, step), Number.POSITIVE_INFINITY);
   const step = Number.isFinite(baseStep) ? Math.max(baseStep, epsilon) : 1;
 
   const addPosition = (position: number) => {
@@ -399,7 +532,11 @@ export function buildRulerTicks(
   return ticks;
 }
 
-export function resolveRulerOrigin(layout: WorkspaceLayout, activePageId: string | null | undefined, mode: RulerMode): WorkspacePoint {
+export function resolveRulerOrigin(
+  layout: WorkspaceLayout,
+  activePageId: string | null | undefined,
+  mode: RulerMode,
+): WorkspacePoint {
   if (mode === "global") {
     return { x: 0, y: 0 };
   }
@@ -423,8 +560,20 @@ export function resolveWorkspaceRulerTicks(
     return {
       mode: "global",
       origin: { x: 0, y: 0 },
-      horizontal: buildRulerTicks(layout.width, input.majorStep, input.minorStep, input.fineStep, input.measurementUnit),
-      vertical: buildRulerTicks(layout.height, input.majorStep, input.minorStep, input.fineStep, input.measurementUnit),
+      horizontal: buildRulerTicks(
+        layout.width,
+        input.majorStep,
+        input.minorStep,
+        input.fineStep,
+        input.measurementUnit,
+      ),
+      vertical: buildRulerTicks(
+        layout.height,
+        input.majorStep,
+        input.minorStep,
+        input.fineStep,
+        input.measurementUnit,
+      ),
     };
   }
 
@@ -441,16 +590,38 @@ export function resolveWorkspaceRulerTicks(
   return {
     mode: "page",
     origin: { x: activePage.x, y: activePage.y },
-    horizontal: buildRulerTicks(activePage.width, input.majorStep, input.minorStep, input.fineStep, input.measurementUnit, activePage.x),
-    vertical: buildRulerTicks(activePage.height, input.majorStep, input.minorStep, input.fineStep, input.measurementUnit, activePage.y),
+    horizontal: buildRulerTicks(
+      activePage.width,
+      input.majorStep,
+      input.minorStep,
+      input.fineStep,
+      input.measurementUnit,
+      activePage.x,
+    ),
+    vertical: buildRulerTicks(
+      activePage.height,
+      input.majorStep,
+      input.minorStep,
+      input.fineStep,
+      input.measurementUnit,
+      activePage.y,
+    ),
   };
 }
 
-export function projectRulerTickToViewportPosition(tick: RulerTick, viewport: WorkspaceViewport, axis: "x" | "y") {
+export function projectRulerTickToViewportPosition(
+  tick: RulerTick,
+  viewport: WorkspaceViewport,
+  axis: "x" | "y",
+) {
   return tick.workspacePosition * viewport.zoom + (axis === "x" ? viewport.panX : viewport.panY);
 }
 
-export function projectWorkspacePositionToViewport(position: number, viewport: WorkspaceViewport, axis: "x" | "y") {
+export function projectWorkspacePositionToViewport(
+  position: number,
+  viewport: WorkspaceViewport,
+  axis: "x" | "y",
+) {
   return position * viewport.zoom + (axis === "x" ? viewport.panX : viewport.panY);
 }
 
@@ -501,7 +672,10 @@ export function resolveWorkspaceViewportPreset(
   };
 }
 
-function resolveWorkspaceRulerPage(layout: WorkspaceLayout, activePageId: string | null | undefined): WorkspacePageLayout | null {
+function resolveWorkspaceRulerPage(
+  layout: WorkspaceLayout,
+  activePageId: string | null | undefined,
+): WorkspacePageLayout | null {
   return layout.pages.find((page) => page.id === activePageId) ?? layout.pages[0] ?? null;
 }
 

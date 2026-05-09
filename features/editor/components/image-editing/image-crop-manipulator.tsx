@@ -1,9 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import type { ImageEditingState, ImageMaskResizeHandle } from "./image-editor-types";
-import { buildImagePreviewFrameStyle, moveImageCrop, scaleImageCropZoom } from "./image-editor-utils";
+import {
+  buildImagePreviewFrameStyle,
+  moveImageCrop,
+  scaleImageCropZoom,
+} from "./image-editor-utils";
 
 type ImageCropManipulatorProps = {
   editing: ImageEditingState;
@@ -51,7 +62,15 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
 
       const nextPoint = getPointFromEvent(interaction.frameRect, event.clientX, event.clientY);
       if (interaction.kind === "move") {
-        onChange(moveImageCrop(interaction.startCrop, nextPoint.x - interaction.startPoint.x, nextPoint.y - interaction.startPoint.y, interaction.frameRect.width, interaction.frameRect.height));
+        onChange(
+          moveImageCrop(
+            interaction.startCrop,
+            nextPoint.x - interaction.startPoint.x,
+            nextPoint.y - interaction.startPoint.y,
+            interaction.frameRect.width,
+            interaction.frameRect.height,
+          ),
+        );
         return;
       }
 
@@ -114,7 +133,10 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const startResize = (handle: ImageMaskResizeHandle, event: ReactPointerEvent<HTMLButtonElement>) => {
+  const startResize = (
+    handle: ImageMaskResizeHandle,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
     if (!event.isPrimary || event.button !== 0 || !frameRef.current) {
       return;
     }
@@ -159,7 +181,10 @@ export function ImageCropManipulator({ editing, onChange }: ImageCropManipulator
     onChange(nextCrop);
   };
 
-  const handleResizeKeyDown = (_handle: ImageMaskResizeHandle, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+  const handleResizeKeyDown = (
+    _handle: ImageMaskResizeHandle,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ) => {
     const step = event.shiftKey ? 0.08 : 0.02;
     let delta = 0;
 

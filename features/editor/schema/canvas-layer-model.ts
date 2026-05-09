@@ -1,7 +1,14 @@
-import type { TemplateElement, TemplateElementProps, TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { CanvasWorkspaceLayer } from "@/features/editor/schema/canvas-insertion";
+import type {
+  TemplateElement,
+  TemplateElementProps,
+  TemplateSchema,
+} from "@/features/editor/schema/template-schema";
 
-export type CanvasLayerMetadata = Pick<TemplateElementProps, "layerId" | "layerName" | "layerOrder" | "layerVisible" | "layerLocked">;
+export type CanvasLayerMetadata = Pick<
+  TemplateElementProps,
+  "layerId" | "layerName" | "layerOrder" | "layerVisible" | "layerLocked"
+>;
 
 export type CanvasLayerIdentity = {
   key: string;
@@ -29,8 +36,14 @@ export function createCanvasLayerMetadata(layer: CanvasWorkspaceLayer): CanvasLa
   };
 }
 
-export function resolveCanvasElementLayerIdentity(element: TemplateElement, fallbackLayerId: string | null = null): CanvasLayerIdentity | null {
-  const layerId = readElementPropString(element, "layerId") ?? fallbackLayerId ?? readElementPropString(element, "layerName");
+export function resolveCanvasElementLayerIdentity(
+  element: TemplateElement,
+  fallbackLayerId: string | null = null,
+): CanvasLayerIdentity | null {
+  const layerId =
+    readElementPropString(element, "layerId") ??
+    fallbackLayerId ??
+    readElementPropString(element, "layerName");
   if (!layerId) {
     return null;
   }
@@ -44,7 +57,10 @@ export function resolveCanvasElementLayerIdentity(element: TemplateElement, fall
   };
 }
 
-export function resolveCanvasElementLayerKey(element: TemplateElement, fallbackLayerId: string | null = null) {
+export function resolveCanvasElementLayerKey(
+  element: TemplateElement,
+  fallbackLayerId: string | null = null,
+) {
   return resolveCanvasElementLayerIdentity(element, fallbackLayerId)?.key ?? "default";
 }
 
@@ -64,7 +80,9 @@ export function resolveCanvasElementParentKey(element: TemplateElement) {
 
 export function compareCanvasElementsByPresentationOrder(template: TemplateSchema) {
   const pageOrder = new Map(template.pages.map((page, index) => [page.id, index] as const));
-  const sourceIndex = new Map(template.elements.map((element, index) => [element.id, index] as const));
+  const sourceIndex = new Map(
+    template.elements.map((element, index) => [element.id, index] as const),
+  );
 
   return (a: TemplateElement, b: TemplateElement) => {
     const pageDelta = (pageOrder.get(a.pageId) ?? 0) - (pageOrder.get(b.pageId) ?? 0);

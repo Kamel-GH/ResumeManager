@@ -1,12 +1,16 @@
-import type { TemplateElement, TemplateElementStyle, TemplateElementType } from "@/features/editor/schema/template-schema";
-import type { Rect } from "@/features/editor/types";
+import { parseRichTextHtmlToJson } from "@/features/editor/lib/rich-text-variable";
+import { createCanvasLayerMetadata } from "@/features/editor/schema/canvas-layer-model";
 import {
   DEFAULT_CANVAS_FILL_COLOR,
   DEFAULT_CANVAS_STROKE_COLOR,
   DEFAULT_CANVAS_STROKE_WIDTH,
 } from "@/features/editor/schema/canvas-mutation";
-import { createCanvasLayerMetadata } from "@/features/editor/schema/canvas-layer-model";
-import { parseRichTextHtmlToJson } from "@/features/editor/lib/rich-text-variable";
+import type {
+  TemplateElement,
+  TemplateElementStyle,
+  TemplateElementType,
+} from "@/features/editor/schema/template-schema";
+import type { Rect } from "@/features/editor/types";
 
 export type CanvasDropEnvelope = {
   type: string;
@@ -109,7 +113,15 @@ const DEFAULT_TEXT_STYLE: TemplateElementStyle = {
   lineHeight: 1.25,
 };
 
-type CanvasShapeKind = "circle" | "ellipse" | "line" | "rect" | "polygon" | "polyline" | "curve" | "arc";
+type CanvasShapeKind =
+  | "circle"
+  | "ellipse"
+  | "line"
+  | "rect"
+  | "polygon"
+  | "polyline"
+  | "curve"
+  | "arc";
 
 export function createCanvasInsertionElement(input: {
   source: CanvasCreationEnvelope;
@@ -204,7 +216,9 @@ export function createCanvasInsertionElement(input: {
         type: "shape",
         style: {
           ...resolveShapeStyle(rawPayload, shape, input.context.styleDefaults),
-          ...(shape === "line" || shape === "polyline" || shape === "curve" || shape === "arc" ? {} : {}),
+          ...(shape === "line" || shape === "polyline" || shape === "curve" || shape === "arc"
+            ? {}
+            : {}),
         },
         props: {
           selectable: true,
@@ -215,7 +229,9 @@ export function createCanvasInsertionElement(input: {
           ...(svg ? { svg } : {}),
           ...(normalizedPoints ? { points: normalizedPoints } : {}),
           ...(asString(rawPayload.presetId) ? { presetId: asString(rawPayload.presetId) } : {}),
-          ...(asString(rawPayload.presetKind) ? { presetKind: asString(rawPayload.presetKind) } : {}),
+          ...(asString(rawPayload.presetKind)
+            ? { presetKind: asString(rawPayload.presetKind) }
+            : {}),
           label: asString(rawPayload.name) ?? asString(rawPayload.label) ?? sourceType,
           name: asString(rawPayload.name) ?? asString(rawPayload.label) ?? sourceType,
           layerId: layer.id,
@@ -303,7 +319,11 @@ export function createCanvasInsertionElement(input: {
     const presetType = asString(rawPayload.type) ?? "CUSTOM";
     const mappedPath = asString(rawPayload.mappedPath) ?? asString(rawPayload.token) ?? presetType;
     const token = asString(rawPayload.token) ?? asString(rawPayload.label) ?? mappedPath;
-    const sampleItemsCount = clampNumber(Math.round(asNumber(rawPayload.sampleItemsCount) ?? 3), 1, 12);
+    const sampleItemsCount = clampNumber(
+      Math.round(asNumber(rawPayload.sampleItemsCount) ?? 3),
+      1,
+      12,
+    );
 
     return {
       inserted: true,
@@ -465,11 +485,20 @@ function createCanvasToolInsertionElement(
     const startAngle = asNumber(payload.startAngle) ?? arcGeometry?.startAngle;
     const endAngle = asNumber(payload.endAngle) ?? arcGeometry?.endAngle;
     const arcSweep = (asNumber(payload.arcSweep) as 1 | -1 | undefined) ?? arcGeometry?.sweep ?? 1;
-    const outerRadius = asNumber(payload.outerRadius) ?? arcGeometry?.radius ?? Math.max(Math.min(resolvedFrame.width, resolvedFrame.height) / 2, 1);
+    const outerRadius =
+      asNumber(payload.outerRadius) ??
+      arcGeometry?.radius ??
+      Math.max(Math.min(resolvedFrame.width, resolvedFrame.height) / 2, 1);
     const label =
       asString(payload.name) ??
       asString(payload.label) ??
-      (toolId === "pie" ? "Camembert" : toolId === "arc2point" ? "Arc 2 points" : toolId === "arc3point" ? "Arc 3 points" : "Arc");
+      (toolId === "pie"
+        ? "Camembert"
+        : toolId === "arc2point"
+          ? "Arc 2 points"
+          : toolId === "arc3point"
+            ? "Arc 3 points"
+            : "Arc");
 
     return {
       inserted: true,
@@ -479,7 +508,10 @@ function createCanvasToolInsertionElement(
         pageId,
         frame: resolvedFrame,
         type: "shape",
-        style: arcType === "pie" ? resolvePieShapeStyle(payload, input.context.styleDefaults) : resolveShapeStyle(payload, "arc", input.context.styleDefaults),
+        style:
+          arcType === "pie"
+            ? resolvePieShapeStyle(payload, input.context.styleDefaults)
+            : resolveShapeStyle(payload, "arc", input.context.styleDefaults),
         props: {
           selectable: true,
           selectionType: "shape",
@@ -543,7 +575,12 @@ function createCanvasToolInsertionElement(
   }
 
   if (toolId === "arrows") {
-    const points = asNumberArray(payload.points) ?? [0, 0, Math.max(frame.width, 1), Math.max(frame.height, 1)];
+    const points = asNumberArray(payload.points) ?? [
+      0,
+      0,
+      Math.max(frame.width, 1),
+      Math.max(frame.height, 1),
+    ];
     const arrow = asBoolean(payload.arrow) ?? false;
     return {
       inserted: true,
@@ -721,7 +758,12 @@ function createCanvasToolInsertionElement(
   return unsupported("canvas-tool", "outil_non_supporte");
 }
 
-function buildFrame(sourceType: string, payload: Record<string, unknown>, point: { x: number; y: number }, frame?: Rect) {
+function buildFrame(
+  sourceType: string,
+  payload: Record<string, unknown>,
+  point: { x: number; y: number },
+  frame?: Rect,
+) {
   if (frame) {
     return frame;
   }
@@ -778,15 +820,34 @@ function resolveWidth(sourceType: string, payload: Record<string, unknown>): num
       return shapeType.includes("oval") ? 72 : 56;
     }
 
-    if (shapeType.includes("star") || shapeType.includes("triangle") || shapeType.includes("diamond") || shapeType.includes("pentagon") || shapeType.includes("hexagon") || shapeType.includes("bubble") || shapeType.includes("badge") || shapeType.includes("rounded") || shapeType.includes("heart")) {
+    if (
+      shapeType.includes("star") ||
+      shapeType.includes("triangle") ||
+      shapeType.includes("diamond") ||
+      shapeType.includes("pentagon") ||
+      shapeType.includes("hexagon") ||
+      shapeType.includes("bubble") ||
+      shapeType.includes("badge") ||
+      shapeType.includes("rounded") ||
+      shapeType.includes("heart")
+    ) {
       return 72;
     }
 
-    if (shapeType.includes("line") || shapeType.includes("separator") || shapeType.includes("arrow")) {
+    if (
+      shapeType.includes("line") ||
+      shapeType.includes("separator") ||
+      shapeType.includes("arrow")
+    ) {
       return 140;
     }
 
-    if (shapeType.includes("polygon") || shapeType.includes("curve") || shapeType.includes("polyline") || shapeType.includes("arc")) {
+    if (
+      shapeType.includes("polygon") ||
+      shapeType.includes("curve") ||
+      shapeType.includes("polyline") ||
+      shapeType.includes("arc")
+    ) {
       return 120;
     }
   }
@@ -794,7 +855,11 @@ function resolveWidth(sourceType: string, payload: Record<string, unknown>): num
   return 120;
 }
 
-function resolveHeight(sourceType: string, payload: Record<string, unknown>, width: number): number {
+function resolveHeight(
+  sourceType: string,
+  payload: Record<string, unknown>,
+  width: number,
+): number {
   if (sourceType === "image") {
     const originalWidth = asNumber(payload.width) ?? width;
     const originalHeight = asNumber(payload.height) ?? width;
@@ -803,7 +868,11 @@ function resolveHeight(sourceType: string, payload: Record<string, unknown>, wid
   }
 
   if (sourceType === "preset" || sourceType === "dynamic-preset") {
-    const sampleItemsCount = clampNumber(Math.round(asNumber(payload.sampleItemsCount) ?? 3), 1, 12);
+    const sampleItemsCount = clampNumber(
+      Math.round(asNumber(payload.sampleItemsCount) ?? 3),
+      1,
+      12,
+    );
     return clampNumber(sampleItemsCount * 28 + 52, 96, 320);
   }
 
@@ -834,15 +903,34 @@ function resolveHeight(sourceType: string, payload: Record<string, unknown>, wid
       return shapeType.includes("oval") ? 48 : 56;
     }
 
-    if (shapeType.includes("star") || shapeType.includes("triangle") || shapeType.includes("diamond") || shapeType.includes("pentagon") || shapeType.includes("hexagon") || shapeType.includes("bubble") || shapeType.includes("badge") || shapeType.includes("rounded") || shapeType.includes("heart")) {
+    if (
+      shapeType.includes("star") ||
+      shapeType.includes("triangle") ||
+      shapeType.includes("diamond") ||
+      shapeType.includes("pentagon") ||
+      shapeType.includes("hexagon") ||
+      shapeType.includes("bubble") ||
+      shapeType.includes("badge") ||
+      shapeType.includes("rounded") ||
+      shapeType.includes("heart")
+    ) {
       return 72;
     }
 
-    if (shapeType.includes("line") || shapeType.includes("separator") || shapeType.includes("arrow")) {
+    if (
+      shapeType.includes("line") ||
+      shapeType.includes("separator") ||
+      shapeType.includes("arrow")
+    ) {
       return 16;
     }
 
-    if (shapeType.includes("polygon") || shapeType.includes("curve") || shapeType.includes("polyline") || shapeType.includes("arc")) {
+    if (
+      shapeType.includes("polygon") ||
+      shapeType.includes("curve") ||
+      shapeType.includes("polyline") ||
+      shapeType.includes("arc")
+    ) {
       return 80;
     }
   }
@@ -875,11 +963,23 @@ function resolveShapeKind(payload: Record<string, unknown>): CanvasShapeKind {
   return "rect";
 }
 
-function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeKind, styleDefaults?: TemplateElementStyle): TemplateElementStyle {
+function resolveShapeStyle(
+  payload: Record<string, unknown>,
+  shape: CanvasShapeKind,
+  styleDefaults?: TemplateElementStyle,
+): TemplateElementStyle {
   const fillMode = asString(payload.fillMode)?.toLowerCase() ?? "color";
-  const accent = fillMode === "mono" ? "#e5e7eb" : fillMode === "transparent" ? "transparent" : styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR;
+  const accent =
+    fillMode === "mono"
+      ? "#e5e7eb"
+      : fillMode === "transparent"
+        ? "transparent"
+        : (styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR);
   const stroke = styleDefaults?.stroke ?? DEFAULT_CANVAS_STROKE_COLOR;
-  const defaultStrokeWidth = asNumber(payload.strokeWidth) ?? styleDefaults?.strokeWidth ?? (shape === "rect" ? 1 : DEFAULT_CANVAS_STROKE_WIDTH);
+  const defaultStrokeWidth =
+    asNumber(payload.strokeWidth) ??
+    styleDefaults?.strokeWidth ??
+    (shape === "rect" ? 1 : DEFAULT_CANVAS_STROKE_WIDTH);
 
   if (shape === "line" || shape === "polyline" || shape === "curve" || shape === "arc") {
     const dash = asNumberArray(payload.dash);
@@ -919,9 +1019,17 @@ function resolveShapeStyle(payload: Record<string, unknown>, shape: CanvasShapeK
       };
 }
 
-function resolvePieShapeStyle(payload: Record<string, unknown>, styleDefaults?: TemplateElementStyle): TemplateElementStyle {
+function resolvePieShapeStyle(
+  payload: Record<string, unknown>,
+  styleDefaults?: TemplateElementStyle,
+): TemplateElementStyle {
   const fillMode = asString(payload.fillMode)?.toLowerCase() ?? "color";
-  const fill = fillMode === "transparent" ? "transparent" : fillMode === "mono" ? "#e5e7eb" : styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR;
+  const fill =
+    fillMode === "transparent"
+      ? "transparent"
+      : fillMode === "mono"
+        ? "#e5e7eb"
+        : (styleDefaults?.fill ?? DEFAULT_CANVAS_FILL_COLOR);
 
   return {
     fill,
@@ -953,7 +1061,10 @@ function resolveTextBlockText(payload: Record<string, unknown>): string {
 }
 
 function stripHtml(input: string): string {
-  return input.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return input
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function normalizeRenderableSvgSource(source: string | undefined): string | undefined {
@@ -1048,7 +1159,9 @@ function asNumber(value: unknown): number | undefined {
 }
 
 function asNumberArray(value: unknown): number[] | undefined {
-  return Array.isArray(value) && value.every((item) => typeof item === "number") ? value : undefined;
+  return Array.isArray(value) && value.every((item) => typeof item === "number")
+    ? value
+    : undefined;
 }
 
 function normalizePoints(points: number[] | undefined, frame: Rect): number[] | undefined {
@@ -1129,7 +1242,9 @@ export function resolveArcGeometryDraft(
   anchor?: { x: number; y: number } | null,
   current?: { x: number; y: number } | null,
 ): ArcGeometry | null {
-  const clickPoints = (points ?? []).filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+  const clickPoints = (points ?? []).filter(
+    (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+  );
   const arcType = toolId === "pie" ? "pie" : "open";
 
   if (toolId === "arc" || toolId === "pie") {
@@ -1146,7 +1261,8 @@ export function resolveArcGeometryDraft(
 
     const radius = Math.max(distance(center, startPoint), 1);
     const startAngle = angleDegrees(center, startPoint);
-    const endAngle = startAngle + shortestSignedAngleDelta(startAngle, angleDegrees(center, endPoint));
+    const endAngle =
+      startAngle + shortestSignedAngleDelta(startAngle, angleDegrees(center, endPoint));
     return {
       frame: squareFrameFromCenter(center, radius),
       center,
@@ -1261,7 +1377,9 @@ function asPoint(value: unknown): { x: number; y: number } | null {
   return { x, y };
 }
 
-function flatPointsToPointList(value: number[] | undefined): Array<{ x: number; y: number }> | undefined {
+function flatPointsToPointList(
+  value: number[] | undefined,
+): Array<{ x: number; y: number }> | undefined {
   if (!value) {
     return undefined;
   }

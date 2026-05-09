@@ -1,27 +1,27 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   ChevronDown,
   CircleHelp,
   Columns3,
-  Grid2X2,
+  Eye,
   FilePlus2,
   FolderOpen,
-  Save,
-  Upload,
-  Eye,
+  Grid2X2,
   Minus,
   Monitor,
   PanelTop,
   Plus,
   Redo2,
+  Save,
   Search,
   Smartphone,
   Tablet,
   Undo2,
+  Upload,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 
@@ -58,7 +58,13 @@ export function EditorTopbar() {
 
           <div className="ef-topbar-tools">
             <IconButton label="Annuler (⌘Z)" icon={Undo2} onClick={undo} disabled={!canUndo} />
-            <IconButton label="Rétablir (⌘⇧Z)" icon={Redo2} onClick={redo} disabled={!canRedo} muted={!canRedo} />
+            <IconButton
+              label="Rétablir (⌘⇧Z)"
+              icon={Redo2}
+              onClick={redo}
+              disabled={!canRedo}
+              muted={!canRedo}
+            />
           </div>
 
           <ZoomControl value={`${Math.round(zoom * 100)}%`} />
@@ -80,7 +86,12 @@ export function EditorTopbar() {
           <label className="ef-topbar-search">
             <Search size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
             <span className="ef-truncate">Rechercher (⌘K)</span>
-            <ChevronDown className="ml-auto" size={ICON_SIZE} strokeWidth={ICON_STROKE} aria-hidden="true" />
+            <ChevronDown
+              className="ml-auto"
+              size={ICON_SIZE}
+              strokeWidth={ICON_STROKE}
+              aria-hidden="true"
+            />
           </label>
 
           <button className="ef-share-button">
@@ -111,10 +122,22 @@ function ActionButton({ label, icon: Icon }: ButtonProps) {
   );
 }
 
-function IconButton({ label, icon: Icon, active, muted, disabled, onClick }: ButtonProps & { active?: boolean; muted?: boolean; disabled?: boolean; onClick?: () => void }) {
+function IconButton({
+  label,
+  icon: Icon,
+  active,
+  muted,
+  disabled,
+  onClick,
+}: ButtonProps & { active?: boolean; muted?: boolean; disabled?: boolean; onClick?: () => void }) {
   return (
     <button
-      className={["ef-topbar-icon-button", active ? "is-active" : "", muted ? "is-muted" : "", disabled ? "is-disabled" : ""].join(" ")}
+      className={[
+        "ef-topbar-icon-button",
+        active ? "is-active" : "",
+        muted ? "is-muted" : "",
+        disabled ? "is-disabled" : "",
+      ].join(" ")}
       title={label}
       disabled={disabled}
       onClick={onClick}

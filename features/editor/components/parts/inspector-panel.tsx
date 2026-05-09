@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   AlignCenter,
   AlignJustify,
@@ -14,18 +14,22 @@ import {
   RotateCcw,
   Type,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { type ReactNode, useCallback, useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import {
+  type CanvasObjectStyleValues,
   resolveCanvasObjectStyleCapabilities,
   resolveCanvasObjectStylePreview,
-  type CanvasObjectStyleValues,
 } from "@/features/editor/schema/canvas-mutation";
+import {
+  formatOperationAction,
+  formatOperationSnapshot,
+  formatOperationSnapshotOrDeleted,
+} from "@/features/editor/schema/editor-operation-log";
 import type { TemplateElement } from "@/features/editor/schema/template-schema";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
-import { formatOperationAction, formatOperationSnapshot, formatOperationSnapshotOrDeleted } from "@/features/editor/schema/editor-operation-log";
 
 const tabs = ["Style", "Texte", "Données", "Effets"];
 
@@ -41,16 +45,20 @@ export function InspectorPanel() {
   const setEditingRichTextElementId = useEditorStore((state) => state.setEditingRichTextElementId);
   const selectedObject = selectionProjection?.object ?? null;
   const selectedPage = selectionProjection?.page ?? null;
-  const selectionSummary =
-    selectionProjection ?? {
-      selectionTypeLabel: "Page",
-      selectionLabel: `Page ${activePageId.replace("page-", "")}`,
-      userFacingLayer: null,
-    };
+  const selectionSummary = selectionProjection ?? {
+    selectionTypeLabel: "Page",
+    selectionLabel: `Page ${activePageId.replace("page-", "")}`,
+    userFacingLayer: null,
+  };
   const styleTarget = useMemo(() => {
     const candidates = selectedElementIds
-      .map((elementId) => workingTemplate.elements.find((element) => element.id === elementId) ?? null)
-      .filter((element): element is (typeof workingTemplate.elements)[number] => element !== null && isStyleableCanvasElement(element));
+      .map(
+        (elementId) => workingTemplate.elements.find((element) => element.id === elementId) ?? null,
+      )
+      .filter(
+        (element): element is (typeof workingTemplate.elements)[number] =>
+          element !== null && isStyleableCanvasElement(element),
+      );
 
     return candidates[0] ?? null;
   }, [selectedElementIds, workingTemplate]);
@@ -59,11 +67,18 @@ export function InspectorPanel() {
   const selectionType = selectionProjection?.selectionType ?? null;
   const selectedElementId = selectedElementIds.length === 1 ? selectedElementIds[0] : null;
   const selectedElement = useMemo(
-    () => (selectedElementId ? workingTemplate.elements.find((el) => el.id === selectedElementId) ?? null : null),
+    () =>
+      selectedElementId
+        ? (workingTemplate.elements.find((el) => el.id === selectedElementId) ?? null)
+        : null,
     [selectedElementId, workingTemplate.elements],
   );
-  const isImageSelection = selectionType === "image" && selectedElement?.type === "image" && !selectedElement.locked;
-  const isRichTextSelection = selectionType === "richText" && selectedElement?.type === "rich-text" && !selectedElement.locked;
+  const isImageSelection =
+    selectionType === "image" && selectedElement?.type === "image" && !selectedElement.locked;
+  const isRichTextSelection =
+    selectionType === "richText" &&
+    selectedElement?.type === "rich-text" &&
+    !selectedElement.locked;
   const applyStylePatch = useCallback(
     (style: Partial<CanvasObjectStyleValues>) => {
       if (!selectedElementIds.length) {
@@ -89,7 +104,10 @@ export function InspectorPanel() {
       <div className="ef-inspector-head">
         <div className="ef-inspector-tabs">
           {tabs.map((tab, index) => (
-            <button key={tab} className={["ef-inspector-tab", index === 0 ? "is-active" : ""].join(" ")}>
+            <button
+              key={tab}
+              className={["ef-inspector-tab", index === 0 ? "is-active" : ""].join(" ")}
+            >
               {tab}
             </button>
           ))}
@@ -98,7 +116,9 @@ export function InspectorPanel() {
 
       <InspectorSection title="Sélection" open>
         <div className="ef-grid-font">
-          <span className="ef-field ef-field-strong ef-truncate">{selectionSummary.selectionTypeLabel}</span>
+          <span className="ef-field ef-field-strong ef-truncate">
+            {selectionSummary.selectionTypeLabel}
+          </span>
           <span className="ef-field ef-truncate">{selectionSummary.selectionLabel}</span>
         </div>
 
@@ -175,8 +195,20 @@ export function InspectorPanel() {
           <span className="ef-lock-cell">
             <Lock size={13} aria-hidden="true" />
           </span>
-          <SplitBox values={["L", String(Math.round(selectedObject?.frame.width ?? selectedPage?.width ?? 0)), "px"]} />
-          <SplitBox values={["H", String(Math.round(selectedObject?.frame.height ?? selectedPage?.height ?? 0)), "px"]} />
+          <SplitBox
+            values={[
+              "L",
+              String(Math.round(selectedObject?.frame.width ?? selectedPage?.width ?? 0)),
+              "px",
+            ]}
+          />
+          <SplitBox
+            values={[
+              "H",
+              String(Math.round(selectedObject?.frame.height ?? selectedPage?.height ?? 0)),
+              "px",
+            ]}
+          />
         </div>
 
         <div className="ef-grid-transform">
@@ -201,8 +233,14 @@ export function InspectorPanel() {
 
       <InspectorSection title="Journal" open>
         <div className="flex items-center justify-between gap-2 px-1 pb-2 text-[11px] text-slate-500">
-          <span>{operationLogs.length} opération{operationLogs.length > 1 ? "s" : ""}</span>
-          <button className="rounded px-2 py-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900" onClick={clearOperationLogs} type="button">
+          <span>
+            {operationLogs.length} opération{operationLogs.length > 1 ? "s" : ""}
+          </span>
+          <button
+            className="rounded px-2 py-1 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            onClick={clearOperationLogs}
+            type="button"
+          >
             Effacer
           </button>
         </div>
@@ -214,20 +252,40 @@ export function InspectorPanel() {
             </div>
           ) : (
             [...operationLogs].reverse().map((entry) => (
-              <div key={entry.id} className="rounded border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 shadow-sm">
+              <div
+                key={entry.id}
+                className="rounded border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-600 shadow-sm"
+              >
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-slate-800">{formatOperationAction(entry.action)}</span>
-                  <span>{new Date(entry.timestamp).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
+                  <span className="font-medium text-slate-800">
+                    {formatOperationAction(entry.action)}
+                  </span>
+                  <span>
+                    {new Date(entry.timestamp).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                    })}
+                  </span>
                 </div>
                 <div className="mt-1 text-slate-500">Objet {entry.elementId}</div>
                 <div className="mt-1 grid gap-1">
-                  <div><span className="font-medium text-slate-700">Avant</span> {entry.before ? formatOperationSnapshot(entry.before) : "—"}</div>
-                  <div><span className="font-medium text-slate-700">Après</span> {formatOperationSnapshotOrDeleted(entry.after)}</div>
+                  <div>
+                    <span className="font-medium text-slate-700">Avant</span>{" "}
+                    {entry.before ? formatOperationSnapshot(entry.before) : "—"}
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-700">Après</span>{" "}
+                    {formatOperationSnapshotOrDeleted(entry.after)}
+                  </div>
                 </div>
                 {entry.details?.length ? (
                   <div className="mt-2 grid gap-1 rounded border border-slate-100 bg-slate-50 px-2 py-1 text-[10px] text-slate-500">
                     {entry.details.map((detail) => (
-                      <div key={`${entry.id}-${detail.label}`} className="flex items-start justify-between gap-2">
+                      <div
+                        key={`${entry.id}-${detail.label}`}
+                        className="flex items-start justify-between gap-2"
+                      >
                         <span className="font-medium text-slate-600">{detail.label}</span>
                         <span className="text-right text-slate-500">{detail.value}</span>
                       </div>
@@ -243,7 +301,15 @@ export function InspectorPanel() {
   );
 }
 
-function InspectorSection({ title, children, open }: { title: string; children?: ReactNode; open?: boolean }) {
+function InspectorSection({
+  title,
+  children,
+  open,
+}: {
+  title: string;
+  children?: ReactNode;
+  open?: boolean;
+}) {
   return (
     <section className="ef-inspector-section">
       <h3 className="ef-inspector-title">
@@ -269,7 +335,10 @@ function SelectBox({ value }: { value: string }) {
 
 function SplitBox({ values }: { values: string[] }) {
   return (
-    <span className="ef-field ef-split-field" style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}>
+    <span
+      className="ef-field ef-split-field"
+      style={{ gridTemplateColumns: `repeat(${values.length}, minmax(0, 1fr))` }}
+    >
       {values.map((value, index) => (
         <span key={`${value}-${index}`} className="ef-split-cell">
           {value}
@@ -351,12 +420,21 @@ function StyleNumberField({
 
 function isStyleableCanvasElement(element: TemplateElement) {
   const capabilities = resolveCanvasObjectStyleCapabilities(element);
-  return capabilities.fill || capabilities.stroke || capabilities.strokeWidth || capabilities.opacity || capabilities.dash;
+  return (
+    capabilities.fill ||
+    capabilities.stroke ||
+    capabilities.strokeWidth ||
+    capabilities.opacity ||
+    capabilities.dash
+  );
 }
 
 function RichTextInspector({ element, onEdit }: { element: TemplateElement; onEdit: () => void }) {
   const html = typeof element.props?.html === "string" ? element.props.html : null;
-  const displayMode = typeof element.props?.richTextDisplayMode === "string" ? element.props.richTextDisplayMode : "label";
+  const displayMode =
+    typeof element.props?.richTextDisplayMode === "string"
+      ? element.props.richTextDisplayMode
+      : "label";
 
   const preview = html
     ? html
@@ -392,10 +470,19 @@ function RichTextInspector({ element, onEdit }: { element: TemplateElement; onEd
 }
 
 function ImageInspector({ element, onEdit }: { element: TemplateElement; onEdit: () => void }) {
-  const label = typeof element.props?.label === "string" ? element.props.label : typeof element.props?.name === "string" ? element.props.name : "Image";
+  const label =
+    typeof element.props?.label === "string"
+      ? element.props.label
+      : typeof element.props?.name === "string"
+        ? element.props.name
+        : "Image";
   const src = typeof element.props?.src === "string" ? element.props.src : null;
   const isDataUri = src?.startsWith("data:") ?? false;
-  const srcDisplay = isDataUri ? "Données intégrées" : src ? src.slice(0, 40) + (src.length > 40 ? "…" : "") : "—";
+  const srcDisplay = isDataUri
+    ? "Données intégrées"
+    : src
+      ? src.slice(0, 40) + (src.length > 40 ? "…" : "")
+      : "—";
 
   return (
     <>
@@ -430,9 +517,15 @@ function IconBox({ icon: Icon }: { icon: LucideIcon }) {
 
 function IconStrip({ icons, activeIndex }: { icons: LucideIcon[]; activeIndex?: number }) {
   return (
-    <div className="ef-icon-strip" style={{ gridTemplateColumns: `repeat(${icons.length}, minmax(0, 1fr))` }}>
+    <div
+      className="ef-icon-strip"
+      style={{ gridTemplateColumns: `repeat(${icons.length}, minmax(0, 1fr))` }}
+    >
       {icons.map((Icon, index) => (
-        <button key={index} className={["ef-icon-button", index === activeIndex ? "is-active" : ""].join(" ")}>
+        <button
+          key={index}
+          className={["ef-icon-button", index === activeIndex ? "is-active" : ""].join(" ")}
+        >
           <Icon size={13} aria-hidden="true" />
         </button>
       ))}

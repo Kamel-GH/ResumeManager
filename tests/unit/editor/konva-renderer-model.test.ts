@@ -9,8 +9,8 @@ import {
   isTransformableNode,
   resolveCanonicalFrameFromProjectedGeometry,
   resolveDragSelectionIds,
-  resolveSelectionOrderCapabilities,
   resolveSelectionActionBarPlacement,
+  resolveSelectionOrderCapabilities,
   shouldShowFrameOutline,
 } from "@/features/editor/renderers/konva-renderer";
 import type { RenderNode } from "@/features/editor/schema/render-tree";
@@ -229,7 +229,9 @@ describe("konva renderer model", () => {
     };
 
     expect(isSelectableNode(baseNode)).toBe(true);
-    expect(isSelectableNode({ ...baseNode, props: { ...baseNode.props, selectable: false } })).toBe(false);
+    expect(isSelectableNode({ ...baseNode, props: { ...baseNode.props, selectable: false } })).toBe(
+      false,
+    );
     expect(isSelectableNode({ ...baseNode, locked: true })).toBe(false);
   });
 
@@ -308,7 +310,7 @@ describe("konva renderer model", () => {
       visible: true,
       locked: false,
       props: {
-        src: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><rect width=\"64\" height=\"64\" fill=\"#fff\"/></svg>",
+        src: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="#fff"/></svg>',
         selectable: true,
       },
     };
@@ -323,14 +325,22 @@ describe("konva renderer model", () => {
   });
 
   it("keeps the contextual toolbar outside the rotation handle safety zone when there is room above", () => {
-    const placement = resolveSelectionActionBarPlacement({ x: 200, y: 160, width: 80, height: 40 }, 500, 400);
+    const placement = resolveSelectionActionBarPlacement(
+      { x: 200, y: 160, width: 80, height: 40 },
+      500,
+      400,
+    );
 
     expect(placement.placement).toBe("bottom");
     expect(placement.top + 38).toBeLessThanOrEqual(160 - 58);
   });
 
   it("places the contextual toolbar below the selection near the top viewport edge", () => {
-    const placement = resolveSelectionActionBarPlacement({ x: 12, y: 32, width: 80, height: 40 }, 500, 400);
+    const placement = resolveSelectionActionBarPlacement(
+      { x: 12, y: 32, width: 80, height: 40 },
+      500,
+      400,
+    );
 
     expect(placement.placement).toBe("top");
     expect(placement.top).toBeGreaterThan(32 + 40);
@@ -353,9 +363,15 @@ describe("konva renderer model", () => {
     };
     const renderNodeById = new Map<string, { node: RenderNode; pageId: string }>([
       ["shape-1", { node: baseNode, pageId: "page-1" }],
-      ["shape-2", { node: { ...baseNode, id: "shape-2", props: { shape: "rect" } }, pageId: "page-1" }],
+      [
+        "shape-2",
+        { node: { ...baseNode, id: "shape-2", props: { shape: "rect" } }, pageId: "page-1" },
+      ],
       ["locked", { node: { ...baseNode, id: "locked", locked: true }, pageId: "page-1" }],
-      ["other-page", { node: { ...baseNode, id: "other-page", pageId: "page-2" }, pageId: "page-2" }],
+      [
+        "other-page",
+        { node: { ...baseNode, id: "other-page", pageId: "page-2" }, pageId: "page-2" },
+      ],
     ]);
 
     expect(
@@ -385,7 +401,10 @@ describe("konva renderer model", () => {
     const renderNodeById = new Map<string, { node: RenderNode; pageId: string }>([
       ["shape-1", { node: baseNode, pageId: "page-1" }],
       ["shape-2", { node: { ...baseNode, id: "shape-2", locked: true }, pageId: "page-1" }],
-      ["other-page", { node: { ...baseNode, id: "other-page", pageId: "page-2" }, pageId: "page-2" }],
+      [
+        "other-page",
+        { node: { ...baseNode, id: "other-page", pageId: "page-2" }, pageId: "page-2" },
+      ],
     ]);
 
     expect(
@@ -442,7 +461,7 @@ describe("konva renderer model", () => {
       visible: true,
       locked: false,
       props: {
-        src: "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+        src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
         flipY: true,
         selectable: true,
       },
@@ -604,7 +623,7 @@ describe("konva renderer model", () => {
       visible: true,
       locked: false,
       props: {
-        src: "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+        src: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg"/>',
         flipX: true,
         selectable: true,
       },
@@ -626,19 +645,46 @@ describe("konva renderer model", () => {
       },
     };
 
-    expect(resolveCanonicalFrameFromProjectedGeometry(textNode, { x: 22, y: 96, width: 160, height: 32, scaleX: 1, scaleY: -1 })).toEqual({
+    expect(
+      resolveCanonicalFrameFromProjectedGeometry(textNode, {
+        x: 22,
+        y: 96,
+        width: 160,
+        height: 32,
+        scaleX: 1,
+        scaleY: -1,
+      }),
+    ).toEqual({
       x: 22,
       y: 64,
       width: 160,
       height: 32,
     });
-    expect(resolveCanonicalFrameFromProjectedGeometry(imageNode, { x: 170, y: 58, width: 110, height: 70, scaleX: -1, scaleY: 1 })).toEqual({
+    expect(
+      resolveCanonicalFrameFromProjectedGeometry(imageNode, {
+        x: 170,
+        y: 58,
+        width: 110,
+        height: 70,
+        scaleX: -1,
+        scaleY: 1,
+      }),
+    ).toEqual({
       x: 60,
       y: 58,
       width: 110,
       height: 70,
     });
-    expect(resolveCanonicalFrameFromProjectedGeometry(arcNode, { x: 180, y: 174, width: 100, height: 80, scaleX: -1, scaleY: -1 })).toEqual({
+    expect(
+      resolveCanonicalFrameFromProjectedGeometry(arcNode, {
+        x: 180,
+        y: 174,
+        width: 100,
+        height: 80,
+        scaleX: -1,
+        scaleY: -1,
+      }),
+    ).toEqual({
       x: 80,
       y: 94,
       width: 100,
@@ -681,25 +727,28 @@ describe("konva renderer model", () => {
 
   it("does not expose forward actions when a locked object blocks the selected node", () => {
     expect(
-      resolveSelectionOrderCapabilities({
-        id: "tree",
-        templateId: "template",
-        pages: [
-          {
-            id: "page-1",
-            name: "Page 1",
-            width: 400,
-            height: 300,
-            margin: { top: 0, right: 0, bottom: 0, left: 0 },
-            orientation: "landscape",
-            children: [
-              createOrderRenderNode("back", 1),
-              createOrderRenderNode("selected", 2),
-              createOrderRenderNode("locked-front", 3, { locked: true }),
-            ],
-          },
-        ],
-      }, ["selected"]),
+      resolveSelectionOrderCapabilities(
+        {
+          id: "tree",
+          templateId: "template",
+          pages: [
+            {
+              id: "page-1",
+              name: "Page 1",
+              width: 400,
+              height: 300,
+              margin: { top: 0, right: 0, bottom: 0, left: 0 },
+              orientation: "landscape",
+              children: [
+                createOrderRenderNode("back", 1),
+                createOrderRenderNode("selected", 2),
+                createOrderRenderNode("locked-front", 3, { locked: true }),
+              ],
+            },
+          ],
+        },
+        ["selected"],
+      ),
     ).toEqual({
       bringToFront: false,
       bringForward: false,
@@ -709,7 +758,11 @@ describe("konva renderer model", () => {
   });
 });
 
-function createOrderRenderNode(id: string, zIndex: number, options?: { locked?: boolean; layerId?: string; layerOrder?: number }): RenderNode {
+function createOrderRenderNode(
+  id: string,
+  zIndex: number,
+  options?: { locked?: boolean; layerId?: string; layerOrder?: number },
+): RenderNode {
   return {
     id,
     type: "shape",

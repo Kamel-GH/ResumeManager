@@ -109,7 +109,16 @@ describe("editor operation log", () => {
 
     expect(entry?.action).toBe("rotate");
     expect(formatOperationAction(entry?.action ?? "transform")).toBe("Rotation");
-    expect(formatOperationSnapshot(entry?.after ?? { id: "x", pageId: "page-1", frame: { x: 0, y: 0, width: 0, height: 0 }, rotation: 0 })).toBe("x=120, y=80, w=200, h=120, rot=90");
+    expect(
+      formatOperationSnapshot(
+        entry?.after ?? {
+          id: "x",
+          pageId: "page-1",
+          frame: { x: 0, y: 0, width: 0, height: 0 },
+          rotation: 0,
+        },
+      ),
+    ).toBe("x=120, y=80, w=200, h=120, rot=90");
   });
 
   it("classifies move, resize and transform geometry changes distinctly", () => {
@@ -136,7 +145,9 @@ describe("editor operation log", () => {
         beforeTemplate,
         afterTemplate: moveTemplate,
         pageId: "page-1",
-        patches: [{ id: "shape-1", frame: { x: 132, y: 92, width: 200, height: 120 }, rotation: 0 }],
+        patches: [
+          { id: "shape-1", frame: { x: 132, y: 92, width: 200, height: 120 }, rotation: 0 },
+        ],
       }).map((entry) => entry.action),
     ).toEqual(["move"]);
 
@@ -145,7 +156,9 @@ describe("editor operation log", () => {
         beforeTemplate,
         afterTemplate: resizeTemplate,
         pageId: "page-1",
-        patches: [{ id: "shape-1", frame: { x: 120, y: 80, width: 240, height: 160 }, rotation: 0 }],
+        patches: [
+          { id: "shape-1", frame: { x: 120, y: 80, width: 240, height: 160 }, rotation: 0 },
+        ],
       }).map((entry) => entry.action),
     ).toEqual(["resize"]);
 
@@ -154,7 +167,9 @@ describe("editor operation log", () => {
         beforeTemplate,
         afterTemplate: transformTemplate,
         pageId: "page-1",
-        patches: [{ id: "shape-1", frame: { x: 132, y: 92, width: 240, height: 160 }, rotation: 18 }],
+        patches: [
+          { id: "shape-1", frame: { x: 132, y: 92, width: 240, height: 160 }, rotation: 18 },
+        ],
       }).map((entry) => entry.action),
     ).toEqual(["transform"]);
   });

@@ -60,7 +60,10 @@
   background: transparent;
   color: #71717a;
   cursor: pointer;
-  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 .editor-fidelity .ef-left-tab {
@@ -372,7 +375,9 @@
   background: #0c0e12;
   padding: 0 4px;
   color: #d7c3ae;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   font-size: 10px;
   line-height: 1;
 }
@@ -486,7 +491,9 @@
   color: var(--badge-fg);
   overflow: hidden;
   padding: 0 4px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
   font-size: 8px;
   font-weight: 700;
   line-height: 1;
@@ -1464,7 +1471,7 @@
   font-size: 8px;
   font-weight: 800;
   line-height: 1;
-  letter-spacing: .08em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 9%);
 }

@@ -123,7 +123,12 @@ export function resolveImagePreviewSource(value: unknown): string {
     return `data:image/svg+xml;utf8,${encodeURIComponent(trimmed)}`;
   }
 
-  if (trimmed.startsWith("data:image/") || trimmed.startsWith("blob:") || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+  if (
+    trimmed.startsWith("data:image/") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://")
+  ) {
     return trimmed;
   }
 
@@ -136,7 +141,8 @@ export function resolveImagePreviewSource(value: unknown): string {
 
 export function buildImageCssFilter(editing: ImageEditingState): string {
   const preset = getFilterPresetValues(editing.filter);
-  const brightness = 1 + editing.adjustments.brightness + editing.adjustments.exposure * 0.35 + preset.brightness;
+  const brightness =
+    1 + editing.adjustments.brightness + editing.adjustments.exposure * 0.35 + preset.brightness;
   const contrast = 1 + editing.adjustments.contrast + preset.contrast;
   const saturation = Math.max(0, 1 + editing.adjustments.saturation + preset.saturation);
   const sepia = preset.sepia;
@@ -167,7 +173,11 @@ export function buildImagePreviewStyle(editing: ImageEditingState): CSSPropertie
   };
 }
 
-export function resolveImagePreviewSvgGeometry(editing: ImageEditingState, frameWidth = 100, frameHeight = 100) {
+export function resolveImagePreviewSvgGeometry(
+  editing: ImageEditingState,
+  frameWidth = 100,
+  frameHeight = 100,
+) {
   const safeFrameWidth = Math.max(frameWidth, 1);
   const safeFrameHeight = Math.max(frameHeight, 1);
   const zoom = Math.max(0.25, editing.crop.zoom);
@@ -206,7 +216,13 @@ export function buildImagePreviewTransform(editing: ImageEditingState): string {
   ].join(" ");
 }
 
-export function moveImageCrop(crop: ImageEditingState["crop"], deltaX: number, deltaY: number, frameWidth: number, frameHeight: number) {
+export function moveImageCrop(
+  crop: ImageEditingState["crop"],
+  deltaX: number,
+  deltaY: number,
+  frameWidth: number,
+  frameHeight: number,
+) {
   const nextX = crop.x + deltaX / Math.max(frameWidth / 2, 1);
   const nextY = crop.y + deltaY / Math.max(frameHeight / 2, 1);
 
@@ -217,7 +233,11 @@ export function moveImageCrop(crop: ImageEditingState["crop"], deltaX: number, d
   };
 }
 
-export function scaleImageCropZoom(startZoom: number, startDistance: number, currentDistance: number) {
+export function scaleImageCropZoom(
+  startZoom: number,
+  startDistance: number,
+  currentDistance: number,
+) {
   if (startDistance <= 0.001) {
     return clamp(startZoom, 0.25, 5);
   }
@@ -237,7 +257,11 @@ export function buildMaskPreviewStyle(editing: ImageEditingState): CSSProperties
   };
 }
 
-export function buildImageMaskPathData(frame: { x: number; y: number; width: number; height: number }, maskType: ImageMaskType, radius: number) {
+export function buildImageMaskPathData(
+  frame: { x: number; y: number; width: number; height: number },
+  maskType: ImageMaskType,
+  radius: number,
+) {
   const left = frame.x;
   const top = frame.y;
   const right = frame.x + frame.width;
@@ -324,7 +348,12 @@ export function resolveImageMaskBorderPresentation(border: ImageMaskBorder): {
   lineJoin: "round";
 } {
   const dash = buildImageMaskBorderDashArray(border.style);
-  const lineCap = border.style === "dashed-round" || border.style === "long-dashed-round" || border.style === "dotted" ? "round" : "butt";
+  const lineCap =
+    border.style === "dashed-round" ||
+    border.style === "long-dashed-round" ||
+    border.style === "dotted"
+      ? "round"
+      : "butt";
   return {
     dash,
     lineCap,
@@ -357,7 +386,11 @@ export function normalizeImageMaskBounds(value: unknown): ImageMaskBounds {
   }
 
   const width = clamp(toNumber(value.width, defaultImageEditingState.mask.bounds.width), 0.05, 1);
-  const height = clamp(toNumber(value.height, defaultImageEditingState.mask.bounds.height), 0.05, 1);
+  const height = clamp(
+    toNumber(value.height, defaultImageEditingState.mask.bounds.height),
+    0.05,
+    1,
+  );
   const x = clamp(toNumber(value.x, defaultImageEditingState.mask.bounds.x), 0, 1 - width);
   const y = clamp(toNumber(value.y, defaultImageEditingState.mask.bounds.y), 0, 1 - height);
 
@@ -390,7 +423,13 @@ export function moveImageMaskBounds(bounds: ImageMaskBounds, deltaX: number, del
   });
 }
 
-export function resizeImageMaskBounds(bounds: ImageMaskBounds, handle: ImageMaskResizeHandle, deltaX: number, deltaY: number, maskType: ImageMaskType) {
+export function resizeImageMaskBounds(
+  bounds: ImageMaskBounds,
+  handle: ImageMaskResizeHandle,
+  deltaX: number,
+  deltaY: number,
+  maskType: ImageMaskType,
+) {
   const minSize = 0.05;
   const resized = (() => {
     switch (handle) {
@@ -477,7 +516,11 @@ export function resizeImageMaskBounds(bounds: ImageMaskBounds, handle: ImageMask
   return normalizeImageMaskBounds(resized);
 }
 
-export function buildImageMaskClipPath(bounds: ImageMaskBounds, maskType: ImageMaskType, radius: string) {
+export function buildImageMaskClipPath(
+  bounds: ImageMaskBounds,
+  maskType: ImageMaskType,
+  radius: string,
+) {
   const left = toPercent(bounds.x);
   const top = toPercent(bounds.y);
   const right = toPercent(Math.max(0, 1 - bounds.x - bounds.width));
@@ -536,34 +579,74 @@ export function getFilterPresetValues(filter: ImageFilterPreset) {
     case "grayscale":
       return { brightness: 0, contrast: 0.02, saturation: -1, sepia: 0, grayscale: 1, hue: 0 };
     case "sepia":
-      return { brightness: 0.02, contrast: 0.04, saturation: -0.12, sepia: 0.75, grayscale: 0, hue: 0 };
+      return {
+        brightness: 0.02,
+        contrast: 0.04,
+        saturation: -0.12,
+        sepia: 0.75,
+        grayscale: 0,
+        hue: 0,
+      };
     case "vintage":
-      return { brightness: 0.05, contrast: -0.06, saturation: -0.18, sepia: 0.35, grayscale: 0, hue: -8 };
+      return {
+        brightness: 0.05,
+        contrast: -0.06,
+        saturation: -0.18,
+        sepia: 0.35,
+        grayscale: 0,
+        hue: -8,
+      };
     case "cool":
       return { brightness: 0, contrast: 0.04, saturation: 0.05, sepia: 0, grayscale: 0, hue: 16 };
     case "warm":
-      return { brightness: 0.03, contrast: 0.02, saturation: 0.08, sepia: 0.18, grayscale: 0, hue: -12 };
+      return {
+        brightness: 0.03,
+        contrast: 0.02,
+        saturation: 0.08,
+        sepia: 0.18,
+        grayscale: 0,
+        hue: -12,
+      };
     case "high-contrast":
       return { brightness: 0, contrast: 0.35, saturation: 0.12, sepia: 0, grayscale: 0, hue: 0 };
     case "soft":
-      return { brightness: 0.07, contrast: -0.18, saturation: -0.08, sepia: 0.04, grayscale: 0, hue: 0 };
+      return {
+        brightness: 0.07,
+        contrast: -0.18,
+        saturation: -0.08,
+        sepia: 0.04,
+        grayscale: 0,
+        hue: 0,
+      };
     case "bright":
       return { brightness: 0.22, contrast: 0.05, saturation: 0.04, sepia: 0, grayscale: 0, hue: 0 };
     case "dark":
-      return { brightness: -0.22, contrast: 0.08, saturation: -0.04, sepia: 0, grayscale: 0, hue: 0 };
+      return {
+        brightness: -0.22,
+        contrast: 0.08,
+        saturation: -0.04,
+        sepia: 0,
+        grayscale: 0,
+        hue: 0,
+      };
     case "none":
     default:
       return { brightness: 0, contrast: 0, saturation: 0, sepia: 0, grayscale: 0, hue: 0 };
   }
 }
 
-function buildPolygonPathData(frame: { x: number; y: number; width: number; height: number }, points: Array<[number, number]>) {
+function buildPolygonPathData(
+  frame: { x: number; y: number; width: number; height: number },
+  points: Array<[number, number]>,
+) {
   const [firstPoint, ...remainingPoints] = points;
   const x0 = frame.x + frame.width * firstPoint[0];
   const y0 = frame.y + frame.height * firstPoint[1];
   return [
     `M ${x0} ${y0}`,
-    ...remainingPoints.map(([x, y]) => `L ${frame.x + frame.width * x} ${frame.y + frame.height * y}`),
+    ...remainingPoints.map(
+      ([x, y]) => `L ${frame.x + frame.width * x} ${frame.y + frame.height * y}`,
+    ),
     "Z",
   ].join(" ");
 }
@@ -587,7 +670,13 @@ function buildImageMaskBorderDashArray(style: ImageMaskBorderStyle) {
 }
 
 function toMaskBorderStyle(value: unknown): ImageMaskBorderStyle {
-  return value === "dashed" || value === "dashed-round" || value === "long-dashed" || value === "long-dashed-round" || value === "dotted" ? value : "solid";
+  return value === "dashed" ||
+    value === "dashed-round" ||
+    value === "long-dashed" ||
+    value === "long-dashed-round" ||
+    value === "dotted"
+    ? value
+    : "solid";
 }
 
 function normalizeBorderColor(value: unknown) {
@@ -600,15 +689,39 @@ function normalizeBorderColor(value: unknown) {
 }
 
 function toCropRatio(value: unknown): ImageEditingState["crop"]["ratio"] {
-  return value === "1:1" || value === "4:3" || value === "3:4" || value === "16:9" || value === "9:16" || value === "block" ? value : "free";
+  return value === "1:1" ||
+    value === "4:3" ||
+    value === "3:4" ||
+    value === "16:9" ||
+    value === "9:16" ||
+    value === "block"
+    ? value
+    : "free";
 }
 
 function toMaskType(value: unknown): ImageMaskType {
-  return value === "rounded-rect" || value === "circle" || value === "ellipse" || value === "diamond" || value === "star" || value === "blob" ? value : "rectangle";
+  return value === "rounded-rect" ||
+    value === "circle" ||
+    value === "ellipse" ||
+    value === "diamond" ||
+    value === "star" ||
+    value === "blob"
+    ? value
+    : "rectangle";
 }
 
 function toFilterPreset(value: unknown): ImageFilterPreset {
-  return value === "grayscale" || value === "sepia" || value === "vintage" || value === "cool" || value === "warm" || value === "high-contrast" || value === "soft" || value === "bright" || value === "dark" ? value : "none";
+  return value === "grayscale" ||
+    value === "sepia" ||
+    value === "vintage" ||
+    value === "cool" ||
+    value === "warm" ||
+    value === "high-contrast" ||
+    value === "soft" ||
+    value === "bright" ||
+    value === "dark"
+    ? value
+    : "none";
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -630,7 +743,10 @@ function normalizeRotation(value: number) {
 
 function buildMaskPolygonClipPath(bounds: ImageMaskBounds, points: Array<[number, number]>) {
   return `polygon(${points
-    .map(([x, y]) => `${((bounds.x + bounds.width * x) * 100).toFixed(4)}% ${((bounds.y + bounds.height * y) * 100).toFixed(4)}%`)
+    .map(
+      ([x, y]) =>
+        `${((bounds.x + bounds.width * x) * 100).toFixed(4)}% ${((bounds.y + bounds.height * y) * 100).toFixed(4)}%`,
+    )
     .join(", ")})`;
 }
 

@@ -1,9 +1,20 @@
+import type {
+  EditorWorkspaceSettings,
+  WorkspacePageLayout,
+  WorkspaceSnapGuide,
+  WorkspaceSnapResolution,
+} from "@/features/editor/schema/workspace-layout";
 import type { Rect } from "@/features/editor/types";
 
-import type { EditorWorkspaceSettings, WorkspacePageLayout, WorkspaceSnapGuide, WorkspaceSnapResolution } from "@/features/editor/schema/workspace-layout";
-
 type WorkspaceSnapAnchor = "start" | "center" | "end";
-type WorkspaceSnapTargetKind = "grid" | "margin" | "bounds" | "page" | "object" | "dimension" | "container";
+type WorkspaceSnapTargetKind =
+  | "grid"
+  | "margin"
+  | "bounds"
+  | "page"
+  | "object"
+  | "dimension"
+  | "container";
 type WorkspaceResizeAxis = "x" | "y";
 type WorkspaceResizeAnchor = "start" | "end";
 
@@ -43,10 +54,38 @@ export function resolveWorkspaceAlignmentSnapResolution(
   const targets = buildWorkspaceSnapTargets(page, settings, sources);
   const anchorPreferences = resolveActiveAnchorPreferences(activeAnchor);
   const tolerance = settings.snapTolerance / Math.max(screenScale, 0.0001);
-  const xResolution = resolveAxisSnap("x", startFrame, targets.filter((target) => target.axis === "x"), tolerance, page, anchorPreferences?.x);
-  const yResolution = resolveAxisSnap("y", startFrame, targets.filter((target) => target.axis === "y"), tolerance, page, anchorPreferences?.y);
-  const equalSpacingXResolution = resolveEqualSpacingSnapResolution("x", startFrame, page, sources, tolerance, activeGroupKey);
-  const equalSpacingYResolution = resolveEqualSpacingSnapResolution("y", startFrame, page, sources, tolerance, activeGroupKey);
+  const xResolution = resolveAxisSnap(
+    "x",
+    startFrame,
+    targets.filter((target) => target.axis === "x"),
+    tolerance,
+    page,
+    anchorPreferences?.x,
+  );
+  const yResolution = resolveAxisSnap(
+    "y",
+    startFrame,
+    targets.filter((target) => target.axis === "y"),
+    tolerance,
+    page,
+    anchorPreferences?.y,
+  );
+  const equalSpacingXResolution = resolveEqualSpacingSnapResolution(
+    "x",
+    startFrame,
+    page,
+    sources,
+    tolerance,
+    activeGroupKey,
+  );
+  const equalSpacingYResolution = resolveEqualSpacingSnapResolution(
+    "y",
+    startFrame,
+    page,
+    sources,
+    tolerance,
+    activeGroupKey,
+  );
   const bestXResolution = pickBestResolution(xResolution, equalSpacingXResolution);
   const bestYResolution = pickBestResolution(yResolution, equalSpacingYResolution);
   const nextFrame = {
@@ -76,10 +115,28 @@ export function resolveWorkspaceResizeSnapResolution(
   const tolerance = settings.snapTolerance / Math.max(screenScale, 0.0001);
   const resizeAnchors = resolveActiveResizeAnchors(activeAnchor);
   const widthResolution = resizeAnchors.x
-    ? resolveEqualDimensionSnapResolution("x", oldFrame, startFrame, page, sources, tolerance, activeGroupKey, resizeAnchors.x)
+    ? resolveEqualDimensionSnapResolution(
+        "x",
+        oldFrame,
+        startFrame,
+        page,
+        sources,
+        tolerance,
+        activeGroupKey,
+        resizeAnchors.x,
+      )
     : null;
   const heightResolution = resizeAnchors.y
-    ? resolveEqualDimensionSnapResolution("y", oldFrame, startFrame, page, sources, tolerance, activeGroupKey, resizeAnchors.y)
+    ? resolveEqualDimensionSnapResolution(
+        "y",
+        oldFrame,
+        startFrame,
+        page,
+        sources,
+        tolerance,
+        activeGroupKey,
+        resizeAnchors.y,
+      )
     : null;
 
   const nextFrame = {
@@ -159,7 +216,14 @@ function resolveEqualDimensionSnapResolution(
     const guide: WorkspaceSnapGuide = {
       axis,
       kind: "dimension",
-      position: axis === "x" ? (activeResizeAnchor === "start" ? nextFrame.x : nextFrame.x + nextFrame.width) : activeResizeAnchor === "start" ? nextFrame.y : nextFrame.y + nextFrame.height,
+      position:
+        axis === "x"
+          ? activeResizeAnchor === "start"
+            ? nextFrame.x
+            : nextFrame.x + nextFrame.width
+          : activeResizeAnchor === "start"
+            ? nextFrame.y
+            : nextFrame.y + nextFrame.height,
       start: 0,
       end: axis === "x" ? page.height : page.width,
       label: axis === "x" ? "Largeur identique" : "Hauteur identique",
@@ -185,7 +249,10 @@ function resolveEqualDimensionSnapResolution(
   return best;
 }
 
-function resolveActiveResizeAnchors(activeAnchor?: string | null): { x: WorkspaceResizeAnchor | null; y: WorkspaceResizeAnchor | null } {
+function resolveActiveResizeAnchors(activeAnchor?: string | null): {
+  x: WorkspaceResizeAnchor | null;
+  y: WorkspaceResizeAnchor | null;
+} {
   if (!activeAnchor) {
     return { x: null, y: null };
   }
@@ -196,7 +263,11 @@ function resolveActiveResizeAnchors(activeAnchor?: string | null): { x: Workspac
   };
 }
 
-function buildWorkspaceSnapTargets(page: WorkspacePageLayout, settings: EditorWorkspaceSettings, sources: WorkspaceSnapSource[]): WorkspaceSnapTarget[] {
+function buildWorkspaceSnapTargets(
+  page: WorkspacePageLayout,
+  settings: EditorWorkspaceSettings,
+  sources: WorkspaceSnapSource[],
+): WorkspaceSnapTarget[] {
   const targets: WorkspaceSnapTarget[] = [];
   const gridSize = settings.gridEnabled && settings.gridSize > 0 ? settings.gridSize : 0;
   const sourceById = new Map(sources.map((source) => [source.id, source] as const));
@@ -265,22 +336,94 @@ function buildWorkspaceSnapTargets(page: WorkspacePageLayout, settings: EditorWo
   if (settings.snapEnabled && settings.snapToPageBounds) {
     targets.push(
       { axis: "x", anchor: "start", kind: "bounds", label: "Bord page", position: 0, priority: 60 },
-      { axis: "x", anchor: "end", kind: "bounds", label: "Bord page", position: page.width, priority: 60 },
-      { axis: "x", anchor: "center", kind: "page", label: "Centre page", position: page.width / 2, priority: 55 },
+      {
+        axis: "x",
+        anchor: "end",
+        kind: "bounds",
+        label: "Bord page",
+        position: page.width,
+        priority: 60,
+      },
+      {
+        axis: "x",
+        anchor: "center",
+        kind: "page",
+        label: "Centre page",
+        position: page.width / 2,
+        priority: 55,
+      },
       { axis: "y", anchor: "start", kind: "bounds", label: "Bord page", position: 0, priority: 60 },
-      { axis: "y", anchor: "end", kind: "bounds", label: "Bord page", position: page.height, priority: 60 },
-      { axis: "y", anchor: "center", kind: "page", label: "Centre page", position: page.height / 2, priority: 55 },
+      {
+        axis: "y",
+        anchor: "end",
+        kind: "bounds",
+        label: "Bord page",
+        position: page.height,
+        priority: 60,
+      },
+      {
+        axis: "y",
+        anchor: "center",
+        kind: "page",
+        label: "Centre page",
+        position: page.height / 2,
+        priority: 55,
+      },
     );
   }
 
   if (settings.snapEnabled && settings.snapToMargins) {
     targets.push(
-      { axis: "x", anchor: "start", kind: "margin", label: "Marge gauche", position: page.margin.left, priority: 80 },
-      { axis: "x", anchor: "end", kind: "margin", label: "Marge droite", position: page.width - page.margin.right, priority: 80 },
-      { axis: "x", anchor: "center", kind: "margin", label: "Centre utile", position: page.margin.left + Math.max(0, page.width - page.margin.left - page.margin.right) / 2, priority: 75 },
-      { axis: "y", anchor: "start", kind: "margin", label: "Marge haute", position: page.margin.top, priority: 80 },
-      { axis: "y", anchor: "end", kind: "margin", label: "Marge basse", position: page.height - page.margin.bottom, priority: 80 },
-      { axis: "y", anchor: "center", kind: "margin", label: "Centre utile", position: page.margin.top + Math.max(0, page.height - page.margin.top - page.margin.bottom) / 2, priority: 75 },
+      {
+        axis: "x",
+        anchor: "start",
+        kind: "margin",
+        label: "Marge gauche",
+        position: page.margin.left,
+        priority: 80,
+      },
+      {
+        axis: "x",
+        anchor: "end",
+        kind: "margin",
+        label: "Marge droite",
+        position: page.width - page.margin.right,
+        priority: 80,
+      },
+      {
+        axis: "x",
+        anchor: "center",
+        kind: "margin",
+        label: "Centre utile",
+        position:
+          page.margin.left + Math.max(0, page.width - page.margin.left - page.margin.right) / 2,
+        priority: 75,
+      },
+      {
+        axis: "y",
+        anchor: "start",
+        kind: "margin",
+        label: "Marge haute",
+        position: page.margin.top,
+        priority: 80,
+      },
+      {
+        axis: "y",
+        anchor: "end",
+        kind: "margin",
+        label: "Marge basse",
+        position: page.height - page.margin.bottom,
+        priority: 80,
+      },
+      {
+        axis: "y",
+        anchor: "center",
+        kind: "margin",
+        label: "Centre utile",
+        position:
+          page.margin.top + Math.max(0, page.height - page.margin.top - page.margin.bottom) / 2,
+        priority: 75,
+      },
     );
   }
 
@@ -291,12 +434,60 @@ function buildWorkspaceSnapTargets(page: WorkspacePageLayout, settings: EditorWo
     }
 
     targets.push(
-      { axis: "x", anchor: "start", kind: "object", label: source.label ? `${source.label} gauche` : "Objet", position: frame.x, priority: 90, sourceId: source.id },
-      { axis: "x", anchor: "center", kind: "object", label: source.label ? `${source.label} centre` : "Objet", position: frame.x + frame.width / 2, priority: 95, sourceId: source.id },
-      { axis: "x", anchor: "end", kind: "object", label: source.label ? `${source.label} droite` : "Objet", position: frame.x + frame.width, priority: 90, sourceId: source.id },
-      { axis: "y", anchor: "start", kind: "object", label: source.label ? `${source.label} haut` : "Objet", position: frame.y, priority: 90, sourceId: source.id },
-      { axis: "y", anchor: "center", kind: "object", label: source.label ? `${source.label} centre` : "Objet", position: frame.y + frame.height / 2, priority: 95, sourceId: source.id },
-      { axis: "y", anchor: "end", kind: "object", label: source.label ? `${source.label} bas` : "Objet", position: frame.y + frame.height, priority: 90, sourceId: source.id },
+      {
+        axis: "x",
+        anchor: "start",
+        kind: "object",
+        label: source.label ? `${source.label} gauche` : "Objet",
+        position: frame.x,
+        priority: 90,
+        sourceId: source.id,
+      },
+      {
+        axis: "x",
+        anchor: "center",
+        kind: "object",
+        label: source.label ? `${source.label} centre` : "Objet",
+        position: frame.x + frame.width / 2,
+        priority: 95,
+        sourceId: source.id,
+      },
+      {
+        axis: "x",
+        anchor: "end",
+        kind: "object",
+        label: source.label ? `${source.label} droite` : "Objet",
+        position: frame.x + frame.width,
+        priority: 90,
+        sourceId: source.id,
+      },
+      {
+        axis: "y",
+        anchor: "start",
+        kind: "object",
+        label: source.label ? `${source.label} haut` : "Objet",
+        position: frame.y,
+        priority: 90,
+        sourceId: source.id,
+      },
+      {
+        axis: "y",
+        anchor: "center",
+        kind: "object",
+        label: source.label ? `${source.label} centre` : "Objet",
+        position: frame.y + frame.height / 2,
+        priority: 95,
+        sourceId: source.id,
+      },
+      {
+        axis: "y",
+        anchor: "end",
+        kind: "object",
+        label: source.label ? `${source.label} bas` : "Objet",
+        position: frame.y + frame.height,
+        priority: 90,
+        sourceId: source.id,
+      },
     );
 
     if (source.parentId && source.parentId !== source.id && sourceById.has(source.parentId)) {
@@ -308,12 +499,60 @@ function buildWorkspaceSnapTargets(page: WorkspacePageLayout, settings: EditorWo
           if (!addedContainerTargets.has(containerKey)) {
             addedContainerTargets.add(containerKey);
             targets.push(
-              { axis: "x", anchor: "start", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur gauche` : "Conteneur", position: parentFrame.x, priority: 97, sourceId: parentSource.id },
-              { axis: "x", anchor: "center", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur centre` : "Conteneur", position: parentFrame.x + parentFrame.width / 2, priority: 97, sourceId: parentSource.id },
-              { axis: "x", anchor: "end", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur droite` : "Conteneur", position: parentFrame.x + parentFrame.width, priority: 97, sourceId: parentSource.id },
-              { axis: "y", anchor: "start", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur haut` : "Conteneur", position: parentFrame.y, priority: 97, sourceId: parentSource.id },
-              { axis: "y", anchor: "center", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur centre` : "Conteneur", position: parentFrame.y + parentFrame.height / 2, priority: 97, sourceId: parentSource.id },
-              { axis: "y", anchor: "end", kind: "container", label: parentSource.label ? `${parentSource.label} conteneur bas` : "Conteneur", position: parentFrame.y + parentFrame.height, priority: 97, sourceId: parentSource.id },
+              {
+                axis: "x",
+                anchor: "start",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur gauche` : "Conteneur",
+                position: parentFrame.x,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
+              {
+                axis: "x",
+                anchor: "center",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur centre` : "Conteneur",
+                position: parentFrame.x + parentFrame.width / 2,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
+              {
+                axis: "x",
+                anchor: "end",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur droite` : "Conteneur",
+                position: parentFrame.x + parentFrame.width,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
+              {
+                axis: "y",
+                anchor: "start",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur haut` : "Conteneur",
+                position: parentFrame.y,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
+              {
+                axis: "y",
+                anchor: "center",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur centre` : "Conteneur",
+                position: parentFrame.y + parentFrame.height / 2,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
+              {
+                axis: "y",
+                anchor: "end",
+                kind: "container",
+                label: parentSource.label ? `${parentSource.label} conteneur bas` : "Conteneur",
+                position: parentFrame.y + parentFrame.height,
+                priority: 97,
+                sourceId: parentSource.id,
+              },
             );
           }
         }
@@ -367,7 +606,10 @@ function resolveAxisSnap(
       continue;
     }
 
-    const nextFrame = axis === "x" ? { ...frame, x: adjustAxisPosition(frame.width, target.anchor, target.position) } : { ...frame, y: adjustAxisPosition(frame.height, target.anchor, target.position) };
+    const nextFrame =
+      axis === "x"
+        ? { ...frame, x: adjustAxisPosition(frame.width, target.anchor, target.position) }
+        : { ...frame, y: adjustAxisPosition(frame.height, target.anchor, target.position) };
 
     const guide: WorkspaceSnapGuide = {
       axis,
@@ -422,7 +664,9 @@ function resolveEqualSpacingSnapResolution(
   }
 
   const overlaps = axis === "x" ? hasVerticalOverlap : hasHorizontalOverlap;
-  const sorted = [...relevantSources].sort((left, right) => (axis === "x" ? left.frame.x - right.frame.x : left.frame.y - right.frame.y));
+  const sorted = [...relevantSources].sort((left, right) =>
+    axis === "x" ? left.frame.x - right.frame.x : left.frame.y - right.frame.y,
+  );
 
   let best: {
     frame: Rect;
@@ -458,7 +702,8 @@ function resolveEqualSpacingSnapResolution(
       continue;
     }
 
-    const nextFrame = axis === "x" ? { ...frame, x: targetPosition } : { ...frame, y: targetPosition };
+    const nextFrame =
+      axis === "x" ? { ...frame, x: targetPosition } : { ...frame, y: targetPosition };
     const guide: WorkspaceSnapGuide = {
       axis,
       kind: "spacing",
@@ -488,10 +733,14 @@ function resolveEqualSpacingSnapResolution(
   return best;
 }
 
-function pickBestResolution<T extends { frame: Rect; guides: WorkspaceSnapGuide[]; distance: number; priority: number } | null>(
-  left: T,
-  right: T,
-) {
+function pickBestResolution<
+  T extends {
+    frame: Rect;
+    guides: WorkspaceSnapGuide[];
+    distance: number;
+    priority: number;
+  } | null,
+>(left: T, right: T) {
   if (!left) {
     return right;
   }

@@ -1,6 +1,11 @@
 "use client";
 
-import { buildRichTextVariableNodeAttrsFromSource, buildRichTextVariableSpanMarkup, type RichTextVariableRegistry, type RichTextVariableSource } from "@/features/editor/lib/rich-text-variable";
+import {
+  buildRichTextVariableNodeAttrsFromSource,
+  buildRichTextVariableSpanMarkup,
+  type RichTextVariableRegistry,
+  type RichTextVariableSource,
+} from "@/features/editor/lib/rich-text-variable";
 
 const BLOCK_TAGS = new Set(["P", "DIV", "LI", "BLOCKQUOTE", "H1", "H2", "H3", "H4", "H5", "H6"]);
 const RICH_TEXT_PLACEHOLDER = "Double-cliquez pour éditer";
@@ -19,14 +24,20 @@ export type RichTextEditorInsertionTarget = {
       };
     };
     schema: {
-      nodes: Record<string, {
-        create: (attrs: Record<string, unknown>) => unknown;
-      }>;
+      nodes: Record<
+        string,
+        {
+          create: (attrs: Record<string, unknown>) => unknown;
+        }
+      >;
     };
   };
   commands: {
     focus: () => void;
-    insertContentAt: (position: RichTextInsertionRange, content: { type: string; attrs: Record<string, unknown> }) => void;
+    insertContentAt: (
+      position: RichTextInsertionRange,
+      content: { type: string; attrs: Record<string, unknown> },
+    ) => void;
   };
 };
 
@@ -41,7 +52,10 @@ export function insertVariableTokenIntoRichTextEditor(
     return { inserted: false as const, reason: "empty-token" as const };
   }
 
-  const targetSelection = normalizeRichTextInsertionRange(selection ?? editor.state.selection, editor.state.doc.content.size);
+  const targetSelection = normalizeRichTextInsertionRange(
+    selection ?? editor.state.selection,
+    editor.state.doc.content.size,
+  );
   editor.commands.insertContentAt(targetSelection, {
     type: "variable",
     attrs,
@@ -73,7 +87,9 @@ export function insertVariableTokenIntoRichTextHtml(html: string, source: RichTe
     }
 
     const blockElements = Array.from(doc.body.children);
-    const lastBlock = [...blockElements].reverse().find((element) => BLOCK_TAGS.has(element.tagName));
+    const lastBlock = [...blockElements]
+      .reverse()
+      .find((element) => BLOCK_TAGS.has(element.tagName));
 
     if (lastBlock) {
       const separator = lastBlock.textContent?.trim().length ? " " : "";
@@ -114,7 +130,10 @@ function appendTokenWithoutDomParser(html: string, tokenHtml: string) {
   return `${html}<p>${tokenHtml}</p>`;
 }
 
-function normalizeRichTextInsertionRange(range: RichTextInsertionRange, docSize: number): RichTextInsertionRange {
+function normalizeRichTextInsertionRange(
+  range: RichTextInsertionRange,
+  docSize: number,
+): RichTextInsertionRange {
   const start = clampRichTextInsertionPosition(range.from, docSize);
   const end = clampRichTextInsertionPosition(range.to, docSize);
   return start <= end ? { from: start, to: end } : { from: end, to: start };

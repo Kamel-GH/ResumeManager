@@ -31,17 +31,41 @@ export function BottomDataMappingPanel() {
 
           <div className="ef-mapping-body">
             <div className="ef-card-kicker">Aperçu des données</div>
-            <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
+            <div
+              className="ef-no-result"
+              style={{
+                minHeight: 132,
+                flexDirection: "column",
+                gap: 6,
+                padding: 16,
+                textAlign: "center",
+              }}
+            >
               <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Mapping</strong>
-              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Section non branchée dans ce lot.</span>
+              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+                Section non branchée dans ce lot.
+              </span>
             </div>
           </div>
         </div>
 
         <div className="ef-card">
-          <div className="ef-no-result" style={{ minHeight: 174, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-            <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Table de mapping</strong>
-            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Aucune donnée réelle branchée ici pour le moment.</span>
+          <div
+            className="ef-no-result"
+            style={{
+              minHeight: 174,
+              flexDirection: "column",
+              gap: 6,
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>
+              Table de mapping
+            </strong>
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+              Aucune donnée réelle branchée ici pour le moment.
+            </span>
           </div>
         </div>
 
@@ -53,8 +77,19 @@ export function BottomDataMappingPanel() {
             </div>
             <ChevronDown size={14} aria-hidden="true" />
           </div>
-          <div className="ef-no-result" style={{ minHeight: 96, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Module non branché dans ce lot.</span>
+          <div
+            className="ef-no-result"
+            style={{
+              minHeight: 96,
+              flexDirection: "column",
+              gap: 6,
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+              Module non branché dans ce lot.
+            </span>
           </div>
         </div>
 
@@ -63,8 +98,19 @@ export function BottomDataMappingPanel() {
             <Table2 size={15} aria-hidden="true" />
             <h3 className="ef-card-title">Graphiques</h3>
           </div>
-          <div className="ef-no-result" style={{ minHeight: 132, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Section non branchée dans ce lot.</span>
+          <div
+            className="ef-no-result"
+            style={{
+              minHeight: 132,
+              flexDirection: "column",
+              gap: 6,
+              padding: 16,
+              textAlign: "center",
+            }}
+          >
+            <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+              Section non branchée dans ce lot.
+            </span>
           </div>
         </div>
       </div>

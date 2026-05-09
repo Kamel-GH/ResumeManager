@@ -1,11 +1,11 @@
 import type { TemplateElementType, TemplateSchema } from "@/features/editor/schema/template-schema";
+import { resolveStableLayerNumber } from "@/features/editor/selectors/editor-layers-view";
 import {
   resolveEditorObjectFallbackLayerId,
   resolveEditorObjectGrouping,
   resolveEditorObjectLabel,
   resolveEditorObjectLayerIdentity,
 } from "@/features/editor/selectors/editor-object-model";
-import { resolveStableLayerNumber } from "@/features/editor/selectors/editor-layers-view";
 
 export type EditorObjectView = {
   id: string;
@@ -32,8 +32,13 @@ export type EditorObjectViewFilters = {
   page?: string;
 };
 
-export function deriveEditorObjectsView(template: TemplateSchema, selectedElementIds: string[], activePageId?: string | null): EditorObjectView[] {
-  const activePage = template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
+export function deriveEditorObjectsView(
+  template: TemplateSchema,
+  selectedElementIds: string[],
+  activePageId?: string | null,
+): EditorObjectView[] {
+  const activePage =
+    template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
   if (!activePage) {
     return [];
   }
@@ -63,7 +68,9 @@ export function deriveEditorObjectsView(template: TemplateSchema, selectedElemen
       pageName: activePage.name,
       pageIndex,
       layerId: layerIdentity?.key ?? null,
-      layerNumber: layerIdentity ? resolveStableLayerNumber(layerIdentity.key, layerIdentity.order ?? 1) : null,
+      layerNumber: layerIdentity
+        ? resolveStableLayerNumber(layerIdentity.key, layerIdentity.order ?? 1)
+        : null,
       layerName: layerIdentity?.name ?? "Contenu",
       layerOrder: layerIdentity?.order ?? null,
       visible: element.visible,
@@ -75,18 +82,33 @@ export function deriveEditorObjectsView(template: TemplateSchema, selectedElemen
   });
 }
 
-export function filterEditorObjectsView(objects: EditorObjectView[], filters: EditorObjectViewFilters) {
+export function filterEditorObjectsView(
+  objects: EditorObjectView[],
+  filters: EditorObjectViewFilters,
+) {
   const query = filters.text?.trim().toLowerCase() ?? "";
 
   return objects.filter((object) => {
     const matchesText =
       !query ||
-      [object.name, object.type, object.pageName, String(object.pageIndex), object.layerName, object.layerNumber ? String(object.layerNumber) : "", object.visible ? "visible" : "hidden", object.locked ? "locked" : "unlocked"].some((value) =>
-        value.toLowerCase().includes(query),
-      );
+      [
+        object.name,
+        object.type,
+        object.pageName,
+        String(object.pageIndex),
+        object.layerName,
+        object.layerNumber ? String(object.layerNumber) : "",
+        object.visible ? "visible" : "hidden",
+        object.locked ? "locked" : "unlocked",
+      ].some((value) => value.toLowerCase().includes(query));
     const matchesType = !filters.type || filters.type === "all" || object.type === filters.type;
-    const matchesLayer = !filters.layer || filters.layer === "all" || object.layerId === filters.layer;
-    const matchesPage = !filters.page || filters.page === "all" || String(object.pageIndex) === filters.page || object.pageId === filters.page;
+    const matchesLayer =
+      !filters.layer || filters.layer === "all" || object.layerId === filters.layer;
+    const matchesPage =
+      !filters.page ||
+      filters.page === "all" ||
+      String(object.pageIndex) === filters.page ||
+      object.pageId === filters.page;
     return matchesText && matchesType && matchesLayer && matchesPage;
   });
 }

@@ -47,7 +47,7 @@ export function deriveEditorLayersView(
   const pageIndex = template.pages.findIndex((page) => page.id === activePage.id) + 1;
   const pageElements = template.elements.filter((element) => element.pageId === activePage.id);
   const workspaceLayers = [...(workspaceLayersByPageId[activePage.id] ?? [])];
-  const fallbackLayerId = workspaceLayers.length === 1 ? workspaceLayers[0]?.id ?? null : null;
+  const fallbackLayerId = workspaceLayers.length === 1 ? (workspaceLayers[0]?.id ?? null) : null;
   const records = new Map<string, EditorLayerView>();
 
   workspaceLayers.forEach((layer) => {
@@ -119,9 +119,20 @@ export function deriveEditorLayersView(
     });
   }
 
-  const rows = [...records.values()].sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "fr") || a.id.localeCompare(b.id, "fr"));
-  const resolvedActiveLayerId = resolveActiveLayerId(activePage.id, rows, activeWorkspaceLayerIdByPageId);
-  const resolvedSelectedLayerId = resolveActiveLayerId(activePage.id, rows, selectedWorkspaceLayerIdByPageId);
+  const rows = [...records.values()].sort(
+    (a, b) =>
+      a.order - b.order || a.name.localeCompare(b.name, "fr") || a.id.localeCompare(b.id, "fr"),
+  );
+  const resolvedActiveLayerId = resolveActiveLayerId(
+    activePage.id,
+    rows,
+    activeWorkspaceLayerIdByPageId,
+  );
+  const resolvedSelectedLayerId = resolveActiveLayerId(
+    activePage.id,
+    rows,
+    selectedWorkspaceLayerIdByPageId,
+  );
 
   return rows.map((row) => ({
     ...row,
@@ -140,7 +151,13 @@ export function deriveEditorDocumentLayersView(
   const pageCount = Math.max(template.pages.length, 1);
 
   return template.pages.flatMap((page, pageIndex) =>
-    deriveEditorLayersView(template, workspaceLayersByPageId, page.id, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId).map((layer) => {
+    deriveEditorLayersView(
+      template,
+      workspaceLayersByPageId,
+      page.id,
+      activeWorkspaceLayerIdByPageId,
+      selectedWorkspaceLayerIdByPageId,
+    ).map((layer) => {
       const localNumber = resolveStableLayerNumber(layer.id, layer.order);
       return {
         ...layer,
@@ -158,17 +175,35 @@ export function filterEditorLayersView(layers: EditorLayerView[], filters: Edito
   return layers.filter((layer) => {
     const matchesText =
       !query ||
-      [layer.id, layer.name, layer.pageName, String(layer.pageIndex), String(layer.number), String(layer.order), layer.visible ? "visible" : "hidden", layer.locked ? "locked" : "unlocked", String(layer.objectCount)].some((value) =>
-        value.toLowerCase().includes(query),
-      );
-    const matchesPage = !filters.page || filters.page === "all" || String(layer.pageIndex) === filters.page;
-    const matchesVisibility = !filters.visibility || filters.visibility === "all" || (filters.visibility === "visible" ? layer.visible : !layer.visible);
-    const matchesLock = !filters.lock || filters.lock === "all" || (filters.lock === "locked" ? layer.locked : !layer.locked);
+      [
+        layer.id,
+        layer.name,
+        layer.pageName,
+        String(layer.pageIndex),
+        String(layer.number),
+        String(layer.order),
+        layer.visible ? "visible" : "hidden",
+        layer.locked ? "locked" : "unlocked",
+        String(layer.objectCount),
+      ].some((value) => value.toLowerCase().includes(query));
+    const matchesPage =
+      !filters.page || filters.page === "all" || String(layer.pageIndex) === filters.page;
+    const matchesVisibility =
+      !filters.visibility ||
+      filters.visibility === "all" ||
+      (filters.visibility === "visible" ? layer.visible : !layer.visible);
+    const matchesLock =
+      !filters.lock ||
+      filters.lock === "all" ||
+      (filters.lock === "locked" ? layer.locked : !layer.locked);
     return matchesText && matchesPage && matchesVisibility && matchesLock;
   });
 }
 
-export function resolveElementLayerIdentity(element: TemplateElement, fallbackLayerId: string | null): ElementLayerIdentity | null {
+export function resolveElementLayerIdentity(
+  element: TemplateElement,
+  fallbackLayerId: string | null,
+): ElementLayerIdentity | null {
   const layerId = readElementPropString(element, "layerId") ?? fallbackLayerId;
   const layerName = readElementPropString(element, "layerName") ?? "Contenu";
   const layerOrder = readElementPropNumber(element, "layerOrder");
@@ -213,7 +248,11 @@ function resolveEditorPage(template: TemplateSchema, activePageId?: string | nul
   return template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
 }
 
-function resolveActiveLayerId(pageId: string, rows: EditorLayerView[], layerIdsByPageId?: Record<string, string | null>) {
+function resolveActiveLayerId(
+  pageId: string,
+  rows: EditorLayerView[],
+  layerIdsByPageId?: Record<string, string | null>,
+) {
   const preferredLayerId = layerIdsByPageId?.[pageId] ?? null;
   if (preferredLayerId && rows.some((row) => row.id === preferredLayerId)) {
     return preferredLayerId;

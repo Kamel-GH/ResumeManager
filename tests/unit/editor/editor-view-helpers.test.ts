@@ -6,11 +6,9 @@ import type { EditorStoreState } from "@/features/editor/stores/editor-store";
 const localStorageMock = createLocalStorageMock();
 vi.stubGlobal("localStorage", localStorageMock);
 
-const {
-  deriveEditorLayersView,
-  deriveEditorObjectsView,
-  deriveEditorPagesView,
-} = await import("@/features/editor/selectors");
+const { deriveEditorLayersView, deriveEditorObjectsView, deriveEditorPagesView } = await import(
+  "@/features/editor/selectors"
+);
 
 const { useEditorStore } = await import("@/features/editor/stores/editor-store");
 
@@ -50,13 +48,24 @@ describe("editor view helpers", () => {
   });
 
   it("returns no pages for an empty template", () => {
-    const emptyTemplate: TemplateSchema = { id: "t", name: "Empty", version: 1, pages: [], elements: [] };
+    const emptyTemplate: TemplateSchema = {
+      id: "t",
+      name: "Empty",
+      version: 1,
+      pages: [],
+      elements: [],
+    };
     expect(deriveEditorPagesView(emptyTemplate, "page-1")).toEqual([]);
   });
 
   it("derives real layers for the active page from workspace layers and counts objects", () => {
     const state = useEditorStore.getState();
-    const layers = deriveEditorLayersView(state.workingTemplate, state.workspaceLayersByPageId, "page-1", state.activeWorkspaceLayerIdByPageId);
+    const layers = deriveEditorLayersView(
+      state.workingTemplate,
+      state.workspaceLayersByPageId,
+      "page-1",
+      state.activeWorkspaceLayerIdByPageId,
+    );
 
     expect(layers).toHaveLength(1);
     expect(layers[0]).toMatchObject({
@@ -135,8 +144,22 @@ describe("editor view helpers", () => {
       template,
       {
         "page-1": [
-          { id: "layer-a", pageId: "page-1", name: "Layer A", order: 1, visible: true, locked: false },
-          { id: "layer-b", pageId: "page-1", name: "Layer B", order: 2, visible: true, locked: false },
+          {
+            id: "layer-a",
+            pageId: "page-1",
+            name: "Layer A",
+            order: 1,
+            visible: true,
+            locked: false,
+          },
+          {
+            id: "layer-b",
+            pageId: "page-1",
+            name: "Layer B",
+            order: 2,
+            visible: true,
+            locked: false,
+          },
         ],
       },
       "page-1",

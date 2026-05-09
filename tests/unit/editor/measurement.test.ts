@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { convertMeasurementValue, formatMeasurementValue, getMeasurementUnitSuffix } from "@/features/editor/lib/measurement";
-import { buildWorkspaceLayout, resolveWorkspaceRulerTicks } from "@/features/editor/schema/workspace-layout";
+import {
+  convertMeasurementValue,
+  formatMeasurementValue,
+  getMeasurementUnitSuffix,
+} from "@/features/editor/lib/measurement";
+import {
+  buildWorkspaceLayout,
+  resolveWorkspaceRulerTicks,
+} from "@/features/editor/schema/workspace-layout";
 
 describe("measurement", () => {
   it("converts canonical px values to and from display units", () => {
@@ -39,7 +46,12 @@ describe("measurement", () => {
       measurementUnit: "cm",
     });
 
-    expect(ticks.horizontal.map((tick) => tick.label).filter(Boolean)).toEqual(["0", "1", "2", "3"]);
+    expect(ticks.horizontal.map((tick) => tick.label).filter(Boolean)).toEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+    ]);
     expect(ticks.horizontal.at(-1)?.label).toBeUndefined();
     expect(ticks.vertical.map((tick) => tick.label).filter(Boolean)).toEqual(["0", "1", "2", "3"]);
   });

@@ -20,4 +20,3 @@ export function ImageEditButton({ left, top, onClick }: ImageEditButtonProps) {
     </button>
   );
 }
-

@@ -1,4 +1,7 @@
-import type { CanvasObjectGeometryPatch, CanvasObjectStylePatch } from "@/features/editor/schema/canvas-mutation";
+import type {
+  CanvasObjectGeometryPatch,
+  CanvasObjectStylePatch,
+} from "@/features/editor/schema/canvas-mutation";
 import type { TemplateSchema } from "@/features/editor/schema/template-schema";
 import type { Rect } from "@/features/editor/types";
 
@@ -67,8 +70,12 @@ export function buildStyleOperationLogs(input: {
   timestamp?: number;
 }): EditorOperationLogEntry[] {
   const timestamp = input.timestamp ?? Date.now();
-  const beforeById = new Map(input.beforeTemplate.elements.map((element) => [element.id, element] as const));
-  const afterById = new Map(input.afterTemplate.elements.map((element) => [element.id, element] as const));
+  const beforeById = new Map(
+    input.beforeTemplate.elements.map((element) => [element.id, element] as const),
+  );
+  const afterById = new Map(
+    input.afterTemplate.elements.map((element) => [element.id, element] as const),
+  );
 
   const entries: Array<EditorOperationLogEntry | null> = input.patches.map((patch) => {
     const beforeElement = beforeById.get(patch.id);
@@ -101,7 +108,10 @@ export function buildStyleOperationLogs(input: {
 }
 
 export function buildTraceOperationLog(input: {
-  action: Extract<EditorOperationAction, "dragstart" | "dragenter" | "dragover" | "dragleave" | "drop" | "dragend" | "drop-reject">;
+  action: Extract<
+    EditorOperationAction,
+    "dragstart" | "dragenter" | "dragover" | "dragleave" | "drop" | "dragend" | "drop-reject"
+  >;
   pageId: string;
   elementId: string;
   details: EditorOperationDetail[];
@@ -128,29 +138,33 @@ export function buildGeometryOperationLogs(input: {
   timestamp?: number;
 }): EditorOperationLogEntry[] {
   const timestamp = input.timestamp ?? Date.now();
-  const beforeById = new Map(input.beforeTemplate.elements.map((element) => [element.id, element] as const));
-  const afterById = new Map(input.afterTemplate.elements.map((element) => [element.id, element] as const));
+  const beforeById = new Map(
+    input.beforeTemplate.elements.map((element) => [element.id, element] as const),
+  );
+  const afterById = new Map(
+    input.afterTemplate.elements.map((element) => [element.id, element] as const),
+  );
 
   const entries: Array<EditorOperationLogEntry | null> = input.patches.map((patch) => {
-      const beforeElement = beforeById.get(patch.id);
-      const afterElement = afterById.get(patch.id);
-      if (!beforeElement || !afterElement) {
-        return null;
-      }
+    const beforeElement = beforeById.get(patch.id);
+    const afterElement = afterById.get(patch.id);
+    if (!beforeElement || !afterElement) {
+      return null;
+    }
 
-      const before = snapshotElement(beforeElement, input.pageId);
-      const after = snapshotElement(afterElement, input.pageId);
+    const before = snapshotElement(beforeElement, input.pageId);
+    const after = snapshotElement(afterElement, input.pageId);
 
-      return {
-        id: createOperationLogId(classifyOperationAction(before, after), patch.id, timestamp),
-        timestamp,
-        action: classifyOperationAction(before, after),
-        pageId: input.pageId,
-        elementId: patch.id,
-        before,
-        after,
-      } satisfies EditorOperationLogEntry;
-    });
+    return {
+      id: createOperationLogId(classifyOperationAction(before, after), patch.id, timestamp),
+      timestamp,
+      action: classifyOperationAction(before, after),
+      pageId: input.pageId,
+      elementId: patch.id,
+      before,
+      after,
+    } satisfies EditorOperationLogEntry;
+  });
 
   return entries.filter((entry): entry is EditorOperationLogEntry => entry !== null);
 }
@@ -196,7 +210,10 @@ export function formatOperationSnapshotOrDeleted(snapshot: EditorOperationSnapsh
   return snapshot ? formatOperationSnapshot(snapshot) : "Supprimé";
 }
 
-function snapshotElement(element: TemplateSchema["elements"][number], pageId: string): EditorOperationSnapshot {
+function snapshotElement(
+  element: TemplateSchema["elements"][number],
+  pageId: string,
+): EditorOperationSnapshot {
   return {
     id: element.id,
     pageId,
@@ -217,8 +234,12 @@ export function buildDeleteOperationLogs(input: {
   timestamp?: number;
 }): EditorOperationLogEntry[] {
   const timestamp = input.timestamp ?? Date.now();
-  const beforeById = new Map(input.beforeTemplate.elements.map((element) => [element.id, element] as const));
-  const afterById = new Map(input.afterTemplate.elements.map((element) => [element.id, element] as const));
+  const beforeById = new Map(
+    input.beforeTemplate.elements.map((element) => [element.id, element] as const),
+  );
+  const afterById = new Map(
+    input.afterTemplate.elements.map((element) => [element.id, element] as const),
+  );
   const entries: EditorOperationLogEntry[] = [];
 
   for (const elementId of input.elementIds) {
@@ -245,7 +266,10 @@ export function buildDeleteOperationLogs(input: {
   return entries;
 }
 
-function classifyOperationAction(before: EditorOperationSnapshot, after: EditorOperationSnapshot): EditorOperationAction {
+function classifyOperationAction(
+  before: EditorOperationSnapshot,
+  after: EditorOperationSnapshot,
+): EditorOperationAction {
   const frameChanged = !areRectsEqual(before.frame, after.frame);
   const rotationChanged = !isApproximatelyEqual(before.rotation, after.rotation);
 
@@ -254,8 +278,12 @@ function classifyOperationAction(before: EditorOperationSnapshot, after: EditorO
   }
 
   if (frameChanged && !rotationChanged) {
-    const moved = !isApproximatelyEqual(before.frame.x, after.frame.x) || !isApproximatelyEqual(before.frame.y, after.frame.y);
-    const resized = !isApproximatelyEqual(before.frame.width, after.frame.width) || !isApproximatelyEqual(before.frame.height, after.frame.height);
+    const moved =
+      !isApproximatelyEqual(before.frame.x, after.frame.x) ||
+      !isApproximatelyEqual(before.frame.y, after.frame.y);
+    const resized =
+      !isApproximatelyEqual(before.frame.width, after.frame.width) ||
+      !isApproximatelyEqual(before.frame.height, after.frame.height);
 
     if (moved && !resized) {
       return "move";
@@ -270,7 +298,12 @@ function classifyOperationAction(before: EditorOperationSnapshot, after: EditorO
 }
 
 function areRectsEqual(a: Rect, b: Rect) {
-  return isApproximatelyEqual(a.x, b.x) && isApproximatelyEqual(a.y, b.y) && isApproximatelyEqual(a.width, b.width) && isApproximatelyEqual(a.height, b.height);
+  return (
+    isApproximatelyEqual(a.x, b.x) &&
+    isApproximatelyEqual(a.y, b.y) &&
+    isApproximatelyEqual(a.width, b.width) &&
+    isApproximatelyEqual(a.height, b.height)
+  );
 }
 
 function isApproximatelyEqual(a: number, b: number) {
@@ -285,7 +318,10 @@ function createOperationLogId(action: string, elementId: string, timestamp: numb
   return `op:${action}:${elementId}:${timestamp}`;
 }
 
-function buildStyleDetails(beforeStyle: Record<string, unknown>, afterStyle: Record<string, unknown>): EditorOperationDetail[] {
+function buildStyleDetails(
+  beforeStyle: Record<string, unknown>,
+  afterStyle: Record<string, unknown>,
+): EditorOperationDetail[] {
   const fields: Array<{
     key: string;
     label: string;
@@ -355,7 +391,9 @@ function formatStyleOpacity(value: unknown) {
 }
 
 function formatStyleDash(value: unknown) {
-  return Array.isArray(value) ? `[${value.map((item) => (typeof item === "number" ? formatNumber(item) : String(item))).join(", ")}]` : "—";
+  return Array.isArray(value)
+    ? `[${value.map((item) => (typeof item === "number" ? formatNumber(item) : String(item))).join(", ")}]`
+    : "—";
 }
 
 function formatDecimal(value: number) {

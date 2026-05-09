@@ -1,6 +1,11 @@
-import type { Rect, RenderTreeId, TemplateElementId, TemplatePageId } from "@/features/editor/types";
-import type { PageMargin } from "@/features/editor/schema/template-schema";
 import type { EditorNodeProps } from "@/features/editor/schema/editor-model-types";
+import type { PageMargin } from "@/features/editor/schema/template-schema";
+import type {
+  Rect,
+  RenderTreeId,
+  TemplateElementId,
+  TemplatePageId,
+} from "@/features/editor/types";
 
 export type CanonicalRenderTree = {
   id: RenderTreeId;

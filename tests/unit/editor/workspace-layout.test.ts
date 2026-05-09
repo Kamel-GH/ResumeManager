@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildRulerTicks,
   buildActiveWorkspaceLayout,
+  buildRulerTicks,
   buildWorkspaceLayout,
   convertClientPointToWorkspacePoint,
   convertWorkspacePointToPagePoint,
@@ -15,16 +15,23 @@ import {
   resolveEffectiveWorkspaceMode,
   resolveRulerOrigin,
   resolveWorkspaceContentBounds,
-  resolveWorkspaceSnapResolution,
   resolveWorkspaceRulerTicks,
-  resolveWorkspaceVisualAids,
+  resolveWorkspaceSnapResolution,
   resolveWorkspaceViewportPreset,
+  resolveWorkspaceVisualAids,
 } from "@/features/editor/schema/workspace-layout";
-import { resolveWorkspaceAlignmentSnapResolution, resolveWorkspaceResizeSnapResolution } from "@/features/editor/schema/workspace-snap-guides";
+import {
+  resolveWorkspaceAlignmentSnapResolution,
+  resolveWorkspaceResizeSnapResolution,
+} from "@/features/editor/schema/workspace-snap-guides";
 
 describe("workspace layout", () => {
   it("converts client coordinates through viewport zoom and pan into workspace coordinates", () => {
-    const workspacePoint = convertClientPointToWorkspacePoint({ x: 260, y: 180 }, { left: 100, top: 40 }, { zoom: 2, panX: 20, panY: 10 });
+    const workspacePoint = convertClientPointToWorkspacePoint(
+      { x: 260, y: 180 },
+      { left: 100, top: 40 },
+      { zoom: 2, panX: 20, panY: 10 },
+    );
 
     expect(workspacePoint).toEqual({ x: 70, y: 65 });
   });
@@ -80,7 +87,9 @@ describe("workspace layout", () => {
       return;
     }
 
-    expect(findWorkspacePageAtPointStrict(layout, { x: page.x + 10, y: page.y + 10 })?.id).toBe("page-2");
+    expect(findWorkspacePageAtPointStrict(layout, { x: page.x + 10, y: page.y + 10 })?.id).toBe(
+      "page-2",
+    );
     expect(findWorkspacePageAtPointStrict(layout, { x: 4, y: 4 })).toBeNull();
   });
 
@@ -108,8 +117,20 @@ describe("workspace layout", () => {
   it("builds a workspace layout for the active page only", () => {
     const layout = buildActiveWorkspaceLayout(
       [
-        { id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
-        { id: "page-2", name: "Inside", width: 240, height: 180, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+        {
+          id: "page-2",
+          name: "Inside",
+          width: 240,
+          height: 180,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
       ],
       "page-2",
       { pageGap: 56, pagePadding: 56 },
@@ -123,8 +144,20 @@ describe("workspace layout", () => {
   it("resolves content bounds from the rendered page envelope and excludes outer padding", () => {
     const layout = buildWorkspaceLayout(
       [
-        { id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
-        { id: "page-2", name: "Inside", width: 240, height: 180, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+        {
+          id: "page-2",
+          name: "Inside",
+          width: 240,
+          height: 180,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
       ],
       { pageGap: 56, pagePadding: 56 },
     );
@@ -155,8 +188,12 @@ describe("workspace layout", () => {
   });
 
   it("preserves the configured effective ruler mode", () => {
-    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "global" })).toBe("global");
-    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "page" })).toBe("page");
+    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "global" })).toBe(
+      "global",
+    );
+    expect(resolveEffectiveRulerMode({ ...defaultWorkspaceSettings, rulerMode: "page" })).toBe(
+      "page",
+    );
   });
 
   it("resolves workspace visual aids from the current workspace settings", () => {
@@ -228,19 +265,15 @@ describe("workspace layout", () => {
       return;
     }
 
-    const resolution = resolveWorkspaceSnapResolution(
-      { x: 23, y: 276 },
-      page,
-      {
-        ...defaultWorkspaceSettings,
-        gridSize: 20,
-        snapTolerance: 8,
-        snapEnabled: true,
-        snapToGrid: true,
-        snapToMargins: true,
-        snapToPageBounds: true,
-      },
-    );
+    const resolution = resolveWorkspaceSnapResolution({ x: 23, y: 276 }, page, {
+      ...defaultWorkspaceSettings,
+      gridSize: 20,
+      snapTolerance: 8,
+      snapEnabled: true,
+      snapToGrid: true,
+      snapToMargins: true,
+      snapToPageBounds: true,
+    });
 
     expect(resolution.point).toEqual({ x: 20, y: 280 });
     expect(resolution.guides).toEqual(
@@ -270,18 +303,14 @@ describe("workspace layout", () => {
       return;
     }
 
-    const snappedAtNormalZoom = resolveWorkspaceSnapResolution(
-      { x: 15, y: 100 },
-      page,
-      {
-        ...defaultWorkspaceSettings,
-        snapEnabled: true,
-        snapToGrid: false,
-        snapToMargins: true,
-        snapToPageBounds: false,
-        snapTolerance: 8,
-      },
-    );
+    const snappedAtNormalZoom = resolveWorkspaceSnapResolution({ x: 15, y: 100 }, page, {
+      ...defaultWorkspaceSettings,
+      snapEnabled: true,
+      snapToGrid: false,
+      snapToMargins: true,
+      snapToPageBounds: false,
+      snapTolerance: 8,
+    });
 
     const snappedAtZoomedViewport = resolveWorkspaceSnapResolution(
       { x: 15, y: 100 },
@@ -342,7 +371,12 @@ describe("workspace layout", () => {
     expect(resolution.point).toEqual({ x: 200, y: 20 });
     expect(resolution.guides).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ axis: "x", kind: "object", label: "Objet centre", position: 240 }),
+        expect.objectContaining({
+          axis: "x",
+          kind: "object",
+          label: "Objet centre",
+          position: 240,
+        }),
         expect.objectContaining({ axis: "y", kind: "margin", label: "Marge haute", position: 20 }),
       ]),
     );
@@ -399,7 +433,14 @@ describe("workspace layout", () => {
 
     expect(resolution.point).toEqual({ x: 80, y: 120 });
     expect(resolution.guides).toEqual(
-      expect.arrayContaining([expect.objectContaining({ axis: "x", kind: "spacing", label: "Espacement égal", position: 80 })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          axis: "x",
+          kind: "spacing",
+          label: "Espacement égal",
+          position: 80,
+        }),
+      ]),
     );
     expect(resolution.guides[0]?.priority).toBe(86);
   });
@@ -451,7 +492,14 @@ describe("workspace layout", () => {
     expect(resolution.frame.width).toBe(120);
     expect(resolution.frame.x).toBe(80);
     expect(resolution.guides).toEqual(
-      expect.arrayContaining([expect.objectContaining({ axis: "x", kind: "dimension", label: "Largeur identique", position: 200 })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          axis: "x",
+          kind: "dimension",
+          label: "Largeur identique",
+          position: 200,
+        }),
+      ]),
     );
     expect(resolution.guides[0]?.priority).toBe(92);
   });
@@ -507,7 +555,14 @@ describe("workspace layout", () => {
 
     expect(resolution.point).toEqual({ x: 240, y: 120 });
     expect(resolution.guides).toEqual(
-      expect.arrayContaining([expect.objectContaining({ axis: "x", kind: "container", label: "Bloc parent conteneur centre", position: 260 })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          axis: "x",
+          kind: "container",
+          label: "Bloc parent conteneur centre",
+          position: 260,
+        }),
+      ]),
     );
     expect(resolution.guides[0]?.priority).toBe(97);
   });
@@ -554,9 +609,18 @@ describe("workspace layout", () => {
 
     expect(resolution.point).toEqual({ x: 280, y: 22 });
     expect(resolution.guides).toEqual(
-      expect.arrayContaining([expect.objectContaining({ axis: "x", kind: "object", label: "Objet droite", position: 360 })]),
+      expect.arrayContaining([
+        expect.objectContaining({
+          axis: "x",
+          kind: "object",
+          label: "Objet droite",
+          position: 360,
+        }),
+      ]),
     );
-    expect(resolution.guides).not.toEqual(expect.arrayContaining([expect.objectContaining({ label: "Objet centre" })]));
+    expect(resolution.guides).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ label: "Objet centre" })]),
+    );
   });
 
   it("keeps grid snapping available for resize anchors", () => {
@@ -597,13 +661,23 @@ describe("workspace layout", () => {
 
     expect(resolution.point).toEqual({ x: 20, y: 20 });
     expect(resolution.guides).toEqual(
-      expect.arrayContaining([expect.objectContaining({ axis: "x", kind: "grid", label: "Grille", position: 100 })]),
+      expect.arrayContaining([
+        expect.objectContaining({ axis: "x", kind: "grid", label: "Grille", position: 100 }),
+      ]),
     );
   });
 
   it("normalizes workspace mode and resolves viewport presets for fit-space, fit-width and free", () => {
     const layout = buildWorkspaceLayout(
-      [{ id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } }],
+      [
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+      ],
       { pageGap: 56, pagePadding: 56 },
     );
 
@@ -612,13 +686,17 @@ describe("workspace layout", () => {
     expect(resolveEffectiveWorkspaceMode("fit-width")).toBe("fit-width");
     expect(resolveEffectiveWorkspaceMode("free")).toBe("free");
 
-    const fitSpace = resolveWorkspaceViewportPreset(layout, { width: 1200, height: 800 }, {
-      mode: "fit-space",
-      autoCenterOnLoad: true,
-      currentViewport: { zoom: 1, panX: 0, panY: 0 },
-      minZoom: 0.25,
-      maxZoom: 4,
-    });
+    const fitSpace = resolveWorkspaceViewportPreset(
+      layout,
+      { width: 1200, height: 800 },
+      {
+        mode: "fit-space",
+        autoCenterOnLoad: true,
+        currentViewport: { zoom: 1, panX: 0, panY: 0 },
+        minZoom: 0.25,
+        maxZoom: 4,
+      },
+    );
 
     expect(fitSpace).not.toBeNull();
     if (!fitSpace) {
@@ -629,13 +707,17 @@ describe("workspace layout", () => {
     expect(fitSpace.panX).toBeCloseTo((1200 - 400 * fitSpace.zoom) / 2 - 56 * fitSpace.zoom, 4);
     expect(fitSpace.panY).toBeCloseTo((800 - 300 * fitSpace.zoom) / 2 - 56 * fitSpace.zoom, 4);
 
-    const fitWidth = resolveWorkspaceViewportPreset(layout, { width: 1200, height: 800 }, {
-      mode: "fit-width",
-      autoCenterOnLoad: true,
-      currentViewport: { zoom: 1, panX: 0, panY: 0 },
-      minZoom: 0.25,
-      maxZoom: 4,
-    });
+    const fitWidth = resolveWorkspaceViewportPreset(
+      layout,
+      { width: 1200, height: 800 },
+      {
+        mode: "fit-width",
+        autoCenterOnLoad: true,
+        currentViewport: { zoom: 1, panX: 0, panY: 0 },
+        minZoom: 0.25,
+        maxZoom: 4,
+      },
+    );
 
     expect(fitWidth).not.toBeNull();
     if (!fitWidth) {
@@ -645,22 +727,30 @@ describe("workspace layout", () => {
     expect(fitWidth.zoom).toBeCloseTo(1200 / 400, 4);
     expect(fitWidth.panX).toBeCloseTo((1200 - 400 * fitWidth.zoom) / 2 - 56 * fitWidth.zoom, 4);
 
-    const free = resolveWorkspaceViewportPreset(layout, { width: 1200, height: 800 }, {
-      mode: "free",
-      autoCenterOnLoad: false,
-      currentViewport: { zoom: 1.2, panX: 12, panY: 34 },
-      minZoom: 0.25,
-      maxZoom: 4,
-    });
+    const free = resolveWorkspaceViewportPreset(
+      layout,
+      { width: 1200, height: 800 },
+      {
+        mode: "free",
+        autoCenterOnLoad: false,
+        currentViewport: { zoom: 1.2, panX: 12, panY: 34 },
+        minZoom: 0.25,
+        maxZoom: 4,
+      },
+    );
     expect(free).toBeNull();
 
-    const freeCentered = resolveWorkspaceViewportPreset(layout, { width: 1200, height: 800 }, {
-      mode: "free",
-      autoCenterOnLoad: true,
-      currentViewport: { zoom: 1.2, panX: 12, panY: 34 },
-      minZoom: 0.25,
-      maxZoom: 4,
-    });
+    const freeCentered = resolveWorkspaceViewportPreset(
+      layout,
+      { width: 1200, height: 800 },
+      {
+        mode: "free",
+        autoCenterOnLoad: true,
+        currentViewport: { zoom: 1.2, panX: 12, panY: 34 },
+        minZoom: 0.25,
+        maxZoom: 4,
+      },
+    );
     expect(freeCentered).not.toBeNull();
     if (!freeCentered) {
       return;
@@ -674,8 +764,20 @@ describe("workspace layout", () => {
   it("resolves global and page ruler origins from the workspace layout", () => {
     const layout = buildWorkspaceLayout(
       [
-        { id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
-        { id: "page-2", name: "Inside", width: 240, height: 180, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+        {
+          id: "page-2",
+          name: "Inside",
+          width: 240,
+          height: 180,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
       ],
       { pageGap: 56, pagePadding: 56 },
     );
@@ -685,12 +787,22 @@ describe("workspace layout", () => {
       x: layout.pages[1]?.x,
       y: layout.pages[1]?.y,
     });
-    expect(resolveRulerOrigin(layout, "page-1", "page")).not.toEqual(resolveRulerOrigin(layout, "page-2", "page"));
+    expect(resolveRulerOrigin(layout, "page-1", "page")).not.toEqual(
+      resolveRulerOrigin(layout, "page-2", "page"),
+    );
   });
 
   it("builds global ruler ticks in workspace coordinates", () => {
     const layout = buildWorkspaceLayout(
-      [{ id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } }],
+      [
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+      ],
       { pageGap: 56, pagePadding: 56 },
     );
 
@@ -714,8 +826,20 @@ describe("workspace layout", () => {
   it("builds page ruler ticks with page-local labels and workspace positions", () => {
     const layout = buildWorkspaceLayout(
       [
-        { id: "page-1", name: "Cover", width: 400, height: 300, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
-        { id: "page-2", name: "Inside", width: 240, height: 180, margin: { top: 20, right: 20, bottom: 20, left: 20 } },
+        {
+          id: "page-1",
+          name: "Cover",
+          width: 400,
+          height: 300,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
+        {
+          id: "page-2",
+          name: "Inside",
+          width: 240,
+          height: 180,
+          margin: { top: 20, right: 20, bottom: 20, left: 20 },
+        },
       ],
       { pageGap: 56, pagePadding: 56 },
     );
@@ -730,8 +854,16 @@ describe("workspace layout", () => {
     });
 
     expect(page).toBeDefined();
-    expect(ticks.horizontal[0]).toMatchObject({ position: 0, workspacePosition: page?.x, label: "0" });
-    expect(ticks.vertical[0]).toMatchObject({ position: 0, workspacePosition: page?.y, label: "0" });
+    expect(ticks.horizontal[0]).toMatchObject({
+      position: 0,
+      workspacePosition: page?.x,
+      label: "0",
+    });
+    expect(ticks.vertical[0]).toMatchObject({
+      position: 0,
+      workspacePosition: page?.y,
+      label: "0",
+    });
     expect(ticks.horizontal.at(-1)?.position).toBe(page?.width);
     expect(ticks.horizontal.at(-1)?.workspacePosition).toBe(page ? page.x + page.width : undefined);
     expect(ticks.horizontal.at(-1)?.label).toBeUndefined();
@@ -759,7 +891,9 @@ describe("workspace layout", () => {
     );
 
     expect(findWorkspacePageAtPoint(layout, { x: 10_000, y: 10_000 }, "page-2")?.id).toBe("page-2");
-    expect(findWorkspacePageAtPoint(layout, { x: 10_000, y: 10_000 }, "missing-page")?.id).toBe("page-1");
+    expect(findWorkspacePageAtPoint(layout, { x: 10_000, y: 10_000 }, "missing-page")?.id).toBe(
+      "page-1",
+    );
   });
 
   it("keeps base ruler tick generation compatible with workspace offsets", () => {
@@ -774,7 +908,13 @@ describe("workspace layout", () => {
   });
 
   it("projects ruler ticks through viewport zoom and pan", () => {
-    const tick = { isMajor: true, isMinor: false, label: "100", position: 100, workspacePosition: 124 };
+    const tick = {
+      isMajor: true,
+      isMinor: false,
+      label: "100",
+      position: 100,
+      workspacePosition: 124,
+    };
     const viewport = { zoom: 2, panX: 10, panY: -6 };
 
     expect(projectRulerTickToViewportPosition(tick, viewport, "x")).toBe(258);

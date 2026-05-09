@@ -1,7 +1,20 @@
 export type ImageCropRatio = "free" | "1:1" | "4:3" | "3:4" | "16:9" | "9:16" | "block";
 
-export type ImageMaskType = "rectangle" | "rounded-rect" | "circle" | "ellipse" | "diamond" | "star" | "blob";
-export type ImageMaskBorderStyle = "solid" | "dashed" | "dashed-round" | "long-dashed" | "long-dashed-round" | "dotted";
+export type ImageMaskType =
+  | "rectangle"
+  | "rounded-rect"
+  | "circle"
+  | "ellipse"
+  | "diamond"
+  | "star"
+  | "blob";
+export type ImageMaskBorderStyle =
+  | "solid"
+  | "dashed"
+  | "dashed-round"
+  | "long-dashed"
+  | "long-dashed-round"
+  | "dotted";
 
 export type ImageMaskBounds = {
   x: number;
@@ -19,7 +32,17 @@ export type ImageMaskBorder = {
   shadow: number;
 };
 
-export type ImageFilterPreset = "none" | "grayscale" | "sepia" | "vintage" | "cool" | "warm" | "high-contrast" | "soft" | "bright" | "dark";
+export type ImageFilterPreset =
+  | "none"
+  | "grayscale"
+  | "sepia"
+  | "vintage"
+  | "cool"
+  | "warm"
+  | "high-contrast"
+  | "soft"
+  | "bright"
+  | "dark";
 
 export type ImageEditingState = {
   crop: {

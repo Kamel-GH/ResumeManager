@@ -4,7 +4,11 @@ import type { CSSProperties } from "react";
 
 export function normalizeEditorColorValue(value: string, fallback = "#ffffff") {
   const trimmed = value.trim();
-  if (/^#[0-9a-f]{3}$/i.test(trimmed) || /^#[0-9a-f]{6}$/i.test(trimmed) || /^#[0-9a-f]{8}$/i.test(trimmed)) {
+  if (
+    /^#[0-9a-f]{3}$/i.test(trimmed) ||
+    /^#[0-9a-f]{6}$/i.test(trimmed) ||
+    /^#[0-9a-f]{8}$/i.test(trimmed)
+  ) {
     return trimmed;
   }
 

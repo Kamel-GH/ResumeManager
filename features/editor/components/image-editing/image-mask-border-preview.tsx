@@ -24,7 +24,12 @@ export function ImageMaskBorderPreview({ editing }: ImageMaskBorderPreviewProps)
   const presentation = resolveImageMaskBorderPresentation(border);
 
   return (
-    <svg className="ef-image-editor-mask-border-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+    <svg
+      className="ef-image-editor-mask-border-overlay"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       <path
         d={pathData}
         fill="none"

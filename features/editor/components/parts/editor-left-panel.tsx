@@ -12,6 +12,7 @@ import {
   FileText,
   Layers3,
   LibraryBig,
+  List,
   Lock,
   LockOpen,
   Merge,
@@ -20,19 +21,24 @@ import {
   Settings2,
   Shapes,
   Trash2,
-  List,
 } from "lucide-react";
-import { useMemo, useState, type DragEvent, type MouseEvent } from "react";
-
-import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
+import { type DragEvent, type MouseEvent, useMemo, useState } from "react";
 import { VariablesCompactPanel } from "@/features/data-mapping/components/variables-compact-panel";
+import {
+  ActionButton,
+  IconGlyph,
+  NoResult,
+  SearchBox,
+  SortHeader,
+  UnavailablePanel,
+} from "@/features/editor/components/parts/editor-left-panel-common";
+import { EditorLeftObjectsPanel } from "@/features/editor/components/parts/editor-left-panel-objects";
+import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
 import {
   EditorLeftPanelPrimaryRail,
   EditorLeftPanelSubTabRail,
   type LeftPanelPrimaryTab,
 } from "@/features/editor/components/parts/editor-left-panel-rails";
-import { EditorLeftPagesPanel } from "@/features/editor/components/parts/editor-left-panel-pages";
-import { EditorLeftObjectsPanel } from "@/features/editor/components/parts/editor-left-panel-objects";
 import {
   groupLayersByPage,
   groupObjectsForLayer,
@@ -42,28 +48,20 @@ import {
   uniqueSorted,
   useSort,
 } from "@/features/editor/components/parts/editor-left-panel-utils";
-import {
-  ActionButton,
-  IconGlyph,
-  NoResult,
-  SearchBox,
-  SortHeader,
-  UnavailablePanel,
-} from "@/features/editor/components/parts/editor-left-panel-common";
+import type { CanvasCreationEnvelope } from "@/features/editor/schema/canvas-insertion";
 import {
   deriveEditorDocumentLayersView,
   deriveEditorObjectsView,
   deriveEditorPagesView,
-  filterEditorLayersView,
   type EditorLayerView,
   type EditorObjectView,
+  filterEditorLayersView,
 } from "@/features/editor/selectors";
 import {
-  useEditorStore,
   type EditorLeftPanelTab,
   type EditorLeftSubTab,
+  useEditorStore,
 } from "@/features/editor/stores/editor-store";
-
 
 const PRIMARY_TABS: LeftPanelPrimaryTab[] = [
   {
@@ -102,17 +100,29 @@ export function EditorLeftPanel() {
   const setActiveSubTab = useEditorStore((state) => state.setActiveSubTab);
   const setPanelFilter = useEditorStore((state) => state.setPanelFilter);
   const activePageId = useEditorStore((state) => state.activePageId);
-  const activeWorkspaceLayerIdByPageId = useEditorStore((state) => state.activeWorkspaceLayerIdByPageId);
-  const selectedWorkspaceLayerIdByPageId = useEditorStore((state) => state.selectedWorkspaceLayerIdByPageId);
+  const activeWorkspaceLayerIdByPageId = useEditorStore(
+    (state) => state.activeWorkspaceLayerIdByPageId,
+  );
+  const selectedWorkspaceLayerIdByPageId = useEditorStore(
+    (state) => state.selectedWorkspaceLayerIdByPageId,
+  );
   const selectedElementIds = useEditorStore((state) => state.selectedElementIds);
   const setActivePageId = useEditorStore((state) => state.setActivePageId);
-  const setActiveWorkspaceLayerIdForPage = useEditorStore((state) => state.setActiveWorkspaceLayerIdForPage);
-  const setSelectedWorkspaceLayerIdForPage = useEditorStore((state) => state.setSelectedWorkspaceLayerIdForPage);
+  const setActiveWorkspaceLayerIdForPage = useEditorStore(
+    (state) => state.setActiveWorkspaceLayerIdForPage,
+  );
+  const setSelectedWorkspaceLayerIdForPage = useEditorStore(
+    (state) => state.setSelectedWorkspaceLayerIdForPage,
+  );
   const addWorkspaceLayerForPage = useEditorStore((state) => state.addWorkspaceLayerForPage);
   const renameWorkspaceLayerForPage = useEditorStore((state) => state.renameWorkspaceLayerForPage);
-  const deleteWorkspaceLayersForPage = useEditorStore((state) => state.deleteWorkspaceLayersForPage);
+  const deleteWorkspaceLayersForPage = useEditorStore(
+    (state) => state.deleteWorkspaceLayersForPage,
+  );
   const mergeWorkspaceLayersForPage = useEditorStore((state) => state.mergeWorkspaceLayersForPage);
-  const reorderWorkspaceLayerForPage = useEditorStore((state) => state.reorderWorkspaceLayerForPage);
+  const reorderWorkspaceLayerForPage = useEditorStore(
+    (state) => state.reorderWorkspaceLayerForPage,
+  );
   const moveWorkspaceLayersForPage = useEditorStore((state) => state.moveWorkspaceLayersForPage);
   const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
   const setDragTraceContext = useEditorStore((state) => state.setDragTraceContext);
@@ -122,12 +132,34 @@ export function EditorLeftPanel() {
 
   const tab = PRIMARY_TABS.find((item) => item.id === activeTab) ?? PRIMARY_TABS[0];
   const activeSubTab = activeSubTabs[activeTab] ?? tab.subTabs?.[0]?.id;
-  const activePageViews = useMemo(() => deriveEditorPagesView(workingTemplate, activePageId), [activePageId, workingTemplate]);
-  const layerViews = useMemo(
-    () => deriveEditorDocumentLayersView(workingTemplate, workspaceLayersByPageId, activePageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId),
-    [activePageId, activeWorkspaceLayerIdByPageId, selectedWorkspaceLayerIdByPageId, workingTemplate, workspaceLayersByPageId],
+  const activePageViews = useMemo(
+    () => deriveEditorPagesView(workingTemplate, activePageId),
+    [activePageId, workingTemplate],
   );
-  const objectViews = useMemo(() => workingTemplate.pages.flatMap((page) => deriveEditorObjectsView(workingTemplate, selectedElementIds, page.id)), [selectedElementIds, workingTemplate]);
+  const layerViews = useMemo(
+    () =>
+      deriveEditorDocumentLayersView(
+        workingTemplate,
+        workspaceLayersByPageId,
+        activePageId,
+        activeWorkspaceLayerIdByPageId,
+        selectedWorkspaceLayerIdByPageId,
+      ),
+    [
+      activePageId,
+      activeWorkspaceLayerIdByPageId,
+      selectedWorkspaceLayerIdByPageId,
+      workingTemplate,
+      workspaceLayersByPageId,
+    ],
+  );
+  const objectViews = useMemo(
+    () =>
+      workingTemplate.pages.flatMap((page) =>
+        deriveEditorObjectsView(workingTemplate, selectedElementIds, page.id),
+      ),
+    [selectedElementIds, workingTemplate],
+  );
   const [layersViewMode, setLayersViewMode] = useState<"list" | "tree">("tree");
   const [layerPageFilter, setLayerPageFilter] = useState("all");
   const [layerVisibilityFilter, setLayerVisibilityFilter] = useState("all");
@@ -135,7 +167,10 @@ export function EditorLeftPanel() {
   const [objectTypeFilter, setObjectTypeFilter] = useState("all");
   const [objectLayerFilter, setObjectLayerFilter] = useState("all");
   const [objectPageFilter, setObjectPageFilter] = useState("all");
-  const objectTypeOptions = useMemo(() => uniqueSorted(objectViews.map((object) => object.type)), [objectViews]);
+  const objectTypeOptions = useMemo(
+    () => uniqueSorted(objectViews.map((object) => object.type)),
+    [objectViews],
+  );
   const objectLayerOptions = useMemo(
     () =>
       uniqueBy(
@@ -222,7 +257,6 @@ export function EditorLeftPanel() {
     });
   }
 
-
   function handleObjectSelect(object: EditorObjectView) {
     setActivePageId(object.pageId);
     setSelectedElementIds([object.id]);
@@ -250,11 +284,27 @@ export function EditorLeftPanel() {
           <div className="ef-control-row">
             <div className="ef-control-left">
               {activeTab === "layers" ? (
-                <div className="ef-view-toggle ef-layer-view-toggle" role="group" aria-label="Mode d’affichage">
-                  <button type="button" className={layersViewMode === "list" ? "is-active" : ""} title="Liste" aria-label="Liste" onClick={() => setLayersViewMode("list")}>
+                <div
+                  className="ef-view-toggle ef-layer-view-toggle"
+                  role="group"
+                  aria-label="Mode d’affichage"
+                >
+                  <button
+                    type="button"
+                    className={layersViewMode === "list" ? "is-active" : ""}
+                    title="Liste"
+                    aria-label="Liste"
+                    onClick={() => setLayersViewMode("list")}
+                  >
                     <IconGlyph icon={List} size={14} />
                   </button>
-                  <button type="button" className={layersViewMode === "tree" ? "is-active" : ""} title="Hiérarchie" aria-label="Hiérarchie" onClick={() => setLayersViewMode("tree")}>
+                  <button
+                    type="button"
+                    className={layersViewMode === "tree" ? "is-active" : ""}
+                    title="Hiérarchie"
+                    aria-label="Hiérarchie"
+                    onClick={() => setLayersViewMode("tree")}
+                  >
                     <IconGlyph icon={Layers3} size={14} />
                   </button>
                 </div>
@@ -270,12 +320,22 @@ export function EditorLeftPanel() {
           <div className="ef-control-filter has-none">
             <SearchBox
               value={panelFilters[activeTab] ?? ""}
-              placeholder={activeTab === "pages" ? "Filtrer pages…" : activeTab === "layers" ? "Filtrer calques…" : "Filtrer objets…"}
+              placeholder={
+                activeTab === "pages"
+                  ? "Filtrer pages…"
+                  : activeTab === "layers"
+                    ? "Filtrer calques…"
+                    : "Filtrer objets…"
+              }
               onChange={(value) => setPanelFilter(activeTab, value)}
             />
             {activeTab === "layers" ? (
               <div className="ef-layer-filter-selects" aria-label="Filtres calques">
-                <select aria-label="Filtrer par page" value={layerPageFilter} onChange={(event) => setLayerPageFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer par page"
+                  value={layerPageFilter}
+                  onChange={(event) => setLayerPageFilter(event.target.value)}
+                >
                   <option value="all">Pg</option>
                   {activePageViews.map((page) => (
                     <option key={page.id} value={String(page.index)}>
@@ -283,12 +343,20 @@ export function EditorLeftPanel() {
                     </option>
                   ))}
                 </select>
-                <select aria-label="Filtrer visibilité" value={layerVisibilityFilter} onChange={(event) => setLayerVisibilityFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer visibilité"
+                  value={layerVisibilityFilter}
+                  onChange={(event) => setLayerVisibilityFilter(event.target.value)}
+                >
                   <option value="all">Aff.</option>
                   <option value="visible">Visible</option>
                   <option value="hidden">Masqué</option>
                 </select>
-                <select aria-label="Filtrer verrouillage" value={layerLockFilter} onChange={(event) => setLayerLockFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer verrouillage"
+                  value={layerLockFilter}
+                  onChange={(event) => setLayerLockFilter(event.target.value)}
+                >
                   <option value="all">Ver.</option>
                   <option value="locked">Verrouillé</option>
                   <option value="unlocked">Déverrouillé</option>
@@ -297,7 +365,11 @@ export function EditorLeftPanel() {
             ) : null}
             {activeTab === "objects" ? (
               <div className="ef-object-filter-selects" aria-label="Filtres objets">
-                <select aria-label="Filtrer par type" value={objectTypeFilter} onChange={(event) => setObjectTypeFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer par type"
+                  value={objectTypeFilter}
+                  onChange={(event) => setObjectTypeFilter(event.target.value)}
+                >
                   <option value="all">Type</option>
                   {objectTypeOptions.map((type) => (
                     <option key={type} value={type}>
@@ -305,7 +377,11 @@ export function EditorLeftPanel() {
                     </option>
                   ))}
                 </select>
-                <select aria-label="Filtrer par calque" value={objectLayerFilter} onChange={(event) => setObjectLayerFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer par calque"
+                  value={objectLayerFilter}
+                  onChange={(event) => setObjectLayerFilter(event.target.value)}
+                >
                   <option value="all">Cq</option>
                   {objectLayerOptions.map((layer) => (
                     <option key={layer.id} value={layer.id}>
@@ -313,7 +389,11 @@ export function EditorLeftPanel() {
                     </option>
                   ))}
                 </select>
-                <select aria-label="Filtrer par page" value={objectPageFilter} onChange={(event) => setObjectPageFilter(event.target.value)}>
+                <select
+                  aria-label="Filtrer par page"
+                  value={objectPageFilter}
+                  onChange={(event) => setObjectPageFilter(event.target.value)}
+                >
                   <option value="all">Pg</option>
                   {activePageViews.map((page) => (
                     <option key={page.id} value={String(page.index)}>
@@ -327,9 +407,19 @@ export function EditorLeftPanel() {
         </div>
       ) : null}
 
-      <div className={["ef-left-panel-scroll", activeTab === "layers" ? "is-layers-panel" : "", activeTab === "objects" ? "is-objects-panel" : ""].join(" ")}>
+      <div
+        className={[
+          "ef-left-panel-scroll",
+          activeTab === "layers" ? "is-layers-panel" : "",
+          activeTab === "objects" ? "is-objects-panel" : "",
+        ].join(" ")}
+      >
         {activeTab === "pages" ? (
-          <EditorLeftPagesPanel pages={activePageViews} filter={panelFilters.pages ?? ""} onSelectPage={handlePageSelect} />
+          <EditorLeftPagesPanel
+            pages={activePageViews}
+            filter={panelFilters.pages ?? ""}
+            onSelectPage={handlePageSelect}
+          />
         ) : null}
         {activeTab === "layers" ? (
           <LayersPanel
@@ -363,9 +453,21 @@ export function EditorLeftPanel() {
         ) : null}
         {activeTab === "data" ? (
           activeSubTab === "variables" ? (
-            <VariablesCompactPanel onDragContext={setDragTraceContext} onDragEnd={clearDragTraceContext} />
+            <VariablesCompactPanel
+              onDragContext={setDragTraceContext}
+              onDragEnd={clearDragTraceContext}
+            />
           ) : (
-            <UnavailablePanel title={tab.label} subtitle={activeSubTab ? PRIMARY_TABS.find((item) => item.id === activeTab)?.subTabs?.find((item) => item.id === activeSubTab)?.label : undefined} />
+            <UnavailablePanel
+              title={tab.label}
+              subtitle={
+                activeSubTab
+                  ? PRIMARY_TABS.find((item) => item.id === activeTab)?.subTabs?.find(
+                      (item) => item.id === activeSubTab,
+                    )?.label
+                  : undefined
+              }
+            />
           )
         ) : null}
         {activeTab === "libraries" ? (
@@ -412,7 +514,12 @@ function LayersPanel({
   onMergeLayers: (layers: EditorLayerView[]) => void;
   onMoveLayers: (layers: EditorLayerView[], direction: "up" | "down") => void;
   onRenameLayer: (layer: EditorLayerView) => void;
-  onReorderLayer: (input: { pageId: string; layerId: string; targetLayerId: string; position: "before" | "after" }) => void;
+  onReorderLayer: (input: {
+    pageId: string;
+    layerId: string;
+    targetLayerId: string;
+    position: "before" | "after";
+  }) => void;
   onSelectObject: (object: EditorObjectView) => void;
   onSelectLayer: (layer: EditorLayerView) => void;
 }) {
@@ -427,12 +534,15 @@ function LayersPanel({
       filterEditorLayersView(layers, {
         text: filter,
         page: pageFilter,
-        visibility: visibilityFilter === "visible" || visibilityFilter === "hidden" ? visibilityFilter : "all",
+        visibility:
+          visibilityFilter === "visible" || visibilityFilter === "hidden"
+            ? visibilityFilter
+            : "all",
         lock: lockFilter === "locked" || lockFilter === "unlocked" ? lockFilter : "all",
       }).map((layer) => ({
-          ...layer,
-          grouped: false,
-        })),
+        ...layer,
+        grouped: false,
+      })),
     [filter, layers, lockFilter, pageFilter, visibilityFilter],
   );
   const { sorted, toggle, dirOf } = useSort(rows, "order");
@@ -440,16 +550,38 @@ function LayersPanel({
   const primarySelectedLayer = selectedLayers[0] ?? null;
   const selectedPageIds = new Set(selectedLayers.map((layer) => layer.pageId));
   const selectedSamePage = selectedPageIds.size <= 1;
-  const selectedPageLayers = primarySelectedLayer ? sorted.filter((layer) => layer.pageId === primarySelectedLayer.pageId).sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr")) : [];
+  const selectedPageLayers = primarySelectedLayer
+    ? sorted
+        .filter((layer) => layer.pageId === primarySelectedLayer.pageId)
+        .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id, "fr"))
+    : [];
   const selectedLayerIdSet = new Set(selectedLayers.map((layer) => layer.id));
   const layerCountByPageId = sorted.reduce<Map<string, number>>((counts, layer) => {
     counts.set(layer.pageId, (counts.get(layer.pageId) ?? 0) + 1);
     return counts;
   }, new Map());
-  const canDeleteSelectedLayers = selectedLayers.some((layer) => layer.objectCount === 0 && (layerCountByPageId.get(layer.pageId) ?? 0) > 1);
+  const canDeleteSelectedLayers = selectedLayers.some(
+    (layer) => layer.objectCount === 0 && (layerCountByPageId.get(layer.pageId) ?? 0) > 1,
+  );
   const canMergeSelectedLayers = selectedLayers.length >= 2 && selectedSamePage;
-  const canMoveSelectedLayerUp = selectedLayers.length > 0 && selectedSamePage && selectedPageLayers.some((layer, index) => selectedLayerIdSet.has(layer.id) && index > 0 && !selectedLayerIdSet.has(selectedPageLayers[index - 1]?.id ?? ""));
-  const canMoveSelectedLayerDown = selectedLayers.length > 0 && selectedSamePage && selectedPageLayers.some((layer, index) => selectedLayerIdSet.has(layer.id) && index < selectedPageLayers.length - 1 && !selectedLayerIdSet.has(selectedPageLayers[index + 1]?.id ?? ""));
+  const canMoveSelectedLayerUp =
+    selectedLayers.length > 0 &&
+    selectedSamePage &&
+    selectedPageLayers.some(
+      (layer, index) =>
+        selectedLayerIdSet.has(layer.id) &&
+        index > 0 &&
+        !selectedLayerIdSet.has(selectedPageLayers[index - 1]?.id ?? ""),
+    );
+  const canMoveSelectedLayerDown =
+    selectedLayers.length > 0 &&
+    selectedSamePage &&
+    selectedPageLayers.some(
+      (layer, index) =>
+        selectedLayerIdSet.has(layer.id) &&
+        index < selectedPageLayers.length - 1 &&
+        !selectedLayerIdSet.has(selectedPageLayers[index + 1]?.id ?? ""),
+    );
   const objectsByLayerId = useMemo(() => {
     const groups = new Map<string, EditorObjectView[]>();
     objects.forEach((object) => {
@@ -469,7 +601,10 @@ function LayersPanel({
     return groups;
   }, [objects]);
   const pageGroups = useMemo(() => {
-    const groups = new Map<string, { pageId: string; pageName: string; pageIndex: number; layers: typeof sorted }>();
+    const groups = new Map<
+      string,
+      { pageId: string; pageName: string; pageIndex: number; layers: typeof sorted }
+    >();
     sorted.forEach((layer) => {
       const current = groups.get(layer.pageId);
       if (current) {
@@ -500,7 +635,8 @@ function LayersPanel({
 
   function handleLayerDrop(event: DragEvent<HTMLElement>, targetLayer: EditorLayerView) {
     event.preventDefault();
-    const layerId = event.dataTransfer.getData("application/x-resume-editor-layer") || draggedLayerId;
+    const layerId =
+      event.dataTransfer.getData("application/x-resume-editor-layer") || draggedLayerId;
     setDraggedLayerId(null);
     if (!layerId || layerId === targetLayer.id) {
       return;
@@ -531,7 +667,11 @@ function LayersPanel({
     }
 
     if (event.metaKey || event.ctrlKey) {
-      setSelectedLayerIds((current) => (current.includes(layer.id) ? current.filter((id) => id !== layer.id) : [...current, layer.id]));
+      setSelectedLayerIds((current) =>
+        current.includes(layer.id)
+          ? current.filter((id) => id !== layer.id)
+          : [...current, layer.id],
+      );
       return;
     }
 
@@ -553,49 +693,91 @@ function LayersPanel({
       <div className="ef-layers-list-scroll">
         {mode === "list" ? (
           <div className="ef-layer-table">
-          <div className="ef-layer-head">
-            <SortHeader label="N°" dir={dirOf("number")} onClick={() => toggle("number")} align="center" />
-            <SortHeader label="O" dir={dirOf("order")} onClick={() => toggle("order")} align="center" />
-            <SortHeader label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
-            <SortHeader label="Pg" dir={dirOf("pageIndex")} onClick={() => toggle("pageIndex")} align="center" />
-            <SortHeader label="A" dir={dirOf("visible")} onClick={() => toggle("visible")} align="center" />
-            <SortHeader label="V" dir={dirOf("locked")} onClick={() => toggle("locked")} align="center" />
-          </div>
-          {sorted.map((layer) => (
-            <button
-              key={layer.id}
-              className={["ef-layer-table-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
-              type="button"
-              draggable
-              data-layer-id={layer.id}
-              data-page-id={layer.pageId}
-              data-object-count={layer.objectCount}
-              onClick={(event) => handleLayerClick(event, layer)}
-              onDoubleClick={() => onActivateLayer(layer)}
-              onDragStart={(event) => {
-                setDraggedLayerId(layer.id);
-                event.dataTransfer.effectAllowed = "move";
-                event.dataTransfer.setData("application/x-resume-editor-layer", layer.id);
-              }}
-              onDragOver={(event) => {
-                if (draggedLayerId && draggedLayerId !== layer.id) {
-                  event.preventDefault();
-                  event.dataTransfer.dropEffect = "move";
-                }
-              }}
-              onDrop={(event) => handleLayerDrop(event, layer)}
-              onDragEnd={() => setDraggedLayerId(null)}
-              title={layer.name}
-            >
-              <span>{layer.number}</span>
-              <span>{layer.order}</span>
-              <strong>{layer.name}</strong>
-              <span>{layer.pageIndex}</span>
-              <span>{layer.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
-              <span>{layer.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
-            </button>
-          ))}
-          {rows.length === 0 ? <NoResult /> : null}
+            <div className="ef-layer-head">
+              <SortHeader
+                label="N°"
+                dir={dirOf("number")}
+                onClick={() => toggle("number")}
+                align="center"
+              />
+              <SortHeader
+                label="O"
+                dir={dirOf("order")}
+                onClick={() => toggle("order")}
+                align="center"
+              />
+              <SortHeader label="Nom" dir={dirOf("name")} onClick={() => toggle("name")} />
+              <SortHeader
+                label="Pg"
+                dir={dirOf("pageIndex")}
+                onClick={() => toggle("pageIndex")}
+                align="center"
+              />
+              <SortHeader
+                label="A"
+                dir={dirOf("visible")}
+                onClick={() => toggle("visible")}
+                align="center"
+              />
+              <SortHeader
+                label="V"
+                dir={dirOf("locked")}
+                onClick={() => toggle("locked")}
+                align="center"
+              />
+            </div>
+            {sorted.map((layer) => (
+              <button
+                key={layer.id}
+                className={[
+                  "ef-layer-table-row",
+                  selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "",
+                  layer.active ? "is-active-layer" : "",
+                  draggedLayerId === layer.id ? "is-dragging" : "",
+                ].join(" ")}
+                type="button"
+                draggable
+                data-layer-id={layer.id}
+                data-page-id={layer.pageId}
+                data-object-count={layer.objectCount}
+                onClick={(event) => handleLayerClick(event, layer)}
+                onDoubleClick={() => onActivateLayer(layer)}
+                onDragStart={(event) => {
+                  setDraggedLayerId(layer.id);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("application/x-resume-editor-layer", layer.id);
+                }}
+                onDragOver={(event) => {
+                  if (draggedLayerId && draggedLayerId !== layer.id) {
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                  }
+                }}
+                onDrop={(event) => handleLayerDrop(event, layer)}
+                onDragEnd={() => setDraggedLayerId(null)}
+                title={layer.name}
+              >
+                <span>{layer.number}</span>
+                <span>{layer.order}</span>
+                <strong>{layer.name}</strong>
+                <span>{layer.pageIndex}</span>
+                <span>
+                  {layer.visible ? (
+                    <IconGlyph icon={Eye} size={16} />
+                  ) : (
+                    <IconGlyph icon={EyeOff} size={16} />
+                  )}
+                </span>
+                <span>
+                  {layer.locked ? (
+                    <IconGlyph icon={Lock} size={16} />
+                  ) : (
+                    <IconGlyph icon={LockOpen} size={16} />
+                  )}
+                </span>
+              </button>
+            ))}
+            {rows.length === 0 ? <NoResult /> : null}
           </div>
         ) : (
           <div className="ef-layer-tree">
@@ -603,7 +785,14 @@ function LayersPanel({
               const pageCollapsed = collapsedPageIds.has(pageGroup.pageId);
               return (
                 <div key={pageGroup.pageId} className="ef-layer-tree-page">
-                  <button type="button" className="ef-layer-tree-page-row" title={pageGroup.pageName} onClick={() => toggleCollapsed(setCollapsedPageIds, collapsedPageIds, pageGroup.pageId)}>
+                  <button
+                    type="button"
+                    className="ef-layer-tree-page-row"
+                    title={pageGroup.pageName}
+                    onClick={() =>
+                      toggleCollapsed(setCollapsedPageIds, collapsedPageIds, pageGroup.pageId)
+                    }
+                  >
                     <span className="ef-layer-tree-toggle">
                       <IconGlyph icon={pageCollapsed ? ChevronRight : ChevronDown} size={16} />
                     </span>
@@ -623,43 +812,73 @@ function LayersPanel({
                         const layerObjects = objectsByLayerId.get(layer.id) ?? [];
                         const groupedObjects = groupObjectsForLayer(layerObjects);
                         return (
-                <div key={layer.id} className="ef-layer-tree-layer">
-                  <button
-                    type="button"
-                              className={["ef-layer-tree-layer-row", selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "", layer.active ? "is-active-layer" : "", draggedLayerId === layer.id ? "is-dragging" : ""].join(" ")}
-                    draggable
-                    onClick={(event) => handleLayerClick(event, layer)}
+                          <div key={layer.id} className="ef-layer-tree-layer">
+                            <button
+                              type="button"
+                              className={[
+                                "ef-layer-tree-layer-row",
+                                selectedLayerIds.includes(layer.id) ? "is-selected-layer" : "",
+                                layer.active ? "is-active-layer" : "",
+                                draggedLayerId === layer.id ? "is-dragging" : "",
+                              ].join(" ")}
+                              draggable
+                              onClick={(event) => handleLayerClick(event, layer)}
                               onDoubleClick={() => onActivateLayer(layer)}
-                    onDragStart={(event) => {
-                      setDraggedLayerId(layer.id);
-                      event.dataTransfer.effectAllowed = "move";
-                      event.dataTransfer.setData("application/x-resume-editor-layer", layer.id);
-                    }}
-                    onDragOver={(event) => {
-                      if (draggedLayerId && draggedLayerId !== layer.id) {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                      }
-                    }}
-                    onDrop={(event) => handleLayerDrop(event, layer)}
-                    onDragEnd={() => setDraggedLayerId(null)}
-                    title={layer.name}
-                  >
-                              <span className="ef-layer-tree-toggle" onClick={(event) => {
-                                event.stopPropagation();
-                                toggleCollapsed(setCollapsedLayerIds, collapsedLayerIds, layer.id);
-                              }}>
-                                <IconGlyph icon={layerCollapsed ? ChevronRight : ChevronDown} size={14} />
+                              onDragStart={(event) => {
+                                setDraggedLayerId(layer.id);
+                                event.dataTransfer.effectAllowed = "move";
+                                event.dataTransfer.setData(
+                                  "application/x-resume-editor-layer",
+                                  layer.id,
+                                );
+                              }}
+                              onDragOver={(event) => {
+                                if (draggedLayerId && draggedLayerId !== layer.id) {
+                                  event.preventDefault();
+                                  event.dataTransfer.dropEffect = "move";
+                                }
+                              }}
+                              onDrop={(event) => handleLayerDrop(event, layer)}
+                              onDragEnd={() => setDraggedLayerId(null)}
+                              title={layer.name}
+                            >
+                              <span
+                                className="ef-layer-tree-toggle"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleCollapsed(
+                                    setCollapsedLayerIds,
+                                    collapsedLayerIds,
+                                    layer.id,
+                                  );
+                                }}
+                              >
+                                <IconGlyph
+                                  icon={layerCollapsed ? ChevronRight : ChevronDown}
+                                  size={14}
+                                />
                               </span>
-                    <span>{layer.number}</span>
-                    <span>{layer.order}</span>
-                    <span>{layer.pageIndex}</span>
-                    <span>{layer.objectCount}</span>
-                    <span className="ef-layer-tree-visibility">{layer.visible ? <IconGlyph icon={Eye} size={16} /> : <IconGlyph icon={EyeOff} size={16} />}</span>
-                    <span className="ef-layer-tree-lock">{layer.locked ? <IconGlyph icon={Lock} size={16} /> : <IconGlyph icon={LockOpen} size={16} />}</span>
-                    <span>{layer.grouped ? "Oui" : "—"}</span>
-                    <strong>{layer.name}</strong>
-                  </button>
+                              <span>{layer.number}</span>
+                              <span>{layer.order}</span>
+                              <span>{layer.pageIndex}</span>
+                              <span>{layer.objectCount}</span>
+                              <span className="ef-layer-tree-visibility">
+                                {layer.visible ? (
+                                  <IconGlyph icon={Eye} size={16} />
+                                ) : (
+                                  <IconGlyph icon={EyeOff} size={16} />
+                                )}
+                              </span>
+                              <span className="ef-layer-tree-lock">
+                                {layer.locked ? (
+                                  <IconGlyph icon={Lock} size={16} />
+                                ) : (
+                                  <IconGlyph icon={LockOpen} size={16} />
+                                )}
+                              </span>
+                              <span>{layer.grouped ? "Oui" : "—"}</span>
+                              <strong>{layer.name}</strong>
+                            </button>
                             {layerCollapsed ? null : (
                               <LayerObjectTree
                                 collapsedGroupIds={collapsedGroupIds}
@@ -669,7 +888,7 @@ function LayersPanel({
                                 setCollapsedGroupIds={setCollapsedGroupIds}
                               />
                             )}
-                </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -677,17 +896,46 @@ function LayersPanel({
                 </div>
               );
             })}
-          {rows.length === 0 ? <NoResult /> : null}
+            {rows.length === 0 ? <NoResult /> : null}
           </div>
         )}
       </div>
       <div className="ef-layers-toolbar" role="group" aria-label="Gestion des calques">
         <ActionButton label="Ajouter" icon={Plus} onClick={handleAddLayerClick} />
-        <ActionButton label="Modifier" icon={Pencil} disabled={!primarySelectedLayer || selectedLayers.length !== 1} onClick={() => primarySelectedLayer && selectedLayers.length === 1 && onRenameLayer(primarySelectedLayer)} />
-        <ActionButton label="Supprimer" icon={Trash2} disabled={!canDeleteSelectedLayers} onClick={() => onDeleteLayers(selectedLayers)} />
-        <ActionButton label="Fusionner" icon={Merge} disabled={!canMergeSelectedLayers} onClick={() => onMergeLayers(selectedLayers)} />
-        <ActionButton label="Réordonner vers le haut" icon={ArrowUp} disabled={!canMoveSelectedLayerUp} onClick={() => onMoveLayers(selectedLayers, "up")} />
-        <ActionButton label="Réordonner vers le bas" icon={ArrowDown} disabled={!canMoveSelectedLayerDown} onClick={() => onMoveLayers(selectedLayers, "down")} />
+        <ActionButton
+          label="Modifier"
+          icon={Pencil}
+          disabled={!primarySelectedLayer || selectedLayers.length !== 1}
+          onClick={() =>
+            primarySelectedLayer &&
+            selectedLayers.length === 1 &&
+            onRenameLayer(primarySelectedLayer)
+          }
+        />
+        <ActionButton
+          label="Supprimer"
+          icon={Trash2}
+          disabled={!canDeleteSelectedLayers}
+          onClick={() => onDeleteLayers(selectedLayers)}
+        />
+        <ActionButton
+          label="Fusionner"
+          icon={Merge}
+          disabled={!canMergeSelectedLayers}
+          onClick={() => onMergeLayers(selectedLayers)}
+        />
+        <ActionButton
+          label="Réordonner vers le haut"
+          icon={ArrowUp}
+          disabled={!canMoveSelectedLayerUp}
+          onClick={() => onMoveLayers(selectedLayers, "up")}
+        />
+        <ActionButton
+          label="Réordonner vers le bas"
+          icon={ArrowDown}
+          disabled={!canMoveSelectedLayerDown}
+          onClick={() => onMoveLayers(selectedLayers, "down")}
+        />
       </div>
     </div>
   );
@@ -723,7 +971,12 @@ function LayerObjectTree({
         const collapsed = collapsedGroupIds.has(group.id);
         return (
           <div key={group.id} className="ef-layer-tree-group">
-            <button type="button" className="ef-layer-tree-group-row" onClick={() => toggleGroup(group.id)} title={group.label}>
+            <button
+              type="button"
+              className="ef-layer-tree-group-row"
+              onClick={() => toggleGroup(group.id)}
+              title={group.label}
+            >
               <span className="ef-layer-tree-object-branch" aria-hidden="true">
                 {collapsed ? "▸" : "▾"}
               </span>
@@ -733,7 +986,13 @@ function LayerObjectTree({
             </button>
             {collapsed
               ? null
-              : group.objects.map((object) => <LayerTreeObjectRow key={object.id} object={object} onSelectObject={onSelectObject} />)}
+              : group.objects.map((object) => (
+                  <LayerTreeObjectRow
+                    key={object.id}
+                    object={object}
+                    onSelectObject={onSelectObject}
+                  />
+                ))}
           </div>
         );
       })}
@@ -753,16 +1012,37 @@ function LayerTreeObjectRow({
   onSelectObject: (object: EditorObjectView) => void;
 }) {
   return (
-    <button type="button" className={["ef-layer-tree-object-row", object.selected ? "is-selected-object" : ""].join(" ")} title={object.name} onClick={() => onSelectObject(object)}>
+    <button
+      type="button"
+      className={["ef-layer-tree-object-row", object.selected ? "is-selected-object" : ""].join(
+        " ",
+      )}
+      title={object.name}
+      onClick={() => onSelectObject(object)}
+    >
       <span className="ef-layer-tree-object-branch" aria-hidden="true">
         ├
       </span>
       <strong>{object.name || object.type}</strong>
-      <span title={object.visible ? "Visible" : "Masqué"} aria-label={object.visible ? "Visible" : "Masqué"}>
-        {object.visible ? <IconGlyph icon={Eye} size={18} /> : <IconGlyph icon={EyeOff} size={18} />}
+      <span
+        title={object.visible ? "Visible" : "Masqué"}
+        aria-label={object.visible ? "Visible" : "Masqué"}
+      >
+        {object.visible ? (
+          <IconGlyph icon={Eye} size={18} />
+        ) : (
+          <IconGlyph icon={EyeOff} size={18} />
+        )}
       </span>
-      <span title={object.locked ? "Verrouillé" : "Déverrouillé"} aria-label={object.locked ? "Verrouillé" : "Déverrouillé"}>
-        {object.locked ? <IconGlyph icon={Lock} size={18} /> : <IconGlyph icon={LockOpen} size={18} />}
+      <span
+        title={object.locked ? "Verrouillé" : "Déverrouillé"}
+        aria-label={object.locked ? "Verrouillé" : "Déverrouillé"}
+      >
+        {object.locked ? (
+          <IconGlyph icon={Lock} size={18} />
+        ) : (
+          <IconGlyph icon={LockOpen} size={18} />
+        )}
       </span>
       <span>{readObjectGroupedState(object)}</span>
     </button>
@@ -777,12 +1057,26 @@ function LibraryPanel({
 }: {
   subTab: EditorLeftSubTab;
   filter: string;
-  onDragContext: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
+  onDragContext: (context: {
+    sessionId: string;
+    type: string;
+    sourcePanel?: string;
+    payload: unknown;
+  }) => void;
   onDragEnd: () => void;
 }) {
   const items = useMemo(() => buildLibraryItems(subTab), [subTab]);
   const rows = useMemo(
-    () => items.filter((item) => matchesFilter(item, filter, [item.label, item.description ?? "", item.kind, item.token ?? "", item.mappedPath ?? ""])),
+    () =>
+      items.filter((item) =>
+        matchesFilter(item, filter, [
+          item.label,
+          item.description ?? "",
+          item.kind,
+          item.token ?? "",
+          item.mappedPath ?? "",
+        ]),
+      ),
     [filter, items],
   );
 
@@ -794,7 +1088,12 @@ function LibraryPanel({
     return (
       <div className="ef-emoji-grid">
         {rows.map((item) => (
-          <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
+          <DraggableLibraryItem
+            key={item.id}
+            item={item}
+            onDragContext={onDragContext}
+            onDragEnd={onDragEnd}
+          />
         ))}
       </div>
     );
@@ -804,16 +1103,30 @@ function LibraryPanel({
     return (
       <div className="ef-text-block-grid">
         {rows.map((item) => (
-          <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
+          <DraggableLibraryItem
+            key={item.id}
+            item={item}
+            onDragContext={onDragContext}
+            onDragEnd={onDragEnd}
+          />
         ))}
       </div>
     );
   }
 
   return (
-    <div className={["ef-asset-grid", subTab === "icons" ? "ef-asset-grid-4" : "ef-asset-grid-3"].join(" ")}>
+    <div
+      className={["ef-asset-grid", subTab === "icons" ? "ef-asset-grid-4" : "ef-asset-grid-3"].join(
+        " ",
+      )}
+    >
       {rows.map((item) => (
-        <DraggableLibraryItem key={item.id} item={item} onDragContext={onDragContext} onDragEnd={onDragEnd} />
+        <DraggableLibraryItem
+          key={item.id}
+          item={item}
+          onDragContext={onDragContext}
+          onDragEnd={onDragEnd}
+        />
       ))}
     </div>
   );
@@ -837,7 +1150,12 @@ function DraggableLibraryItem({
   onDragEnd,
 }: {
   item: LibraryItem;
-  onDragContext: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
+  onDragContext: (context: {
+    sessionId: string;
+    type: string;
+    sourcePanel?: string;
+    payload: unknown;
+  }) => void;
   onDragEnd: () => void;
 }) {
   const context = createLibraryDragContext(item);
@@ -869,7 +1187,12 @@ function LibraryPreview({ item }: { item: LibraryItem }) {
     return <span aria-hidden="true">{item.glyph ?? "🙂"}</span>;
   }
 
-  if (item.kind === "text-block" || item.kind === "variable" || item.kind === "preset" || item.kind === "dynamic-preset") {
+  if (
+    item.kind === "text-block" ||
+    item.kind === "variable" ||
+    item.kind === "preset" ||
+    item.kind === "dynamic-preset"
+  ) {
     return (
       <span>
         {item.label}
@@ -896,7 +1219,12 @@ function resolveLibraryCardClass(item: LibraryItem) {
     return "ef-emoji-card";
   }
 
-  if (item.kind === "text-block" || item.kind === "variable" || item.kind === "preset" || item.kind === "dynamic-preset") {
+  if (
+    item.kind === "text-block" ||
+    item.kind === "variable" ||
+    item.kind === "preset" ||
+    item.kind === "dynamic-preset"
+  ) {
     return "ef-text-block-card";
   }
 
@@ -941,56 +1269,245 @@ function buildLibraryItems(subTab: EditorLeftSubTab): LibraryItem[] {
   switch (subTab) {
     case "variables":
       return [
-        libraryItem("variable-first-name", "[Prénom]", "Champ texte", "variable", createTextTokenPayload("[Prénom]", "candidate.firstName"), "#334155"),
-        libraryItem("variable-last-name", "[Nom]", "Champ texte", "variable", createTextTokenPayload("[Nom]", "candidate.lastName"), "#334155"),
-        libraryItem("variable-email", "[Email]", "Champ texte", "variable", createTextTokenPayload("[Email]", "candidate.email"), "#334155"),
-        libraryItem("variable-phone", "[Téléphone]", "Champ texte", "variable", createTextTokenPayload("[Téléphone]", "candidate.phone"), "#334155"),
+        libraryItem(
+          "variable-first-name",
+          "[Prénom]",
+          "Champ texte",
+          "variable",
+          createTextTokenPayload("[Prénom]", "candidate.firstName"),
+          "#334155",
+        ),
+        libraryItem(
+          "variable-last-name",
+          "[Nom]",
+          "Champ texte",
+          "variable",
+          createTextTokenPayload("[Nom]", "candidate.lastName"),
+          "#334155",
+        ),
+        libraryItem(
+          "variable-email",
+          "[Email]",
+          "Champ texte",
+          "variable",
+          createTextTokenPayload("[Email]", "candidate.email"),
+          "#334155",
+        ),
+        libraryItem(
+          "variable-phone",
+          "[Téléphone]",
+          "Champ texte",
+          "variable",
+          createTextTokenPayload("[Téléphone]", "candidate.phone"),
+          "#334155",
+        ),
       ];
     case "presets":
       return [
-        libraryItem("preset-experiences", "{EXPERIENCES}", "Bloc répété", "preset", createPresetPayload("Expériences", "EXPERIENCES", "candidate.experiences", 3), "#6c5cff"),
-        libraryItem("preset-formations", "{FORMATIONS}", "Bloc répété", "preset", createPresetPayload("Formations", "FORMATIONS", "candidate.education", 2), "#6c5cff"),
-        libraryItem("preset-langues", "{LANGUES}", "Bloc répété", "preset", createPresetPayload("Langues", "LANGUES", "candidate.languages", 3), "#6c5cff"),
-        libraryItem("preset-competences", "{COMPETENCES}", "Bloc répété", "preset", createPresetPayload("Compétences", "COMPETENCES", "candidate.skills", 4), "#6c5cff"),
+        libraryItem(
+          "preset-experiences",
+          "{EXPERIENCES}",
+          "Bloc répété",
+          "preset",
+          createPresetPayload("Expériences", "EXPERIENCES", "candidate.experiences", 3),
+          "#6c5cff",
+        ),
+        libraryItem(
+          "preset-formations",
+          "{FORMATIONS}",
+          "Bloc répété",
+          "preset",
+          createPresetPayload("Formations", "FORMATIONS", "candidate.education", 2),
+          "#6c5cff",
+        ),
+        libraryItem(
+          "preset-langues",
+          "{LANGUES}",
+          "Bloc répété",
+          "preset",
+          createPresetPayload("Langues", "LANGUES", "candidate.languages", 3),
+          "#6c5cff",
+        ),
+        libraryItem(
+          "preset-competences",
+          "{COMPETENCES}",
+          "Bloc répété",
+          "preset",
+          createPresetPayload("Compétences", "COMPETENCES", "candidate.skills", 4),
+          "#6c5cff",
+        ),
       ];
     case "images":
       return [
-        libraryItem("image-placeholder", "Image", "Actif image", "image", createImagePayload("Image", createLibraryPreviewSvg("Image", "#2563eb")), "#2563eb"),
-        libraryItem("image-portrait", "Portrait", "Actif image", "image", createImagePayload("Portrait", createLibraryPreviewSvg("Portrait", "#2563eb")), "#2563eb"),
-        libraryItem("image-logo", "Logo", "Actif image", "image", createImagePayload("Logo", createLibraryPreviewSvg("Logo", "#2563eb")), "#2563eb"),
+        libraryItem(
+          "image-placeholder",
+          "Image",
+          "Actif image",
+          "image",
+          createImagePayload("Image", createLibraryPreviewSvg("Image", "#2563eb")),
+          "#2563eb",
+        ),
+        libraryItem(
+          "image-portrait",
+          "Portrait",
+          "Actif image",
+          "image",
+          createImagePayload("Portrait", createLibraryPreviewSvg("Portrait", "#2563eb")),
+          "#2563eb",
+        ),
+        libraryItem(
+          "image-logo",
+          "Logo",
+          "Actif image",
+          "image",
+          createImagePayload("Logo", createLibraryPreviewSvg("Logo", "#2563eb")),
+          "#2563eb",
+        ),
       ];
     case "icons":
       return [
-        libraryItem("icon-mail", "Mail", "Icône", "icon", createIconPayload("Mail", createLibraryPreviewSvg("Mail", "#7c3aed")), "#7c3aed"),
-        libraryItem("icon-phone", "Phone", "Icône", "icon", createIconPayload("Phone", createLibraryPreviewSvg("Phone", "#7c3aed")), "#7c3aed"),
-        libraryItem("icon-link", "Link", "Icône", "icon", createIconPayload("Link", createLibraryPreviewSvg("Link", "#7c3aed")), "#7c3aed"),
+        libraryItem(
+          "icon-mail",
+          "Mail",
+          "Icône",
+          "icon",
+          createIconPayload("Mail", createLibraryPreviewSvg("Mail", "#7c3aed")),
+          "#7c3aed",
+        ),
+        libraryItem(
+          "icon-phone",
+          "Phone",
+          "Icône",
+          "icon",
+          createIconPayload("Phone", createLibraryPreviewSvg("Phone", "#7c3aed")),
+          "#7c3aed",
+        ),
+        libraryItem(
+          "icon-link",
+          "Link",
+          "Icône",
+          "icon",
+          createIconPayload("Link", createLibraryPreviewSvg("Link", "#7c3aed")),
+          "#7c3aed",
+        ),
       ];
     case "emoji":
       return [
-        libraryItem("emoji-spark", "✨", "Emoji", "emoji", createEmojiPayload("✨", "Spark"), "#ef4444"),
-        libraryItem("emoji-idea", "💡", "Emoji", "emoji", createEmojiPayload("💡", "Idea"), "#ef4444"),
-        libraryItem("emoji-graduation", "🎓", "Emoji", "emoji", createEmojiPayload("🎓", "Graduate"), "#ef4444"),
-        libraryItem("emoji-pin", "📍", "Emoji", "emoji", createEmojiPayload("📍", "Pin"), "#ef4444"),
+        libraryItem(
+          "emoji-spark",
+          "✨",
+          "Emoji",
+          "emoji",
+          createEmojiPayload("✨", "Spark"),
+          "#ef4444",
+        ),
+        libraryItem(
+          "emoji-idea",
+          "💡",
+          "Emoji",
+          "emoji",
+          createEmojiPayload("💡", "Idea"),
+          "#ef4444",
+        ),
+        libraryItem(
+          "emoji-graduation",
+          "🎓",
+          "Emoji",
+          "emoji",
+          createEmojiPayload("🎓", "Graduate"),
+          "#ef4444",
+        ),
+        libraryItem(
+          "emoji-pin",
+          "📍",
+          "Emoji",
+          "emoji",
+          createEmojiPayload("📍", "Pin"),
+          "#ef4444",
+        ),
       ];
     case "text-blocks":
       return [
-        libraryItem("text-contact", "Contact", "Bloc texte", "text-block", createTextBlockPayload("Contact", "Coordonnées et liens"), "#0f172a"),
-        libraryItem("text-experience", "Expérience", "Bloc texte", "text-block", createTextBlockPayload("Expérience", "Postes et missions"), "#0f172a"),
-        libraryItem("text-education", "Formation", "Bloc texte", "text-block", createTextBlockPayload("Formation", "Diplômes et écoles"), "#0f172a"),
-        libraryItem("text-skills", "Compétences", "Bloc texte", "text-block", createTextBlockPayload("Compétences", "Niveaux et outils"), "#0f172a"),
+        libraryItem(
+          "text-contact",
+          "Contact",
+          "Bloc texte",
+          "text-block",
+          createTextBlockPayload("Contact", "Coordonnées et liens"),
+          "#0f172a",
+        ),
+        libraryItem(
+          "text-experience",
+          "Expérience",
+          "Bloc texte",
+          "text-block",
+          createTextBlockPayload("Expérience", "Postes et missions"),
+          "#0f172a",
+        ),
+        libraryItem(
+          "text-education",
+          "Formation",
+          "Bloc texte",
+          "text-block",
+          createTextBlockPayload("Formation", "Diplômes et écoles"),
+          "#0f172a",
+        ),
+        libraryItem(
+          "text-skills",
+          "Compétences",
+          "Bloc texte",
+          "text-block",
+          createTextBlockPayload("Compétences", "Niveaux et outils"),
+          "#0f172a",
+        ),
       ];
     case "charts-shapes":
     default:
       return [
-        libraryItem("shape-rect", "Rectangle", "Forme", "shape", createShapePayload("Rectangle", "rect", createLibraryPreviewSvg("Rectangle", "#0f172a")), "#0f172a"),
-        libraryItem("shape-circle", "Cercle", "Forme", "shape", createShapePayload("Cercle", "circle", createLibraryPreviewSvg("Cercle", "#0f172a")), "#0f172a"),
-        libraryItem("shape-line", "Ligne", "Forme", "shape", createShapePayload("Ligne", "line", createLibraryPreviewSvg("Ligne", "#0f172a")), "#0f172a"),
-        libraryItem("shape-arc", "Arc", "Forme", "shape", createShapePayload("Arc", "arc", createLibraryPreviewSvg("Arc", "#0f172a")), "#0f172a"),
+        libraryItem(
+          "shape-rect",
+          "Rectangle",
+          "Forme",
+          "shape",
+          createShapePayload("Rectangle", "rect", createLibraryPreviewSvg("Rectangle", "#0f172a")),
+          "#0f172a",
+        ),
+        libraryItem(
+          "shape-circle",
+          "Cercle",
+          "Forme",
+          "shape",
+          createShapePayload("Cercle", "circle", createLibraryPreviewSvg("Cercle", "#0f172a")),
+          "#0f172a",
+        ),
+        libraryItem(
+          "shape-line",
+          "Ligne",
+          "Forme",
+          "shape",
+          createShapePayload("Ligne", "line", createLibraryPreviewSvg("Ligne", "#0f172a")),
+          "#0f172a",
+        ),
+        libraryItem(
+          "shape-arc",
+          "Arc",
+          "Forme",
+          "shape",
+          createShapePayload("Arc", "arc", createLibraryPreviewSvg("Arc", "#0f172a")),
+          "#0f172a",
+        ),
       ];
   }
 }
 
-function libraryItem(id: string, label: string, description: string, kind: LibraryItem["kind"], payload: Record<string, unknown>, accent: string): LibraryItem {
+function libraryItem(
+  id: string,
+  label: string,
+  description: string,
+  kind: LibraryItem["kind"],
+  payload: Record<string, unknown>,
+  accent: string,
+): LibraryItem {
   const envelope: CanvasCreationEnvelope = (() => {
     switch (kind) {
       case "variable":
@@ -1019,7 +1536,9 @@ function libraryItem(id: string, label: string, description: string, kind: Libra
     preview: createLibraryPreviewSvg(label, accent),
     envelope,
     ...("token" in payload && typeof payload.token === "string" ? { token: payload.token } : {}),
-    ...("mappedPath" in payload && typeof payload.mappedPath === "string" ? { mappedPath: payload.mappedPath } : {}),
+    ...("mappedPath" in payload && typeof payload.mappedPath === "string"
+      ? { mappedPath: payload.mappedPath }
+      : {}),
   };
 }
 
@@ -1032,7 +1551,12 @@ function createTextTokenPayload(label: string, token: string) {
   };
 }
 
-function createPresetPayload(label: string, presetType: string, mappedPath: string, sampleItemsCount: number) {
+function createPresetPayload(
+  label: string,
+  presetType: string,
+  mappedPath: string,
+  sampleItemsCount: number,
+) {
   return {
     label,
     token: `{${presetType}}`,

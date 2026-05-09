@@ -2,17 +2,32 @@
 
 /* eslint-disable react-hooks/incompatible-library */
 
-import { useMemo, useRef, type ChangeEvent, type DragEvent, type MouseEvent } from "react";
-import { ChevronLeft, Database, FileSpreadsheet, Plus, RefreshCw, Upload, Trash2 } from "lucide-react";
-import { createColumnHelper, flexRender, getCoreRowModel, useReactTable, type Row, type Table } from "@tanstack/react-table";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  type Row,
+  type Table,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  ChevronLeft,
+  Database,
+  FileSpreadsheet,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
+import { type ChangeEvent, type DragEvent, type MouseEvent, useMemo, useRef } from "react";
 
 import { Button } from "@/components/ui/button";
-import { parseCsvText, formatCsvCellPreview } from "@/features/data-mapping/lib/csv";
+import { formatCsvCellPreview, parseCsvText } from "@/features/data-mapping/lib/csv";
 import {
   applyVariableDragPayload,
-  buildVariableDragOperationLog,
   buildVariableDragEnvelope,
+  buildVariableDragOperationLog,
   createVariableDragContext,
   requestRichTextVariableInsert,
   scheduleVariableDragTraceClear,
@@ -97,7 +112,9 @@ export function VariablesScreen() {
             className="ef-inline-select"
             value={getValue() ?? ""}
             aria-label={`Colonne CSV ${row.original.label}`}
-            onChange={(event) => updateVariable(row.original.id, { sourceColumn: event.target.value || null })}
+            onChange={(event) =>
+              updateVariable(row.original.id, { sourceColumn: event.target.value || null })
+            }
           >
             <option value="">Aucune</option>
             {source?.columns.map((column) => (
@@ -115,7 +132,11 @@ export function VariablesScreen() {
             className="ef-inline-select"
             value={getValue()}
             aria-label={`Type ${row.original.label}`}
-            onChange={(event) => updateVariable(row.original.id, { type: event.target.value as MappingVariable["type"] })}
+            onChange={(event) =>
+              updateVariable(row.original.id, {
+                type: event.target.value as MappingVariable["type"],
+              })
+            }
           >
             <option value="text">Texte</option>
             <option value="number">Nombre</option>
@@ -161,7 +182,9 @@ export function VariablesScreen() {
       id: column,
       accessorKey: column,
       header: column,
-      cell: (info: { getValue: () => unknown }) => <span>{formatCsvCellPreview(String(info.getValue() ?? ""))}</span>,
+      cell: (info: { getValue: () => unknown }) => (
+        <span>{formatCsvCellPreview(String(info.getValue() ?? ""))}</span>
+      ),
     })),
     getCoreRowModel: getCoreRowModel(),
   });
@@ -205,7 +228,12 @@ export function VariablesScreen() {
             <Plus size={14} aria-hidden="true" />
             Ajouter variable
           </Button>
-          <Button type="button" variant="ghost" onClick={() => clearSource()} disabled={!source && variables.length === 0}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => clearSource()}
+            disabled={!source && variables.length === 0}
+          >
             <RefreshCw size={14} aria-hidden="true" />
             Réinitialiser
           </Button>
@@ -221,7 +249,13 @@ export function VariablesScreen() {
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="sr-only" onChange={handleCsvPick} />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="sr-only"
+        onChange={handleCsvPick}
+      />
 
       <div className="ef-variables-grid">
         <article className="ef-card ef-variables-card">
@@ -230,7 +264,15 @@ export function VariablesScreen() {
               <Database size={15} aria-hidden="true" />
               <h2 className="ef-variables-card-title">Source CSV</h2>
             </div>
-            {source ? <span className="ef-badge">{source.delimiter === ";" ? "Point-virgule" : source.delimiter === "\t" ? "Tabulation" : "CSV"}</span> : null}
+            {source ? (
+              <span className="ef-badge">
+                {source.delimiter === ";"
+                  ? "Point-virgule"
+                  : source.delimiter === "\t"
+                    ? "Tabulation"
+                    : "CSV"}
+              </span>
+            ) : null}
           </div>
           <div className="ef-variables-card-body">
             {source ? (
@@ -242,7 +284,12 @@ export function VariablesScreen() {
                       {source.columnCount} colonnes · {source.rowCount} lignes
                     </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
                     Remplacer
                   </Button>
                 </div>
@@ -256,9 +303,22 @@ export function VariablesScreen() {
                 </div>
               </>
             ) : (
-              <div className="ef-no-result" style={{ minHeight: 174, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-                <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Aucun fichier CSV chargé</strong>
-                <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Importez un CSV pour générer automatiquement les variables.</span>
+              <div
+                className="ef-no-result"
+                style={{
+                  minHeight: 174,
+                  flexDirection: "column",
+                  gap: 6,
+                  padding: 16,
+                  textAlign: "center",
+                }}
+              >
+                <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>
+                  Aucun fichier CSV chargé
+                </strong>
+                <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+                  Importez un CSV pour générer automatiquement les variables.
+                </span>
               </div>
             )}
           </div>
@@ -278,10 +338,14 @@ export function VariablesScreen() {
               <TableGrid
                 table={variableTable}
                 columnsTemplate="72px minmax(120px, 1.05fr) minmax(130px, 1.05fr) minmax(150px, 1fr) 110px minmax(120px, 0.8fr) 36px"
-                rowClassName={(row) => (row.original.id === selectedVariableId ? "is-selected" : "")}
+                rowClassName={(row) =>
+                  row.original.id === selectedVariableId ? "is-selected" : ""
+                }
                 onRowClick={(row) => selectVariable(row.original.id)}
                 onRowDoubleClick={(row, event) => {
-                  if ((event.target as HTMLElement | null)?.closest("input, select, textarea, button")) {
+                  if (
+                    (event.target as HTMLElement | null)?.closest("input, select, textarea, button")
+                  ) {
                     return;
                   }
 
@@ -313,9 +377,22 @@ export function VariablesScreen() {
               />
             </div>
           ) : (
-            <div className="ef-no-result" style={{ minHeight: 220, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-              <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Variables vides</strong>
-              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>Importez un CSV ou créez une variable personnalisée.</span>
+            <div
+              className="ef-no-result"
+              style={{
+                minHeight: 220,
+                flexDirection: "column",
+                gap: 6,
+                padding: 16,
+                textAlign: "center",
+              }}
+            >
+              <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>
+                Variables vides
+              </strong>
+              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+                Importez un CSV ou créez une variable personnalisée.
+              </span>
             </div>
           )}
         </article>
@@ -338,9 +415,22 @@ export function VariablesScreen() {
               />
             </div>
           ) : (
-            <div className="ef-no-result" style={{ minHeight: 160, flexDirection: "column", gap: 6, padding: 16, textAlign: "center" }}>
-              <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>Aucun aperçu</strong>
-              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>La table d’aperçu apparaît après import du fichier.</span>
+            <div
+              className="ef-no-result"
+              style={{
+                minHeight: 160,
+                flexDirection: "column",
+                gap: 6,
+                padding: 16,
+                textAlign: "center",
+              }}
+            >
+              <strong style={{ color: "var(--editor-text-on-dark)", fontSize: 12 }}>
+                Aucun aperçu
+              </strong>
+              <span style={{ fontSize: 10, lineHeight: 1.2, color: "#8b8b92" }}>
+                La table d’aperçu apparaît après import du fichier.
+              </span>
             </div>
           )}
         </article>
@@ -365,9 +455,21 @@ function TableGrid<T>({
   rowClassName?: (row: Row<T>) => string;
   onRowClick?: (row: Row<T>) => void;
   onRowDoubleClick?: (row: Row<T>, event: MouseEvent<HTMLDivElement>) => void;
-  rowDragContext?: (row: Row<T>) => { sessionId: string; type: string; sourcePanel?: string; payload: unknown } | null;
-  onRowDragStart?: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
-  onRowDragEnd?: (context: { sessionId: string; type: string; sourcePanel?: string; payload: unknown }) => void;
+  rowDragContext?: (
+    row: Row<T>,
+  ) => { sessionId: string; type: string; sourcePanel?: string; payload: unknown } | null;
+  onRowDragStart?: (context: {
+    sessionId: string;
+    type: string;
+    sourcePanel?: string;
+    payload: unknown;
+  }) => void;
+  onRowDragEnd?: (context: {
+    sessionId: string;
+    type: string;
+    sourcePanel?: string;
+    payload: unknown;
+  }) => void;
   dense?: boolean;
 }) {
   const headerGroups = table.getHeaderGroups();
@@ -381,21 +483,33 @@ function TableGrid<T>({
 
   return (
     <div className="ef-variables-table" role="table" aria-label="Table">
-      <div className="ef-table-head ef-variables-grid-head" style={{ gridTemplateColumns: columnsTemplate, ...(dense ? { position: "sticky", top: 0, zIndex: 2 } : null) }}>
+      <div
+        className="ef-table-head ef-variables-grid-head"
+        style={{
+          gridTemplateColumns: columnsTemplate,
+          ...(dense ? { position: "sticky", top: 0, zIndex: 2 } : null),
+        }}
+      >
         {headerGroups[0]?.headers.map((header) => (
           <div key={header.id} className="ef-table-head-cell">
-            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+            {header.isPlaceholder
+              ? null
+              : flexRender(header.column.columnDef.header, header.getContext())}
           </div>
         ))}
       </div>
       <div className="ef-variables-table-body">
         {rows.map((row) => {
           const rowProps = {
-            className: ["ef-table-row ef-variables-grid-row", rowClassName?.(row) ?? ""].join(" ").trim(),
+            className: ["ef-table-row ef-variables-grid-row", rowClassName?.(row) ?? ""]
+              .join(" ")
+              .trim(),
             style: { gridTemplateColumns: columnsTemplate },
             role: "row",
             onClick: onRowClick ? () => onRowClick(row) : undefined,
-            onDoubleClick: onRowDoubleClick ? (event: MouseEvent<HTMLDivElement>) => onRowDoubleClick(row, event) : undefined,
+            onDoubleClick: onRowDoubleClick
+              ? (event: MouseEvent<HTMLDivElement>) => onRowDoubleClick(row, event)
+              : undefined,
             draggable: rowDragContext ? true : undefined,
             onDragStart: rowDragContext
               ? (event: DragEvent<HTMLDivElement>) => {

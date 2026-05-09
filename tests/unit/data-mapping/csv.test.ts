@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { createCsvSource, createVariablesFromCsvSource, inferVariableType, parseCsvText, slugifyVariableKey } from "@/features/data-mapping/lib/csv";
+import {
+  createCsvSource,
+  createVariablesFromCsvSource,
+  inferVariableType,
+  parseCsvText,
+  slugifyVariableKey,
+} from "@/features/data-mapping/lib/csv";
 
 describe("data mapping CSV helpers", () => {
   it("parses a CSV file with delimiter detection and typed variables", () => {

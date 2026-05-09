@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
-import type { ImageEditingState, ImageMaskBounds, ImageMaskResizeHandle } from "./image-editor-types";
+import type {
+  ImageEditingState,
+  ImageMaskBounds,
+  ImageMaskResizeHandle,
+} from "./image-editor-types";
 import { moveImageMaskBounds, resizeImageMaskBounds } from "./image-editor-utils";
 
 type ImageMaskManipulatorProps = {
@@ -21,9 +32,21 @@ type MaskInteraction = {
 
 const handles: Array<{ id: ImageMaskResizeHandle; className: string; title: string }> = [
   { id: "top-left", className: "is-top-left", title: "Redimensionner le masque en haut à gauche" },
-  { id: "top-right", className: "is-top-right", title: "Redimensionner le masque en haut à droite" },
-  { id: "bottom-left", className: "is-bottom-left", title: "Redimensionner le masque en bas à gauche" },
-  { id: "bottom-right", className: "is-bottom-right", title: "Redimensionner le masque en bas à droite" },
+  {
+    id: "top-right",
+    className: "is-top-right",
+    title: "Redimensionner le masque en haut à droite",
+  },
+  {
+    id: "bottom-left",
+    className: "is-bottom-left",
+    title: "Redimensionner le masque en bas à gauche",
+  },
+  {
+    id: "bottom-right",
+    className: "is-bottom-right",
+    title: "Redimensionner le masque en bas à droite",
+  },
 ];
 
 export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulatorProps) {
@@ -38,7 +61,12 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
       width: `${editing.mask.bounds.width * 100}%`,
       height: `${editing.mask.bounds.height * 100}%`,
     }),
-    [editing.mask.bounds.height, editing.mask.bounds.width, editing.mask.bounds.x, editing.mask.bounds.y],
+    [
+      editing.mask.bounds.height,
+      editing.mask.bounds.width,
+      editing.mask.bounds.x,
+      editing.mask.bounds.y,
+    ],
   );
 
   useEffect(() => {
@@ -58,7 +86,13 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
       const nextBounds =
         interaction.kind === "move"
           ? moveImageMaskBounds(interaction.startBounds, deltaX, deltaY)
-          : resizeImageMaskBounds(interaction.startBounds, interaction.handle ?? "bottom-right", deltaX, deltaY, editing.mask.type);
+          : resizeImageMaskBounds(
+              interaction.startBounds,
+              interaction.handle ?? "bottom-right",
+              deltaX,
+              deltaY,
+              editing.mask.type,
+            );
 
       onChange(nextBounds);
     };
@@ -117,7 +151,10 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const startResize = (handle: ImageMaskResizeHandle, event: ReactPointerEvent<HTMLButtonElement>) => {
+  const startResize = (
+    handle: ImageMaskResizeHandle,
+    event: ReactPointerEvent<HTMLButtonElement>,
+  ) => {
     if (!event.isPrimary || event.button !== 0) {
       return;
     }
@@ -166,7 +203,10 @@ export function ImageMaskManipulator({ editing, onChange }: ImageMaskManipulator
     onChange(nextBounds);
   };
 
-  const handleResizeKeyDown = (handle: ImageMaskResizeHandle, event: ReactKeyboardEvent<HTMLButtonElement>) => {
+  const handleResizeKeyDown = (
+    handle: ImageMaskResizeHandle,
+    event: ReactKeyboardEvent<HTMLButtonElement>,
+  ) => {
     const step = event.shiftKey ? 0.05 : 0.01;
     let deltaX = 0;
     let deltaY = 0;

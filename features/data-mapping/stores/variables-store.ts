@@ -4,8 +4,17 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { createCsvSource, createVariablesFromCsvSource, type ParsedCsv } from "@/features/data-mapping/lib/csv";
-import type { CsvRow, CsvSource, MappingVariable, VariableType } from "@/features/data-mapping/types";
+import {
+  createCsvSource,
+  createVariablesFromCsvSource,
+  type ParsedCsv,
+} from "@/features/data-mapping/lib/csv";
+import type {
+  CsvRow,
+  CsvSource,
+  MappingVariable,
+  VariableType,
+} from "@/features/data-mapping/types";
 
 export type VariablesStoreState = {
   source: CsvSource | null;
@@ -16,10 +25,16 @@ export type VariablesStoreState = {
   selectVariable: (id: string | null) => void;
   addVariable: () => void;
   removeVariable: (id: string) => void;
-  updateVariable: (id: string, patch: Partial<Pick<MappingVariable, "key" | "label" | "sourceColumn" | "type" | "enabled">>) => void;
+  updateVariable: (
+    id: string,
+    patch: Partial<Pick<MappingVariable, "key" | "label" | "sourceColumn" | "type" | "enabled">>,
+  ) => void;
 };
 
-type PersistedVariablesState = Pick<VariablesStoreState, "source" | "variables" | "selectedVariableId">;
+type PersistedVariablesState = Pick<
+  VariablesStoreState,
+  "source" | "variables" | "selectedVariableId"
+>;
 
 const emptyState: PersistedVariablesState = {
   source: null,
@@ -76,7 +91,10 @@ export const useVariablesStore = create<VariablesStoreState>()(
           }
 
           const nextVariables = state.variables.filter((variable) => variable.id !== id);
-          const nextSelectedId = state.selectedVariableId === id ? nextVariables[index]?.id ?? nextVariables[index - 1]?.id ?? null : state.selectedVariableId;
+          const nextSelectedId =
+            state.selectedVariableId === id
+              ? (nextVariables[index]?.id ?? nextVariables[index - 1]?.id ?? null)
+              : state.selectedVariableId;
           return {
             variables: nextVariables,
             selectedVariableId: nextSelectedId,
@@ -90,7 +108,8 @@ export const useVariablesStore = create<VariablesStoreState>()(
               return variable;
             }
 
-            const sourceColumn = patch.sourceColumn !== undefined ? patch.sourceColumn : variable.sourceColumn;
+            const sourceColumn =
+              patch.sourceColumn !== undefined ? patch.sourceColumn : variable.sourceColumn;
             const sampleValue = resolveVariableSampleValue(source, sourceColumn);
             return {
               ...variable,
@@ -122,8 +141,9 @@ function resolveVariableSampleValue(source: CsvSource | null, sourceColumn: stri
     return "";
   }
 
-  const sample = source.rows.find((row) => (row[sourceColumn] ?? "").trim().length > 0)?.[sourceColumn] ?? "";
+  const sample =
+    source.rows.find((row) => (row[sourceColumn] ?? "").trim().length > 0)?.[sourceColumn] ?? "";
   return sample.trim();
 }
 
-export type { CsvRow, VariableType, MappingVariable };
+export type { CsvRow, MappingVariable, VariableType };

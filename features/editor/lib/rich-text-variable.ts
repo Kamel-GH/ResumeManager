@@ -1,7 +1,14 @@
 "use client";
 
-import { generateHTML, generateJSON, mergeAttributes, Node, nodeInputRule, nodePasteRule, type JSONContent } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import {
+  generateHTML,
+  generateJSON,
+  type JSONContent,
+  mergeAttributes,
+  Node,
+  nodeInputRule,
+  nodePasteRule,
+} from "@tiptap/core";
 import { Table } from "@tiptap/extension-table";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
@@ -9,8 +16,7 @@ import TableRow from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
-
-import type { MappingVariable } from "@/features/data-mapping/types";
+import StarterKit from "@tiptap/starter-kit";
 import {
   resolveVariableDisplayKind,
   resolveVariableDisplayLabel,
@@ -18,6 +24,7 @@ import {
   resolveVariableValue,
   type VariableDisplayKind,
 } from "@/features/data-mapping/lib/variable-display";
+import type { MappingVariable } from "@/features/data-mapping/types";
 
 export type RichTextVariableDisplayMode = "label" | "technical" | "value";
 
@@ -76,7 +83,9 @@ const EMPTY_VARIABLE_REGISTRY: RichTextVariableRegistry = {
   byToken: new Map(),
 };
 
-export function createRichTextVariableRegistry(variables: MappingVariable[]): RichTextVariableRegistry {
+export function createRichTextVariableRegistry(
+  variables: MappingVariable[],
+): RichTextVariableRegistry {
   const entries = variables
     .filter((variable) => variable.enabled)
     .map((variable) => {
@@ -101,12 +110,22 @@ export function createRichTextVariableRegistry(variables: MappingVariable[]): Ri
     entries,
     byKey: new Map(entries.map((entry) => [normalizeRegistryKey(entry.key), entry] as const)),
     byLabel: new Map(entries.map((entry) => [normalizeRegistryKey(entry.label), entry] as const)),
-    byToken: new Map(entries.flatMap((entry) => [[`{{${normalizeRegistryKey(entry.key)}}}`, entry] as const, [`[${normalizeRegistryKey(entry.label)}]`, entry] as const])),
+    byToken: new Map(
+      entries.flatMap((entry) => [
+        [`{{${normalizeRegistryKey(entry.key)}}}`, entry] as const,
+        [`[${normalizeRegistryKey(entry.label)}]`, entry] as const,
+      ]),
+    ),
   };
 }
 
-export function buildRichTextVariableNodeAttrsFromSource(source: RichTextVariableSource, registry?: RichTextVariableRegistry | null): RichTextVariableNodeAttrs | null {
-  const mappedPath = normalizeVariableKey(asString(source.mappedPath) ?? asString(source.key) ?? "");
+export function buildRichTextVariableNodeAttrsFromSource(
+  source: RichTextVariableSource,
+  registry?: RichTextVariableRegistry | null,
+): RichTextVariableNodeAttrs | null {
+  const mappedPath = normalizeVariableKey(
+    asString(source.mappedPath) ?? asString(source.key) ?? "",
+  );
   const token = asString(source.token) ?? "";
   const labelCandidate = normalizeBracketedLabel(asString(source.label) ?? token);
   const registryEntry = resolveRichTextVariableRegistryEntry(source, registry);
@@ -136,10 +155,15 @@ export function buildRichTextVariableNodeAttrsFromSource(source: RichTextVariabl
   };
 }
 
-export function resolveRichTextVariableValue(attrs: Pick<RichTextVariableNodeAttrs, "key" | "fallback" | "label">, mode: RichTextVariableDisplayMode, dataset?: unknown) {
+export function resolveRichTextVariableValue(
+  attrs: Pick<RichTextVariableNodeAttrs, "key" | "fallback" | "label">,
+  mode: RichTextVariableDisplayMode,
+  dataset?: unknown,
+) {
   const safeKey = attrs.key?.trim() || "variable";
   const safeFallback = attrs.fallback?.trim() || attrs.label?.trim() || safeKey;
-  const safeLabel = normalizeBracketedLabel(attrs.label || safeFallback || safeKey) || safeFallback || safeKey;
+  const safeLabel =
+    normalizeBracketedLabel(attrs.label || safeFallback || safeKey) || safeFallback || safeKey;
 
   if (mode === "technical") {
     return `{{${safeKey}}}`;
@@ -153,7 +177,10 @@ export function resolveRichTextVariableValue(attrs: Pick<RichTextVariableNodeAtt
   return safeLabel ? `[${safeLabel}]` : `[${safeFallback}]`;
 }
 
-export function normalizeRichTextVariableHtml(html: string, registry?: RichTextVariableRegistry | null) {
+export function normalizeRichTextVariableHtml(
+  html: string,
+  registry?: RichTextVariableRegistry | null,
+) {
   const baseHtml = html.trim().length > 0 ? html : "<p></p>";
   const resolvedRegistry = registry ?? EMPTY_VARIABLE_REGISTRY;
 
@@ -167,13 +194,18 @@ export function normalizeRichTextVariableHtml(html: string, registry?: RichTextV
   return doc.body.innerHTML.trim().length > 0 ? doc.body.innerHTML : baseHtml;
 }
 
-export function normalizeRichTextJsonWithVariables(content: JSONContent, registry?: RichTextVariableRegistry | null): JSONContent {
+export function normalizeRichTextJsonWithVariables(
+  content: JSONContent,
+  registry?: RichTextVariableRegistry | null,
+): JSONContent {
   if (!content || typeof content !== "object") {
     return content;
   }
 
   const resolvedRegistry = registry ?? EMPTY_VARIABLE_REGISTRY;
-  const nextContent = Array.isArray(content.content) ? content.content.flatMap((child) => normalizeRichTextJsonNode(child, resolvedRegistry)) : undefined;
+  const nextContent = Array.isArray(content.content)
+    ? content.content.flatMap((child) => normalizeRichTextJsonNode(child, resolvedRegistry))
+    : undefined;
 
   return {
     ...content,
@@ -181,13 +213,19 @@ export function normalizeRichTextJsonWithVariables(content: JSONContent, registr
   };
 }
 
-export function parseRichTextHtmlToJson(html: string, registry?: RichTextVariableRegistry | null): JSONContent {
+export function parseRichTextHtmlToJson(
+  html: string,
+  registry?: RichTextVariableRegistry | null,
+): JSONContent {
   const normalizedHtml = normalizeRichTextVariableHtml(html, registry);
   if (typeof DOMParser === "undefined" || typeof document === "undefined") {
     return fallbackParseRichTextHtmlToJson(normalizedHtml, registry ?? EMPTY_VARIABLE_REGISTRY);
   }
 
-  const json = generateJSON(normalizedHtml, buildRichTextBaseExtensions("label", registry ?? EMPTY_VARIABLE_REGISTRY));
+  const json = generateJSON(
+    normalizedHtml,
+    buildRichTextBaseExtensions("label", registry ?? EMPTY_VARIABLE_REGISTRY),
+  );
   return normalizeRichTextJsonWithVariables(json, registry);
 }
 
@@ -210,7 +248,10 @@ export function serializeRichTextJsonToHtml(
     });
   }
 
-  return generateHTML(normalized, buildRichTextBaseExtensions(displayMode, registry, options?.dataset));
+  return generateHTML(
+    normalized,
+    buildRichTextBaseExtensions(displayMode, registry, options?.dataset),
+  );
 }
 
 export function createRichTextBaseExtensions(
@@ -221,7 +262,11 @@ export function createRichTextBaseExtensions(
   return buildRichTextBaseExtensions(displayMode, registry, dataset);
 }
 
-export function createRichTextVariableNodeViewHtml(attrs: RichTextVariableNodeAttrs, displayMode: RichTextVariableDisplayMode = "label", dataset?: unknown) {
+export function createRichTextVariableNodeViewHtml(
+  attrs: RichTextVariableNodeAttrs,
+  displayMode: RichTextVariableDisplayMode = "label",
+  dataset?: unknown,
+) {
   return {
     "data-variable": "true",
     "data-variable-id": attrs.id,
@@ -230,16 +275,17 @@ export function createRichTextVariableNodeViewHtml(attrs: RichTextVariableNodeAt
     "data-variable-fallback": attrs.fallback,
     "data-variable-source": attrs.source,
     "data-variable-display-mode": displayMode,
-    class: [
-      "ef-rich-text-variable-node",
-      `is-${displayMode}`,
-    ].join(" "),
+    class: ["ef-rich-text-variable-node", `is-${displayMode}`].join(" "),
     "data-type": "variable",
     text: resolveRichTextVariableValue(attrs, displayMode, dataset),
   };
 }
 
-export function buildRichTextVariableSpanMarkup(attrs: RichTextVariableNodeAttrs, displayMode: RichTextVariableDisplayMode = "label", dataset?: unknown) {
+export function buildRichTextVariableSpanMarkup(
+  attrs: RichTextVariableNodeAttrs,
+  displayMode: RichTextVariableDisplayMode = "label",
+  dataset?: unknown,
+) {
   const text = escapeHtml(resolveRichTextVariableValue(attrs, displayMode, dataset));
   const inlineStyle = buildVariableInlineStyle(attrs);
   const styleAttr = inlineStyle ? ` style="${escapeHtml(inlineStyle)}"` : "";
@@ -255,7 +301,10 @@ export function buildRichTextVariableSpanMarkup(attrs: RichTextVariableNodeAttrs
   return `<span data-variable="true" data-variable-id="${escapeHtml(attrs.id)}" data-variable-key="${escapeHtml(attrs.key)}" data-variable-label="${escapeHtml(attrs.label)}" data-variable-fallback="${escapeHtml(attrs.fallback)}" data-variable-source="${escapeHtml(attrs.source)}" data-variable-display-mode="${displayMode}"${dataVAttrs}${styleAttr} class="ef-rich-text-variable-node is-${displayMode}">${text}</span>`;
 }
 
-export function resolveRichTextVariableNodeAttrsFromPayload(payload: RichTextVariableSource, registry?: RichTextVariableRegistry | null): RichTextVariableNodeAttrs | null {
+export function resolveRichTextVariableNodeAttrsFromPayload(
+  payload: RichTextVariableSource,
+  registry?: RichTextVariableRegistry | null,
+): RichTextVariableNodeAttrs | null {
   return buildRichTextVariableNodeAttrsFromSource(payload, registry);
 }
 
@@ -282,13 +331,28 @@ export const RichTextVariableNode = Node.create({
       label: { default: null },
       fallback: { default: null },
       source: { default: null },
-      bold: { default: null, parseHTML: (el) => el.getAttribute("data-v-bold") === "true" ? true : null },
-      italic: { default: null, parseHTML: (el) => el.getAttribute("data-v-italic") === "true" ? true : null },
-      underline: { default: null, parseHTML: (el) => el.getAttribute("data-v-underline") === "true" ? true : null },
-      strike: { default: null, parseHTML: (el) => el.getAttribute("data-v-strike") === "true" ? true : null },
+      bold: {
+        default: null,
+        parseHTML: (el) => (el.getAttribute("data-v-bold") === "true" ? true : null),
+      },
+      italic: {
+        default: null,
+        parseHTML: (el) => (el.getAttribute("data-v-italic") === "true" ? true : null),
+      },
+      underline: {
+        default: null,
+        parseHTML: (el) => (el.getAttribute("data-v-underline") === "true" ? true : null),
+      },
+      strike: {
+        default: null,
+        parseHTML: (el) => (el.getAttribute("data-v-strike") === "true" ? true : null),
+      },
       color: { default: null, parseHTML: (el) => el.getAttribute("data-v-color") || null },
       fontSize: { default: null, parseHTML: (el) => el.getAttribute("data-v-font-size") || null },
-      fontFamily: { default: null, parseHTML: (el) => el.getAttribute("data-v-font-family") || null },
+      fontFamily: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-v-font-family") || null,
+      },
     };
   },
 
@@ -321,26 +385,24 @@ export const RichTextVariableNode = Node.create({
 
     return [
       "span",
-      mergeAttributes(
-        {
-          "data-variable": "true",
-          "data-variable-id": normalizedAttrs.id,
-          "data-variable-key": normalizedAttrs.key,
-          "data-variable-label": normalizedAttrs.label,
-          "data-variable-fallback": normalizedAttrs.fallback,
-          "data-variable-source": normalizedAttrs.source,
-          "data-variable-display-mode": displayMode,
-          class: `ef-rich-text-variable-node is-${displayMode}`,
-          ...(inlineStyle ? { style: inlineStyle } : {}),
-          ...(normalizedAttrs.bold ? { "data-v-bold": "true" } : {}),
-          ...(normalizedAttrs.italic ? { "data-v-italic": "true" } : {}),
-          ...(normalizedAttrs.underline ? { "data-v-underline": "true" } : {}),
-          ...(normalizedAttrs.strike ? { "data-v-strike": "true" } : {}),
-          ...(normalizedAttrs.color ? { "data-v-color": normalizedAttrs.color } : {}),
-          ...(normalizedAttrs.fontSize ? { "data-v-font-size": normalizedAttrs.fontSize } : {}),
-          ...(normalizedAttrs.fontFamily ? { "data-v-font-family": normalizedAttrs.fontFamily } : {}),
-        },
-      ),
+      mergeAttributes({
+        "data-variable": "true",
+        "data-variable-id": normalizedAttrs.id,
+        "data-variable-key": normalizedAttrs.key,
+        "data-variable-label": normalizedAttrs.label,
+        "data-variable-fallback": normalizedAttrs.fallback,
+        "data-variable-source": normalizedAttrs.source,
+        "data-variable-display-mode": displayMode,
+        class: `ef-rich-text-variable-node is-${displayMode}`,
+        ...(inlineStyle ? { style: inlineStyle } : {}),
+        ...(normalizedAttrs.bold ? { "data-v-bold": "true" } : {}),
+        ...(normalizedAttrs.italic ? { "data-v-italic": "true" } : {}),
+        ...(normalizedAttrs.underline ? { "data-v-underline": "true" } : {}),
+        ...(normalizedAttrs.strike ? { "data-v-strike": "true" } : {}),
+        ...(normalizedAttrs.color ? { "data-v-color": normalizedAttrs.color } : {}),
+        ...(normalizedAttrs.fontSize ? { "data-v-font-size": normalizedAttrs.fontSize } : {}),
+        ...(normalizedAttrs.fontFamily ? { "data-v-font-family": normalizedAttrs.fontFamily } : {}),
+      }),
       resolveRichTextVariableValue(normalizedAttrs, displayMode, this.options.dataset),
     ];
   },
@@ -352,7 +414,10 @@ export const RichTextVariableNode = Node.create({
         type: this.type,
         getAttributes: (match) => {
           const token = String(match[1] ?? "");
-          const attrs = buildRichTextVariableNodeAttrsFromSource({ token: `{{${token}}}` }, this.options.registry);
+          const attrs = buildRichTextVariableNodeAttrsFromSource(
+            { token: `{{${token}}}` },
+            this.options.registry,
+          );
           return attrs ?? undefined;
         },
       }),
@@ -366,7 +431,10 @@ export const RichTextVariableNode = Node.create({
         type: this.type,
         getAttributes: (match) => {
           const token = String(match[1] ?? "");
-          const attrs = buildRichTextVariableNodeAttrsFromSource({ token: `{{${token}}}` }, this.options.registry);
+          const attrs = buildRichTextVariableNodeAttrsFromSource(
+            { token: `{{${token}}}` },
+            this.options.registry,
+          );
           return attrs ?? undefined;
         },
       }),
@@ -375,7 +443,10 @@ export const RichTextVariableNode = Node.create({
         type: this.type,
         getAttributes: (match) => {
           const label = String(match[1] ?? "");
-          const attrs = buildRichTextVariableNodeAttrsFromSource({ label: `[${label}]`, token: `[${label}]` }, this.options.registry);
+          const attrs = buildRichTextVariableNodeAttrsFromSource(
+            { label: `[${label}]`, token: `[${label}]` },
+            this.options.registry,
+          );
           return attrs ?? undefined;
         },
       }),
@@ -425,7 +496,10 @@ function buildRichTextBaseExtensions(
   ];
 }
 
-function normalizeRichTextJsonNode(node: JSONContent, registry: RichTextVariableRegistry): JSONContent[] {
+function normalizeRichTextJsonNode(
+  node: JSONContent,
+  registry: RichTextVariableRegistry,
+): JSONContent[] {
   if (node.type === "text" && typeof node.text === "string") {
     return splitVariableTextNode(node, registry);
   }
@@ -442,7 +516,10 @@ function normalizeRichTextJsonNode(node: JSONContent, registry: RichTextVariable
   ];
 }
 
-function splitVariableTextNode(node: JSONContent, registry: RichTextVariableRegistry): JSONContent[] {
+function splitVariableTextNode(
+  node: JSONContent,
+  registry: RichTextVariableRegistry,
+): JSONContent[] {
   const text = typeof node.text === "string" ? node.text : "";
   if (!text) {
     return [node];
@@ -452,7 +529,10 @@ function splitVariableTextNode(node: JSONContent, registry: RichTextVariableRegi
   const result: JSONContent[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
-  const combinedRegex = new RegExp(`${VARIABLE_TOKEN_REGEX.source}|${VARIABLE_LABEL_REGEX.source}`, "g");
+  const combinedRegex = new RegExp(
+    `${VARIABLE_TOKEN_REGEX.source}|${VARIABLE_LABEL_REGEX.source}`,
+    "g",
+  );
 
   while ((match = combinedRegex.exec(text))) {
     const matchIndex = match.index;
@@ -471,7 +551,10 @@ function splitVariableTextNode(node: JSONContent, registry: RichTextVariableRegi
 
     const attrs = matchedText.startsWith("{{")
       ? buildRichTextVariableNodeAttrsFromSource({ token: matchedText }, registry)
-      : buildRichTextVariableNodeAttrsFromSource({ label: matchedText, token: matchedText }, registry);
+      : buildRichTextVariableNodeAttrsFromSource(
+          { label: matchedText, token: matchedText },
+          registry,
+        );
 
     if (attrs) {
       result.push({
@@ -535,7 +618,10 @@ function buildRichTextVariableFragments(text: string, registry: RichTextVariable
     return null;
   }
 
-  const combinedRegex = new RegExp(`${VARIABLE_TOKEN_REGEX.source}|${VARIABLE_LABEL_REGEX.source}`, "g");
+  const combinedRegex = new RegExp(
+    `${VARIABLE_TOKEN_REGEX.source}|${VARIABLE_LABEL_REGEX.source}`,
+    "g",
+  );
   const fragments: (Text | HTMLElement)[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -550,7 +636,10 @@ function buildRichTextVariableFragments(text: string, registry: RichTextVariable
 
     const attrs = matchedText.startsWith("{{")
       ? buildRichTextVariableNodeAttrsFromSource({ token: matchedText }, registry)
-      : buildRichTextVariableNodeAttrsFromSource({ label: matchedText, token: matchedText }, registry);
+      : buildRichTextVariableNodeAttrsFromSource(
+          { label: matchedText, token: matchedText },
+          registry,
+        );
 
     if (attrs) {
       fragments.push(buildRichTextVariableSpanElement(attrs));
@@ -616,12 +705,18 @@ function replaceVariableTokensInHtmlFallback(html: string, registry: RichTextVar
       return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
     })
     .replace(new RegExp(VARIABLE_LABEL_REGEX.source, "g"), (match, label) => {
-      const attrs = buildRichTextVariableNodeAttrsFromSource({ label: `[${label}]`, token: `[${label}]` }, registry);
+      const attrs = buildRichTextVariableNodeAttrsFromSource(
+        { label: `[${label}]`, token: `[${label}]` },
+        registry,
+      );
       return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
     });
 }
 
-function resolveRichTextVariableRegistryEntry(source: RichTextVariableSource, registry?: RichTextVariableRegistry | null) {
+function resolveRichTextVariableRegistryEntry(
+  source: RichTextVariableSource,
+  registry?: RichTextVariableRegistry | null,
+) {
   if (!registry) {
     return null;
   }
@@ -734,7 +829,10 @@ type FallbackFrame = {
   marks: FallbackMark[];
 };
 
-function fallbackParseRichTextHtmlToJson(html: string, registry: RichTextVariableRegistry): JSONContent {
+function fallbackParseRichTextHtmlToJson(
+  html: string,
+  registry: RichTextVariableRegistry,
+): JSONContent {
   const root: FallbackFrame = {
     kind: "root",
     content: [],
@@ -995,7 +1093,10 @@ function resolveFallbackBlockFromTag(tag: { tagName: string; attrs: Record<strin
   return null;
 }
 
-function fallbackVariableAttrsFromTag(attrs: Record<string, string>, registry: RichTextVariableRegistry) {
+function fallbackVariableAttrsFromTag(
+  attrs: Record<string, string>,
+  registry: RichTextVariableRegistry,
+) {
   const styleAttrs = {
     bold: attrs["data-v-bold"] === "true" ? true : null,
     italic: attrs["data-v-italic"] === "true" ? true : null,
@@ -1007,8 +1108,14 @@ function fallbackVariableAttrsFromTag(attrs: Record<string, string>, registry: R
   };
 
   const registryEntry =
-    (attrs["data-variable-key"] && registry.byKey.get(normalizeRegistryKey(stripVariableBrackets(attrs["data-variable-key"])))) ??
-    (attrs["data-variable-label"] && registry.byLabel.get(normalizeRegistryKey(stripVariableBrackets(attrs["data-variable-label"])))) ??
+    (attrs["data-variable-key"] &&
+      registry.byKey.get(
+        normalizeRegistryKey(stripVariableBrackets(attrs["data-variable-key"])),
+      )) ??
+    (attrs["data-variable-label"] &&
+      registry.byLabel.get(
+        normalizeRegistryKey(stripVariableBrackets(attrs["data-variable-label"])),
+      )) ??
     null;
 
   if (registryEntry) {
@@ -1114,7 +1221,8 @@ function serializeFallbackNode(
     case "blockquote":
       return `<blockquote>${children}</blockquote>`;
     case "heading": {
-      const level = typeof node.attrs?.level === "number" ? Math.min(6, Math.max(1, node.attrs.level)) : 1;
+      const level =
+        typeof node.attrs?.level === "number" ? Math.min(6, Math.max(1, node.attrs.level)) : 1;
       return `<h${level}>${children}</h${level}>`;
     }
     case "bulletList":
@@ -1193,7 +1301,8 @@ function serializeFallbackTextStyle(attrs: unknown) {
   const record = attrs as Record<string, unknown>;
   const styles: string[] = [];
   const color = typeof record.color === "string" ? record.color : null;
-  const backgroundColor = typeof record.backgroundColor === "string" ? record.backgroundColor : null;
+  const backgroundColor =
+    typeof record.backgroundColor === "string" ? record.backgroundColor : null;
   const fontFamily = typeof record.fontFamily === "string" ? record.fontFamily : null;
   const fontSize = typeof record.fontSize === "string" ? record.fontSize : null;
   const lineHeight = typeof record.lineHeight === "string" ? record.lineHeight : null;
@@ -1219,11 +1328,15 @@ function serializeFallbackTextStyle(attrs: unknown) {
 
 function normalizeFallbackVariableNodeAttrs(attrs: unknown): RichTextVariableNodeAttrs {
   const record = attrs && typeof attrs === "object" ? (attrs as Record<string, unknown>) : {};
-  const id = typeof record.id === "string" ? record.id : typeof record.key === "string" ? record.key : "";
+  const id =
+    typeof record.id === "string" ? record.id : typeof record.key === "string" ? record.key : "";
   const key = typeof record.key === "string" ? record.key : id;
   const label = normalizeBracketedLabel(typeof record.label === "string" ? record.label : key);
-  const fallback = normalizeBracketedLabel(typeof record.fallback === "string" ? record.fallback : label || key);
-  const source = typeof record.source === "string" ? record.source : resolveRichTextVariableSource(key, null);
+  const fallback = normalizeBracketedLabel(
+    typeof record.fallback === "string" ? record.fallback : label || key,
+  );
+  const source =
+    typeof record.source === "string" ? record.source : resolveRichTextVariableSource(key, null);
 
   return {
     id,

@@ -3,19 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   buildImageCssFilter,
   buildImageMaskPathData,
-  buildImagePreviewStyle,
   buildImagePreviewFrameStyle,
+  buildImagePreviewStyle,
   buildMaskPreviewStyle,
+  hasImageMaskBorderChanges,
   moveImageCrop,
   moveImageMaskBounds,
-  hasImageMaskBorderChanges,
   normalizeImageEditingState,
-  resolveImagePreviewSource,
+  resizeImageMaskBounds,
   resolveImageMaskBorderPresentation,
   resolveImageMaskFrame,
+  resolveImagePreviewSource,
   resolveImagePreviewSvgGeometry,
   scaleImageCropZoom,
-  resizeImageMaskBounds,
 } from "@/features/editor/components/image-editing/image-editor-utils";
 
 describe("image editing helpers", () => {
@@ -56,9 +56,17 @@ describe("image editing helpers", () => {
   it("sanitizes preview sources and preserves safe image URLs", () => {
     expect(resolveImagePreviewSource("   ")).toBe("");
     expect(resolveImagePreviewSource("javascript:alert(1)")).toBe("");
-    expect(resolveImagePreviewSource("https://cdn.example.com/photo.png")).toBe("https://cdn.example.com/photo.png");
-    expect(resolveImagePreviewSource("data:image/png;base64,AAA")).toBe("data:image/png;base64,AAA");
-    expect(resolveImagePreviewSource("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"></svg>")).toContain("data:image/svg+xml;utf8,");
+    expect(resolveImagePreviewSource("https://cdn.example.com/photo.png")).toBe(
+      "https://cdn.example.com/photo.png",
+    );
+    expect(resolveImagePreviewSource("data:image/png;base64,AAA")).toBe(
+      "data:image/png;base64,AAA",
+    );
+    expect(
+      resolveImagePreviewSource(
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>',
+      ),
+    ).toContain("data:image/svg+xml;utf8,");
   });
 
   it("normalizes mask border controls and maps dash styles consistently", () => {

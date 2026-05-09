@@ -173,7 +173,10 @@ describe("editor render pipeline foundation", () => {
       "candidate.name": "Ada Lovelace",
       "candidate.profile.title": "Engineering Lead",
     });
-    expect(Object.keys(boundDocument.resolvedBindings).sort()).toEqual(["candidate.name", "candidate.profile.title"]);
+    expect(Object.keys(boundDocument.resolvedBindings).sort()).toEqual([
+      "candidate.name",
+      "candidate.profile.title",
+    ]);
   });
 
   it("projects canonical object order to render tree order without changing layer order", () => {
@@ -226,7 +229,11 @@ describe("editor render pipeline foundation", () => {
 
     const renderTree = buildCanonicalRenderTree(resolveBindings({ template, data: {} }));
 
-    expect(renderTree.pages[0]?.children.map((node) => node.id)).toEqual(["layer-a-back", "layer-a-front", "layer-b-back"]);
+    expect(renderTree.pages[0]?.children.map((node) => node.id)).toEqual([
+      "layer-a-back",
+      "layer-a-front",
+      "layer-b-back",
+    ]);
   });
 
   it("omits invisible elements from the canonical render tree", () => {

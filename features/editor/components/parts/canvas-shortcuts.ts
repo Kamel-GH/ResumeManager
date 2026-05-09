@@ -17,13 +17,17 @@ export function isCanvasShortcutEditableTarget(target: unknown) {
   }
 
   if (typeof element.closest === "function") {
-    return Boolean(element.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"));
+    return Boolean(
+      element.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']"),
+    );
   }
 
   return false;
 }
 
-export function resolveCanvasShortcutAction(event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey"> & { shiftKey?: boolean }): CanvasShortcutAction | null {
+export function resolveCanvasShortcutAction(
+  event: Pick<KeyboardEvent, "key" | "metaKey" | "ctrlKey" | "altKey"> & { shiftKey?: boolean },
+): CanvasShortcutAction | null {
   if (!(event.metaKey || event.ctrlKey) || event.altKey) {
     return null;
   }

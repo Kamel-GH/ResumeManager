@@ -1,17 +1,19 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
-import { NodeViewWrapper, ReactNodeViewRenderer, type NodeViewProps } from "@tiptap/react";
+import { type NodeViewProps, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import type React from "react";
+import { createContext, useContext } from "react";
 
 import {
-  RichTextVariableNode,
-  resolveRichTextVariableValue,
   type RichTextVariableDisplayMode,
+  RichTextVariableNode,
   type RichTextVariableNodeAttrs,
   type RichTextVariableRegistry,
+  resolveRichTextVariableValue,
 } from "@/features/editor/lib/rich-text-variable";
 
-export const RichTextVariableDisplayModeContext = createContext<RichTextVariableDisplayMode>("label");
+export const RichTextVariableDisplayModeContext =
+  createContext<RichTextVariableDisplayMode>("label");
 export const RichTextVariableRegistryContext = createContext<RichTextVariableRegistry | null>(null);
 export const RichTextVariableDatasetContext = createContext<unknown>(null);
 
@@ -29,7 +31,12 @@ export function RichTextVariableNodeView({ node, selected }: NodeViewProps) {
   const dataset = useContext(RichTextVariableDatasetContext);
   const attrs = node.attrs as RichTextVariableNodeAttrs;
   const resolvedText = resolveRichTextVariableValue(attrs, displayMode, dataset);
-  const displayText = resolvedText.trim() || attrs.label?.trim() || attrs.fallback?.trim() || attrs.key?.trim() || "[variable]";
+  const displayText =
+    resolvedText.trim() ||
+    attrs.label?.trim() ||
+    attrs.fallback?.trim() ||
+    attrs.key?.trim() ||
+    "[variable]";
 
   const chipStyle: React.CSSProperties = {};
   if (attrs.bold) chipStyle.fontWeight = "bold";
@@ -69,7 +76,9 @@ export function RichTextVariableNodeView({ node, selected }: NodeViewProps) {
       {displayMode === "value" ? (
         <span style={chipStyle}>{displayText}</span>
       ) : (
-        <span className="ef-rich-text-variable-node-chip" style={chipStyle}>{displayText}</span>
+        <span className="ef-rich-text-variable-node-chip" style={chipStyle}>
+          {displayText}
+        </span>
       )}
     </NodeViewWrapper>
   );

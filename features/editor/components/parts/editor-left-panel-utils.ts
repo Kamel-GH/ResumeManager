@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type {
-  EditorLayerView,
-  EditorObjectView,
-} from "@/features/editor/selectors";
+import type { EditorLayerView, EditorObjectView } from "@/features/editor/selectors";
 
 export type SortDir = "asc" | "desc" | null;
 

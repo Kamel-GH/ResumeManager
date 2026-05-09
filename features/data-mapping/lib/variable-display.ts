@@ -53,7 +53,18 @@ const VARIABLE_PATH_BY_LABEL: Record<string, string> = {
 };
 
 const IMAGE_HINTS = ["photo", "image", "avatar", "portrait", "logo"];
-const LIST_HINTS = ["experience", "experiences", "formation", "formations", "langue", "langues", "competence", "competences", "interet", "interets"];
+const LIST_HINTS = [
+  "experience",
+  "experiences",
+  "formation",
+  "formations",
+  "langue",
+  "langues",
+  "competence",
+  "competences",
+  "interet",
+  "interets",
+];
 const TABLE_HINTS = ["table", "tableau", "grid", "grille"];
 
 export function resolveVariableDisplayLabel(variable: Pick<MappingVariable, "label" | "key">) {
@@ -61,7 +72,9 @@ export function resolveVariableDisplayLabel(variable: Pick<MappingVariable, "lab
   return raw.startsWith("[") && raw.endsWith("]") ? raw : `[${raw}]`;
 }
 
-export function resolveVariableMappedPath(variable: Pick<MappingVariable, "label" | "key" | "sourceColumn">) {
+export function resolveVariableMappedPath(
+  variable: Pick<MappingVariable, "label" | "key" | "sourceColumn">,
+) {
   const normalizedLabel = normalizeVariableName(variable.label);
   const normalizedKey = normalizeVariableName(variable.key);
   const normalizedSourceColumn = normalizeVariableName(variable.sourceColumn ?? "");
@@ -74,7 +87,9 @@ export function resolveVariableMappedPath(variable: Pick<MappingVariable, "label
   );
 }
 
-export function resolveVariableDisplayKind(variable: Pick<MappingVariable, "label" | "key" | "sourceColumn" | "type">): VariableDisplayKind {
+export function resolveVariableDisplayKind(
+  variable: Pick<MappingVariable, "label" | "key" | "sourceColumn" | "type">,
+): VariableDisplayKind {
   const haystack = `${variable.label} ${variable.key} ${variable.sourceColumn ?? ""}`.toLowerCase();
 
   if (IMAGE_HINTS.some((hint) => haystack.includes(hint))) {
@@ -92,7 +107,9 @@ export function resolveVariableDisplayKind(variable: Pick<MappingVariable, "labe
   return "TEXTE";
 }
 
-export function resolveVariableTooltip(variable: Pick<MappingVariable, "label" | "key" | "sourceColumn">) {
+export function resolveVariableTooltip(
+  variable: Pick<MappingVariable, "label" | "key" | "sourceColumn">,
+) {
   return `${resolveVariableDisplayLabel(variable)} → ${resolveVariableMappedPath(variable)}`;
 }
 
@@ -203,7 +220,10 @@ export function applyVariableDragPayload(
   });
 
   event.dataTransfer.setData("application/x-resume-editor-item", payload);
-  event.dataTransfer.setData("text/plain", String((context.payload as { token?: string } | null)?.token ?? context.type));
+  event.dataTransfer.setData(
+    "text/plain",
+    String((context.payload as { token?: string } | null)?.token ?? context.type),
+  );
   event.dataTransfer.effectAllowed = "copy";
   const canvas = document.createElement("canvas");
   canvas.width = 1;
@@ -287,7 +307,10 @@ export function buildVariableDragTraceDetails(
 export function buildVariableDragOperationLog(
   context: EditorItemDragContext,
   input: {
-    action: Extract<EditorOperationAction, "dragstart" | "dragenter" | "dragover" | "dragleave" | "drop" | "dragend" | "drop-reject">;
+    action: Extract<
+      EditorOperationAction,
+      "dragstart" | "dragenter" | "dragover" | "dragleave" | "drop" | "dragend" | "drop-reject"
+    >;
     pageId: string;
     target: string;
     outcome?: string;
@@ -310,7 +333,9 @@ export function buildVariableDragOperationLog(
   });
 }
 
-export function parseEditorItemDragPayload(raw: string): { type: string; payload: unknown; sourcePanel?: string } | null {
+export function parseEditorItemDragPayload(
+  raw: string,
+): { type: string; payload: unknown; sourcePanel?: string } | null {
   if (!raw.trim()) {
     return null;
   }
@@ -335,7 +360,7 @@ function normalizeVariableName(value: string) {
   return value
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[\[\]]/g, "")
+    .replace(/[[\]]/g, "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")

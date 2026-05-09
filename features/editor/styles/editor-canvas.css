@@ -65,8 +65,12 @@
   min-height: 0;
   overflow: auto;
   padding: 32px;
-  background:
-    radial-gradient(circle at center, rgb(255 255 255 / 76%), rgb(238 242 248 / 94%) 56%, rgb(234 238 244 / 100%) 100%);
+  background: radial-gradient(
+    circle at center,
+    rgb(255 255 255 / 76%),
+    rgb(238 242 248 / 94%) 56%,
+    rgb(234 238 244 / 100%) 100%
+  );
 }
 
 .editor-fidelity .ef-canvas-shell[data-workspace-mode="fit-space"] .ef-canvas-scroll {
@@ -269,7 +273,10 @@
   border: 1px solid #dfe4ee;
   border-radius: 14px;
   background: #ffffff;
-  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .ef-workspace-settings-section:hover {
@@ -1403,7 +1410,8 @@
   padding: 8px !important;
   color: #e5e7eb !important;
   box-shadow: 0 18px 48px rgb(0 0 0 / 35%) !important;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
   font-size: 11px !important;
   line-height: 1.2 !important;
 }
@@ -1511,7 +1519,9 @@
   color: #475569;
   cursor: se-resize;
   touch-action: none;
-  transition: background 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
 }
 
 .editor-fidelity .ef-rich-text-editor-resize-handle:hover {
@@ -2152,8 +2162,16 @@
 }
 
 .editor-fidelity .ef-tool-color-button[data-mixed="true"] .ef-tool-color-button-chip {
-  background-image:
-    linear-gradient(45deg, rgba(148, 163, 184, 0.35) 25%, transparent 25%, transparent 50%, rgba(148, 163, 184, 0.35) 50%, rgba(148, 163, 184, 0.35) 75%, transparent 75%, transparent);
+  background-image: linear-gradient(
+    45deg,
+    rgba(148, 163, 184, 0.35) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(148, 163, 184, 0.35) 50%,
+    rgba(148, 163, 184, 0.35) 75%,
+    transparent 75%,
+    transparent
+  );
   background-size: 8px 8px;
 }
 
@@ -2325,7 +2343,8 @@
 
 .editor-fidelity .ef-canvas-stage.is-pencil-tool {
   cursor:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='black' d='M3 21l4-1 11-11-3-3L4 17l-1 4zm14-14l2-2 2 2-2 2-2-2z'/%3E%3C/svg%3E") 3 21,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='black' d='M3 21l4-1 11-11-3-3L4 17l-1 4zm14-14l2-2 2 2-2 2-2-2z'/%3E%3C/svg%3E")
+    3 21,
     crosshair;
 }
 
@@ -2690,14 +2709,62 @@
   z-index: 10;
 }
 
-.ef-rtp-rh-n  { top: 0;    left: 10px; right: 10px; height: 5px;  cursor: ns-resize;  }
-.ef-rtp-rh-s  { bottom: 0; left: 10px; right: 10px; height: 5px;  cursor: ns-resize;  }
-.ef-rtp-rh-e  { right: 0;  top: 10px;  bottom: 10px; width: 5px;  cursor: ew-resize;  }
-.ef-rtp-rh-w  { left: 0;   top: 10px;  bottom: 10px; width: 5px;  cursor: ew-resize;  }
-.ef-rtp-rh-ne { top: 0;    right: 0;   width: 10px; height: 10px; cursor: ne-resize;  }
-.ef-rtp-rh-nw { top: 0;    left: 0;    width: 10px; height: 10px; cursor: nw-resize;  }
-.ef-rtp-rh-se { bottom: 0; right: 0;   width: 14px; height: 14px; cursor: se-resize;  }
-.ef-rtp-rh-sw { bottom: 0; left: 0;    width: 10px; height: 10px; cursor: sw-resize;  }
+.ef-rtp-rh-n {
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 5px;
+  cursor: ns-resize;
+}
+.ef-rtp-rh-s {
+  bottom: 0;
+  left: 10px;
+  right: 10px;
+  height: 5px;
+  cursor: ns-resize;
+}
+.ef-rtp-rh-e {
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  cursor: ew-resize;
+}
+.ef-rtp-rh-w {
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 5px;
+  cursor: ew-resize;
+}
+.ef-rtp-rh-ne {
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  cursor: ne-resize;
+}
+.ef-rtp-rh-nw {
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: nw-resize;
+}
+.ef-rtp-rh-se {
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: se-resize;
+}
+.ef-rtp-rh-sw {
+  bottom: 0;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  cursor: sw-resize;
+}
 
 .ef-rtp-rh-se::after {
   content: "";
@@ -2777,7 +2844,10 @@
   background: transparent;
   color: #6b7280;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .ef-rtp-mode-btn:hover {
@@ -2811,7 +2881,10 @@
   background: transparent;
   color: #6b7280;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .ef-rtp-close-btn:hover {
@@ -2876,7 +2949,7 @@
 
 .ef-rtp-workarea {
   display: grid;
-  grid-template-columns: 178px minmax(0, 1fr) 292px;
+  grid-template-columns: minmax(0, 1fr) 292px;
   min-height: 0;
   overflow: hidden;
   background: #f9fafb;
@@ -3020,7 +3093,10 @@
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .ef-rtp-toolbar-btn:hover,
@@ -3151,8 +3227,7 @@
   position: relative;
   overflow: auto;
   padding: 28px 24px;
-  background:
-    radial-gradient(circle at center, #ffffff 0, #f7f9fc 58%, #eef2f7 100%);
+  background: radial-gradient(circle at center, #ffffff 0, #f7f9fc 58%, #eef2f7 100%);
   color: #111827;
   min-height: 0;
 }
@@ -3657,7 +3732,10 @@
   font-size: 11px;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
 }
 
 .ef-rtp-action-btn:hover:not(:disabled) {
@@ -4660,12 +4738,32 @@
   box-shadow: 0 1px 4px rgb(37 99 235 / 28%);
 }
 
-.ef-rtp-table-outline-node-nw { left: -5px; top: -5px; }
-.ef-rtp-table-outline-node-ne { right: -5px; top: -5px; }
-.ef-rtp-table-outline-node-se { right: -5px; bottom: -5px; }
-.ef-rtp-table-outline-node-sw { left: -5px; bottom: -5px; }
-.ef-rtp-table-outline-node-n { left: 50%; top: -5px; transform: translateX(-50%); }
-.ef-rtp-table-outline-node-s { left: 50%; bottom: -5px; transform: translateX(-50%); }
+.ef-rtp-table-outline-node-nw {
+  left: -5px;
+  top: -5px;
+}
+.ef-rtp-table-outline-node-ne {
+  right: -5px;
+  top: -5px;
+}
+.ef-rtp-table-outline-node-se {
+  right: -5px;
+  bottom: -5px;
+}
+.ef-rtp-table-outline-node-sw {
+  left: -5px;
+  bottom: -5px;
+}
+.ef-rtp-table-outline-node-n {
+  left: 50%;
+  top: -5px;
+  transform: translateX(-50%);
+}
+.ef-rtp-table-outline-node-s {
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+}
 
 .ef-rtp-table-context-toolbar {
   position: absolute;
@@ -4761,10 +4859,9 @@
   gap: 10px;
   padding: 10px;
   border-left: 1px solid #e5e7eb;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(37 99 235 / 5%), transparent 34%),
-    #f8fafc;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at 100% 0%, rgb(37 99 235 / 5%), transparent 34%), #f8fafc;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .ef-rtp-table-design-header {
@@ -5073,8 +5170,7 @@
 .ef-rtp-design-intensity i {
   height: 4px;
   border-radius: 999px;
-  background:
-    linear-gradient(to right, #2563eb 60%, #e5e7eb 60%);
+  background: linear-gradient(to right, #2563eb 60%, #e5e7eb 60%);
 }
 
 .ef-rtp-design-intensity strong {
@@ -5143,7 +5239,10 @@
   background: rgb(37 99 235 / 8%);
   color: #2563eb;
   opacity: 0.82;
-  transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease;
+  transition:
+    opacity 120ms ease,
+    background 120ms ease,
+    border-color 120ms ease;
 }
 
 .ef-rtp-table-select-handle:hover,
@@ -5230,7 +5329,9 @@
   content: "";
   position: absolute;
   background: transparent;
-  transition: background 120ms ease, box-shadow 120ms ease;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .ef-rtp-table-column-resize-handle::after {
@@ -5337,7 +5438,9 @@
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition:
+    background 0.12s,
+    color 0.12s;
 }
 
 .ef-rtp-popover-tab:hover {
@@ -5374,7 +5477,9 @@
   border: 1px solid rgb(255 255 255 / 12%);
   background: rgb(255 255 255 / 4%);
   cursor: pointer;
-  transition: background 0.07s, border-color 0.07s;
+  transition:
+    background 0.07s,
+    border-color 0.07s;
 }
 
 .ef-rtp-tg-cell.is-hovered,

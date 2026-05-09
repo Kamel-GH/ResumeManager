@@ -1,22 +1,22 @@
 "use client";
 
-import Link from "next/link";
 import { Database, ExternalLink, RefreshCw } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import {
   applyVariableDragPayload,
-  buildVariableDragOperationLog,
   buildVariableDragEnvelope,
+  buildVariableDragOperationLog,
   createVariableDragContext,
+  type EditorItemDragContext,
+  requestRichTextVariableInsert,
   resolveVariableDisplayKind,
   resolveVariableDisplayLabel,
   resolveVariableTooltip,
-  requestRichTextVariableInsert,
   scheduleVariableDragTraceClear,
-  type EditorItemDragContext,
 } from "@/features/data-mapping/lib/variable-display";
+import { useVariablesStore } from "@/features/data-mapping/stores/variables-store";
 import { useEditorStore } from "@/features/editor/stores/editor-store";
 
 type VariablesCompactPanelProps = {
@@ -40,7 +40,9 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
           <Database size={14} aria-hidden="true" />
           <div>
             <p className="ef-data-variables-kicker">Mapping source de données</p>
-            <h3 className="ef-data-variables-title">{source ? source.fileName : "Variables CSV"}</h3>
+            <h3 className="ef-data-variables-title">
+              {source ? source.fileName : "Variables CSV"}
+            </h3>
           </div>
         </div>
 
@@ -118,7 +120,11 @@ export function VariablesCompactPanel({ onDragContext, onDragEnd }: VariablesCom
               >
                 <span className="ef-data-variable-card-inner">
                   <span className="ef-data-variable-label">{displayLabel}</span>
-                  <span className={["ef-data-variable-badge", `is-${kind.toLowerCase()}`].join(" ")}>{kind}</span>
+                  <span
+                    className={["ef-data-variable-badge", `is-${kind.toLowerCase()}`].join(" ")}
+                  >
+                    {kind}
+                  </span>
                 </span>
               </button>
             );

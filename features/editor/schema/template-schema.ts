@@ -1,5 +1,5 @@
-import type { Rect, TemplateElementId, TemplateId, TemplatePageId } from "@/features/editor/types";
 import type { EditorNodeProps } from "@/features/editor/schema/editor-model-types";
+import type { Rect, TemplateElementId, TemplateId, TemplatePageId } from "@/features/editor/types";
 
 export type TemplateSchema = {
   id: TemplateId;

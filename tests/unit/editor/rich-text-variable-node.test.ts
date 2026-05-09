@@ -1,12 +1,12 @@
-import { describe, expect, it } from "vitest";
 import type { JSONContent } from "@tiptap/core";
+import { describe, expect, it } from "vitest";
 
 import {
   buildRichTextVariableNodeAttrsFromSource,
   createRichTextVariableRegistry,
   parseRichTextHtmlToJson,
-  serializeRichTextJsonToHtml,
   resolveRichTextVariableValue,
+  serializeRichTextJsonToHtml,
 } from "@/features/editor/lib/rich-text-variable";
 
 describe("rich text variable node", () => {
@@ -47,7 +47,10 @@ describe("rich text variable node", () => {
   it("parses technical syntax into a variable node", () => {
     const parsed = parseRichTextHtmlToJson("<p>Bonjour {{candidate.firstName}}</p>", registry);
     const paragraph = parsed.content?.[0];
-    const variableNode = paragraph && "content" in paragraph ? paragraph.content?.find((child) => child.type === "variable") : null;
+    const variableNode =
+      paragraph && "content" in paragraph
+        ? paragraph.content?.find((child) => child.type === "variable")
+        : null;
 
     expect(variableNode?.attrs).toEqual(
       expect.objectContaining({
@@ -60,7 +63,10 @@ describe("rich text variable node", () => {
   });
 
   it("resolves bracketed payloads from the registry without guessing a new key", () => {
-    const attrs = buildRichTextVariableNodeAttrsFromSource({ label: "Prénom", token: "[Prénom]" }, registry);
+    const attrs = buildRichTextVariableNodeAttrsFromSource(
+      { label: "Prénom", token: "[Prénom]" },
+      registry,
+    );
 
     expect(attrs).toEqual(
       expect.objectContaining({
@@ -74,7 +80,10 @@ describe("rich text variable node", () => {
   });
 
   it("serializes variable nodes without mutating the canonical JSON", () => {
-    const technicalHtml = serializeRichTextJsonToHtml(content, { displayMode: "technical", registry });
+    const technicalHtml = serializeRichTextJsonToHtml(content, {
+      displayMode: "technical",
+      registry,
+    });
     const valueHtml = serializeRichTextJsonToHtml(content, {
       displayMode: "value",
       registry,
@@ -102,7 +111,9 @@ describe("rich text variable node", () => {
       label: "Prénom",
     };
 
-    expect(resolveRichTextVariableValue(attrs, "value", { candidate: { firstName: "Kamel" } })).toBe("Kamel");
+    expect(
+      resolveRichTextVariableValue(attrs, "value", { candidate: { firstName: "Kamel" } }),
+    ).toBe("Kamel");
     expect(resolveRichTextVariableValue(attrs, "value", {})).toBe("Prénom");
   });
 
@@ -122,11 +133,16 @@ describe("rich text variable node", () => {
   it("keeps blank bracket syntax as plain text", () => {
     const parsed = parseRichTextHtmlToJson("<p>Bonjour [   ]</p>", registry);
     const paragraph = parsed.content?.[0];
-    const text = paragraph && "content" in paragraph && Array.isArray(paragraph.content)
-      ? paragraph.content.map((child) => ("text" in child ? child.text ?? "" : "")).join("")
-      : "";
+    const text =
+      paragraph && "content" in paragraph && Array.isArray(paragraph.content)
+        ? paragraph.content.map((child) => ("text" in child ? (child.text ?? "") : "")).join("")
+        : "";
 
     expect(text).toContain("[   ]");
-    expect(paragraph && "content" in paragraph ? paragraph.content?.some((child) => child.type === "variable") : false).toBe(false);
+    expect(
+      paragraph && "content" in paragraph
+        ? paragraph.content?.some((child) => child.type === "variable")
+        : false,
+    ).toBe(false);
   });
 });

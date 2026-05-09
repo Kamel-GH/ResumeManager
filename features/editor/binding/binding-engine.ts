@@ -43,13 +43,19 @@ export function resolveBindings(input: BindingEngineInput): BoundDocument {
   };
 }
 
-function resolveBindingValue(data: BindingData, bindingId: string): { found: boolean; value: BindingValue | null } {
-  if (Object.prototype.hasOwnProperty.call(data, bindingId)) {
+function resolveBindingValue(
+  data: BindingData,
+  bindingId: string,
+): { found: boolean; value: BindingValue | null } {
+  if (Object.hasOwn(data, bindingId)) {
     const value = data[bindingId];
     return { found: true, value: value === undefined ? null : value };
   }
 
-  const pathSegments = bindingId.split(".").map((segment) => segment.trim()).filter(Boolean);
+  const pathSegments = bindingId
+    .split(".")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
   if (pathSegments.length <= 1) {
     return { found: false, value: null };
   }
@@ -57,7 +63,7 @@ function resolveBindingValue(data: BindingData, bindingId: string): { found: boo
   let current: BindingValue | null = data;
 
   for (const segment of pathSegments) {
-    if (!isRecordLike(current) || !Object.prototype.hasOwnProperty.call(current, segment)) {
+    if (!isRecordLike(current) || !Object.hasOwn(current, segment)) {
       return { found: false, value: null };
     }
 

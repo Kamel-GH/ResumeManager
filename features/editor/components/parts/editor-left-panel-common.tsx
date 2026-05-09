@@ -1,23 +1,11 @@
 "use client";
 
-import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  Search,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, type LucideIcon, Search } from "lucide-react";
 import type { CSSProperties } from "react";
 
 type SortDir = "asc" | "desc" | null;
 
-export function IconGlyph({
-  icon: Icon,
-  size = 18,
-}: {
-  icon: LucideIcon;
-  size?: number;
-}) {
+export function IconGlyph({ icon: Icon, size = 18 }: { icon: LucideIcon; size?: number }) {
   return <Icon size={size} strokeWidth={1.9} aria-hidden="true" />;
 }
 
@@ -37,7 +25,11 @@ export function SearchBox({
   return (
     <label className="ef-search-box">
       <Search size={14} aria-hidden="true" />
-      <input value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
     </label>
   );
 }
@@ -54,7 +46,14 @@ export function ActionButton({
   disabled?: boolean;
 }) {
   return (
-    <button className="ef-action-button" type="button" title={label} aria-label={label} onClick={onClick} disabled={disabled}>
+    <button
+      className="ef-action-button"
+      type="button"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+    >
       <IconGlyph icon={icon} size={14} />
     </button>
   );
@@ -122,13 +121,7 @@ export function Badge({
   );
 }
 
-export function UnavailablePanel({
-  title,
-  subtitle,
-}: {
-  title: string;
-  subtitle?: string;
-}) {
+export function UnavailablePanel({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="ef-entity-card-stack">
       <div

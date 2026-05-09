@@ -1,14 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { Pipette, Plus, X } from "lucide-react";
+import { type CSSProperties, type PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const RECENT_STORAGE_KEY = "resume-manager.color-picker.recent";
 const FAVORITE_STORAGE_KEY = "resume-manager.color-picker.favorites";
-const DEFAULT_FAVORITE_COLORS = ["#2563eb", "#ef4444", "#f59e0b", "#10b981", "#8b5cf6", "#ec4899", "#6b7280", "#111827"];
-const DEFAULT_RECENT_COLORS = ["#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#dbeafe", "#eff6ff", "#ffffff"];
+const DEFAULT_FAVORITE_COLORS = [
+  "#2563eb",
+  "#ef4444",
+  "#f59e0b",
+  "#10b981",
+  "#8b5cf6",
+  "#ec4899",
+  "#6b7280",
+  "#111827",
+];
+const DEFAULT_RECENT_COLORS = [
+  "#2563eb",
+  "#3b82f6",
+  "#60a5fa",
+  "#93c5fd",
+  "#bfdbfe",
+  "#dbeafe",
+  "#eff6ff",
+  "#ffffff",
+];
 
 export type ColorPickerControlProps = {
   label: string;
@@ -68,8 +86,20 @@ export function ColorPickerControl({
       <span className="app-color-control-label">{label}</span>
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
-          <button type="button" className="app-color-trigger" disabled={disabled} onMouseDown={(event) => event.preventDefault()} aria-label={label} title={label}>
-            <span className="app-color-trigger-swatch" data-transparent={parsed.transparent ? "true" : undefined} style={resolveColorStyle(parsed)} aria-hidden />
+          <button
+            type="button"
+            className="app-color-trigger"
+            disabled={disabled}
+            onMouseDown={(event) => event.preventDefault()}
+            aria-label={label}
+            title={label}
+          >
+            <span
+              className="app-color-trigger-swatch"
+              data-transparent={parsed.transparent ? "true" : undefined}
+              style={resolveColorStyle(parsed)}
+              aria-hidden
+            />
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -121,10 +151,20 @@ export function ColorPickerPanel({
   onPreview,
 }: ColorPickerPanelProps) {
   const [storedRecent, setStoredRecent] = useStoredColors(RECENT_STORAGE_KEY, []);
-  const [favoriteColors, setFavoriteColors] = useStoredColors(FAVORITE_STORAGE_KEY, DEFAULT_FAVORITE_COLORS);
+  const [favoriteColors, setFavoriteColors] = useStoredColors(
+    FAVORITE_STORAGE_KEY,
+    DEFAULT_FAVORITE_COLORS,
+  );
   const parsed = parseColorValue(value);
-  const mergedRecent = useMemo(() => uniqueColors([...recentColors, ...storedRecent, ...DEFAULT_RECENT_COLORS]), [recentColors, storedRecent]);
-  const [visualColor, setVisualColor] = useState(() => ({ hex: parsed.hex, alpha: parsed.alpha, transparent: parsed.transparent }));
+  const mergedRecent = useMemo(
+    () => uniqueColors([...recentColors, ...storedRecent, ...DEFAULT_RECENT_COLORS]),
+    [recentColors, storedRecent],
+  );
+  const [visualColor, setVisualColor] = useState(() => ({
+    hex: parsed.hex,
+    alpha: parsed.alpha,
+    transparent: parsed.transparent,
+  }));
   const displayColor = visualColor;
   const isFavorite = favoriteColors.some((color) => normalizeHex(color) === displayColor.hex);
   const hsv = hexToHsv(displayColor.hex);
@@ -137,14 +177,34 @@ export function ColorPickerPanel({
   }, [parsed.alpha, parsed.hex, parsed.transparent]);
 
   const applyVisualColor = (nextColor: { hex: string; alpha: number; transparent?: boolean }) => {
-    setVisualColor({ hex: nextColor.hex, alpha: nextColor.alpha, transparent: nextColor.transparent ?? nextColor.alpha <= 0 });
+    setVisualColor({
+      hex: nextColor.hex,
+      alpha: nextColor.alpha,
+      transparent: nextColor.transparent ?? nextColor.alpha <= 0,
+    });
     setHexDraft(nextColor.hex.slice(1).toUpperCase());
-    onDraftChange?.(serializeColor({ hex: nextColor.hex, alpha: nextColor.alpha, transparent: nextColor.transparent ?? nextColor.alpha <= 0 }));
+    onDraftChange?.(
+      serializeColor({
+        hex: nextColor.hex,
+        alpha: nextColor.alpha,
+        transparent: nextColor.transparent ?? nextColor.alpha <= 0,
+      }),
+    );
   };
 
-  const commitParsedColor = (nextColor: { hex: string; alpha: number; transparent?: boolean }, options?: { remember?: boolean }) => {
+  const commitParsedColor = (
+    nextColor: { hex: string; alpha: number; transparent?: boolean },
+    options?: { remember?: boolean },
+  ) => {
     applyVisualColor(nextColor);
-    commitColor(serializeColor({ hex: nextColor.hex, alpha: nextColor.alpha, transparent: nextColor.transparent ?? nextColor.alpha <= 0 }), options);
+    commitColor(
+      serializeColor({
+        hex: nextColor.hex,
+        alpha: nextColor.alpha,
+        transparent: nextColor.transparent ?? nextColor.alpha <= 0,
+      }),
+      options,
+    );
   };
 
   const commitColor = (nextColor: string | null, options?: { remember?: boolean }) => {
@@ -161,7 +221,11 @@ export function ColorPickerPanel({
     }
 
     const nextParsed = parseColorValue(nextColor, displayColor.alpha);
-    applyVisualColor({ hex: nextParsed.hex, alpha: nextParsed.alpha, transparent: nextParsed.transparent });
+    applyVisualColor({
+      hex: nextParsed.hex,
+      alpha: nextParsed.alpha,
+      transparent: nextParsed.transparent,
+    });
     const serialized = serializeColor(nextParsed);
     onDraftChange?.(serialized);
     onChange(serialized);
@@ -180,26 +244,45 @@ export function ColorPickerPanel({
   };
 
   const updateHex = (hex: string) => {
-    const draft = hex.replace(/[^0-9a-f]/gi, "").slice(0, 6).toUpperCase();
+    const draft = hex
+      .replace(/[^0-9a-f]/gi, "")
+      .slice(0, 6)
+      .toUpperCase();
     setHexDraft(draft);
     if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(draft)) return;
     const normalized = normalizeHex(draft);
-    commitParsedColor({ hex: normalized, alpha: displayColor.alpha, transparent: false }, { remember: false });
+    commitParsedColor(
+      { hex: normalized, alpha: displayColor.alpha, transparent: false },
+      { remember: false },
+    );
   };
 
   const updateAlpha = (alpha: number) => {
-    commitParsedColor({ hex: displayColor.hex, alpha, transparent: alpha <= 0 }, { remember: false });
+    commitParsedColor(
+      { hex: displayColor.hex, alpha, transparent: alpha <= 0 },
+      { remember: false },
+    );
   };
 
   const updateHue = (hue: number) => {
-    commitParsedColor({ hex: hsvToHex(hue, hsv.s, hsv.v), alpha: displayColor.alpha, transparent: false }, { remember: false });
+    commitParsedColor(
+      { hex: hsvToHex(hue, hsv.s, hsv.v), alpha: displayColor.alpha, transparent: false },
+      { remember: false },
+    );
   };
 
   const updateSaturationValue = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = clampNumber((event.clientX - rect.left) / rect.width, 0, 1);
     const y = clampNumber((event.clientY - rect.top) / rect.height, 0, 1);
-    commitParsedColor({ hex: hsvToHex(hsv.h, x * 100, (1 - y) * 100), alpha: displayColor.alpha, transparent: false }, { remember: false });
+    commitParsedColor(
+      {
+        hex: hsvToHex(hsv.h, x * 100, (1 - y) * 100),
+        alpha: displayColor.alpha,
+        transparent: false,
+      },
+      { remember: false },
+    );
   };
 
   const startSaturationDrag = (event: PointerEvent<HTMLDivElement>) => {
@@ -219,7 +302,14 @@ export function ColorPickerPanel({
   };
 
   const pickFromEyeDropper = async () => {
-    const EyeDropperCtor = typeof window !== "undefined" ? (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper : undefined;
+    const EyeDropperCtor =
+      typeof window !== "undefined"
+        ? (
+            window as unknown as {
+              EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> };
+            }
+          ).EyeDropper
+        : undefined;
     if (!EyeDropperCtor) return;
     onPickingChange?.(true);
     try {
@@ -231,10 +321,20 @@ export function ColorPickerPanel({
   };
 
   return (
-    <div className="app-color-picker" onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+    <div
+      className="app-color-picker"
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
       <div className="app-color-picker-header">
         <span>Color</span>
-        <button type="button" className="app-color-close-button" onClick={onClose} aria-label="Fermer la palette couleur" title="Fermer">
+        <button
+          type="button"
+          className="app-color-close-button"
+          onClick={onClose}
+          aria-label="Fermer la palette couleur"
+          title="Fermer"
+        >
           <X size={14} aria-hidden />
         </button>
       </div>
@@ -245,18 +345,30 @@ export function ColorPickerPanel({
           style={{ "--app-picker-hue": hueColor } as CSSProperties}
           onPointerDown={startSaturationDrag}
           onPointerMove={(event) => {
-            if (event.currentTarget.hasPointerCapture(event.pointerId)) updateSaturationValue(event);
+            if (event.currentTarget.hasPointerCapture(event.pointerId))
+              updateSaturationValue(event);
           }}
           role="slider"
           aria-label="Saturation et luminosité"
           aria-valuetext={displayColor.hex}
           tabIndex={0}
         >
-          <span className="app-color-saturation-handle" style={{ left: `${hsv.s}%`, top: `${100 - hsv.v}%` }} aria-hidden />
+          <span
+            className="app-color-saturation-handle"
+            style={{ left: `${hsv.s}%`, top: `${100 - hsv.v}%` }}
+            aria-hidden
+          />
         </div>
 
         <div className="app-color-slider-row">
-          <button type="button" className="app-color-eyedropper-button" disabled={disabled} onClick={pickFromEyeDropper} aria-label="Pipette" title="Pipette">
+          <button
+            type="button"
+            className="app-color-eyedropper-button"
+            disabled={disabled}
+            onClick={pickFromEyeDropper}
+            aria-label="Pipette"
+            title="Pipette"
+          >
             <Pipette size={14} aria-hidden />
           </button>
           <div className="app-color-slider-stack">
@@ -286,12 +398,28 @@ export function ColorPickerPanel({
               aria-label="Transparence"
             />
           </div>
-          <span className="app-color-current-preview" data-transparent={displayColor.transparent ? "true" : undefined} style={resolveColorStyle({ hex: displayColor.hex, alpha: displayColor.alpha, transparent: displayColor.transparent })} aria-hidden />
+          <span
+            className="app-color-current-preview"
+            data-transparent={displayColor.transparent ? "true" : undefined}
+            style={resolveColorStyle({
+              hex: displayColor.hex,
+              alpha: displayColor.alpha,
+              transparent: displayColor.transparent,
+            })}
+            aria-hidden
+          />
         </div>
 
         <label className="app-color-hex-row">
           <span>#</span>
-          <input className="app-color-hex-input" value={hexDraft} disabled={disabled} onChange={(event) => updateHex(event.target.value)} onBlur={() => setHexDraft(displayColor.hex.slice(1).toUpperCase())} aria-label="Couleur HEX" />
+          <input
+            className="app-color-hex-input"
+            value={hexDraft}
+            disabled={disabled}
+            onChange={(event) => updateHex(event.target.value)}
+            onBlur={() => setHexDraft(displayColor.hex.slice(1).toUpperCase())}
+            aria-label="Couleur HEX"
+          />
           <strong>{displayColor.alpha}%</strong>
         </label>
       </section>
@@ -299,16 +427,40 @@ export function ColorPickerPanel({
       <section className="app-color-swatches">
         <div className="app-color-swatch-heading">
           <span>Favorites</span>
-          <button type="button" disabled={disabled || displayColor.transparent} onClick={toggleFavorite} aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"} title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
+          <button
+            type="button"
+            disabled={disabled || displayColor.transparent}
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+            title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+          >
             <Plus size={13} aria-hidden />
           </button>
         </div>
-        <ColorSwatchGrid title="Favorites" colors={favoriteColors.slice(0, 8)} currentHex={displayColor.hex} disabled={disabled} onPreview={previewColor} onApply={commitColor} />
+        <ColorSwatchGrid
+          title="Favorites"
+          colors={favoriteColors.slice(0, 8)}
+          currentHex={displayColor.hex}
+          disabled={disabled}
+          onPreview={previewColor}
+          onApply={commitColor}
+        />
         <span className="app-color-swatch-title">Recents</span>
-        <ColorSwatchGrid title="Recents" colors={mergedRecent.slice(0, 8)} currentHex={displayColor.hex} disabled={disabled} onPreview={previewColor} onApply={commitColor} />
+        <ColorSwatchGrid
+          title="Recents"
+          colors={mergedRecent.slice(0, 8)}
+          currentHex={displayColor.hex}
+          disabled={disabled}
+          onPreview={previewColor}
+          onApply={commitColor}
+        />
         <div className="app-color-aux-actions">
           {allowTransparent ? (
-            <button type="button" disabled={disabled} onClick={() => commitColor(null, { remember: false })}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => commitColor(null, { remember: false })}
+            >
               Transparent / No color
             </button>
           ) : null}
@@ -341,7 +493,15 @@ function ColorSwatchGrid({
   return (
     <div className="app-color-swatch-grid">
       {colors.map((color) => (
-        <ColorSwatch key={`${title}-${color}`} color={color} active={normalizeHex(color) === currentHex} disabled={disabled} label={`${title} ${color}`} onPreview={onPreview} onApply={onApply} />
+        <ColorSwatch
+          key={`${title}-${color}`}
+          color={color}
+          active={normalizeHex(color) === currentHex}
+          disabled={disabled}
+          label={`${title} ${color}`}
+          onPreview={onPreview}
+          onApply={onApply}
+        />
       ))}
     </div>
   );
@@ -414,11 +574,23 @@ function parseColorValue(value: string | null | undefined, fallbackAlpha = 100):
   }
 
   if (isTokenColorValue(trimmed)) {
-    return { hex: resolveTokenPreviewColor(trimmed), alpha: fallbackAlpha, transparent: false, label: trimmed, raw: trimmed };
+    return {
+      hex: resolveTokenPreviewColor(trimmed),
+      alpha: fallbackAlpha,
+      transparent: false,
+      label: trimmed,
+      raw: trimmed,
+    };
   }
 
   if (isGradientColorValue(trimmed)) {
-    return { hex: resolveGradientPreviewColor(trimmed), alpha: fallbackAlpha, transparent: false, label: "Gradient", raw: trimmed };
+    return {
+      hex: resolveGradientPreviewColor(trimmed),
+      alpha: fallbackAlpha,
+      transparent: false,
+      label: "Gradient",
+      raw: trimmed,
+    };
   }
 
   const rgba = trimmed.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([0-9.]+))?\)$/i);
@@ -436,7 +608,8 @@ function parseColorValue(value: string | null | undefined, fallbackAlpha = 100):
 }
 
 function serializeColor(color: ParsedColor) {
-  if (color.raw && (isTokenColorValue(color.raw) || isGradientColorValue(color.raw))) return color.raw;
+  if (color.raw && (isTokenColorValue(color.raw) || isGradientColorValue(color.raw)))
+    return color.raw;
   if (color.transparent || color.alpha <= 0) return null;
   if (color.alpha >= 100) return color.hex;
   const { r, g, b } = hexToRgb(color.hex);
@@ -447,7 +620,10 @@ function normalizeHex(value: string) {
   const trimmed = value.trim();
   const raw = trimmed.startsWith("#") ? trimmed.slice(1) : trimmed;
   if (/^[0-9a-f]{3}$/i.test(raw)) {
-    return `#${raw.split("").map((char) => `${char}${char}`).join("")}`.toLowerCase();
+    return `#${raw
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")}`.toLowerCase();
   }
   if (/^[0-9a-f]{6}$/i.test(raw)) {
     return `#${raw}`.toLowerCase();
@@ -473,7 +649,16 @@ function resolveColorStyle(color: ParsedColor) {
 }
 
 function uniqueColors(colors: string[]) {
-  return Array.from(new Set(colors.map(normalizeHex).filter((color) => color !== "#ffffff" || colors.some((source) => normalizeHex(source) === "#ffffff"))));
+  return Array.from(
+    new Set(
+      colors
+        .map(normalizeHex)
+        .filter(
+          (color) =>
+            color !== "#ffffff" || colors.some((source) => normalizeHex(source) === "#ffffff"),
+        ),
+    ),
+  );
 }
 
 function isTokenColorValue(value: string) {

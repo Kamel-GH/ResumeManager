@@ -13,7 +13,11 @@ export interface RichTextVariableInspectorProps {
   onDisplayModeChange: (mode: RichTextVariableDisplayMode) => void;
 }
 
-export function RichTextVariableInspector({ attrs, displayMode, onDisplayModeChange }: RichTextVariableInspectorProps) {
+export function RichTextVariableInspector({
+  attrs,
+  displayMode,
+  onDisplayModeChange,
+}: RichTextVariableInspectorProps) {
   const label = attrs.label ?? attrs.key ?? "Variable";
   const technical = attrs.key ? `{{${attrs.key}}}` : "{{variable}}";
   const preview = label;

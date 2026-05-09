@@ -1,13 +1,7 @@
 "use client";
 
+import { AlignCenter, AlignLeft, AlignRight, Grid2x2, X } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  Grid2x2,
-  X,
-} from "lucide-react";
 
 import { ColorPickerControl } from "@/components/ui/color-picker-control";
 
@@ -116,7 +110,10 @@ export function RichTextTableInspector({
   const stripedOddColor = normalizeColor(tableAttrs?.stripedOddColor ?? "#ffffff");
 
   return (
-    <aside className="ef-rtp-table-inspector ef-rtp-table-design-panel" aria-label="Panneau tableau">
+    <aside
+      className="ef-rtp-table-inspector ef-rtp-table-design-panel"
+      aria-label="Panneau tableau"
+    >
       <div className="ef-rtp-table-design-header">
         <div>
           <span>Gestion des tableaux</span>
@@ -150,62 +147,206 @@ export function RichTextTableInspector({
           </div>
         </div>
         <div className="ef-rtp-design-inline-fields">
-          <PlainTextField label="Épaisseur" value={pixelTextValue(tableAttrs?.borderWidth ?? "1px")} onChange={onBorderWidthChange} disabled={!isActive} suffix="px" />
-          <DesignColorSelect label="Couleur" value={borderColor} disabled={!isActive} onChange={(color) => color && onBorderColorChange(color)} />
+          <PlainTextField
+            label="Épaisseur"
+            value={pixelTextValue(tableAttrs?.borderWidth ?? "1px")}
+            onChange={onBorderWidthChange}
+            disabled={!isActive}
+            suffix="px"
+          />
+          <DesignColorSelect
+            label="Couleur"
+            value={borderColor}
+            disabled={!isActive}
+            onChange={(color) => color && onBorderColorChange(color)}
+          />
         </div>
       </DesignSection>
 
       <DesignSection number={2} title="Couleurs">
         <div className="ef-rtp-design-tabs" aria-label="Couleurs tableau">
-          <button type="button" className="is-active">Fond</button>
+          <button type="button" className="is-active">
+            Fond
+          </button>
           <button type="button">Texte</button>
         </div>
         <div className="ef-rtp-design-inline-fields">
-          <DesignColorSelect label="Fond cellule" value={cellBackground} disabled={!isActive} allowNone onChange={onCellBackgroundChange} />
-          <DesignColorSelect label="Fond tableau" value={stripedOddColor} disabled={!isActive} allowNone onChange={onStripedOddColorChange} />
+          <DesignColorSelect
+            label="Fond cellule"
+            value={cellBackground}
+            disabled={!isActive}
+            allowNone
+            onChange={onCellBackgroundChange}
+          />
+          <DesignColorSelect
+            label="Fond tableau"
+            value={stripedOddColor}
+            disabled={!isActive}
+            allowNone
+            onChange={onStripedOddColorChange}
+          />
         </div>
-        <DesignColorSelect label="Couleur du texte" value={headerTextColor} disabled={!isActive} onChange={(color) => color && onHeaderTextColorChange(color)} />
+        <DesignColorSelect
+          label="Couleur du texte"
+          value={headerTextColor}
+          disabled={!isActive}
+          onChange={(color) => color && onHeaderTextColorChange(color)}
+        />
       </DesignSection>
 
       <DesignSection number={3} title="Alignements">
         <span className="ef-rtp-design-label">Horizontal</span>
         <div className="ef-rtp-design-icon-row">
-          <DesignIconButton label="Gauche" active={cellAttrs?.textAlign === "left"} disabled={!isActive} onClick={() => onCellTextAlignChange("left")} icon={<AlignLeft size={19} />} />
-          <DesignIconButton label="Centre" active={cellAttrs?.textAlign === "center"} disabled={!isActive} onClick={() => onCellTextAlignChange("center")} icon={<AlignCenter size={19} />} />
-          <DesignIconButton label="Droite" active={cellAttrs?.textAlign === "right"} disabled={!isActive} onClick={() => onCellTextAlignChange("right")} icon={<AlignRight size={19} />} />
+          <DesignIconButton
+            label="Gauche"
+            active={cellAttrs?.textAlign === "left"}
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("left")}
+            icon={<AlignLeft size={19} />}
+          />
+          <DesignIconButton
+            label="Centre"
+            active={cellAttrs?.textAlign === "center"}
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("center")}
+            icon={<AlignCenter size={19} />}
+          />
+          <DesignIconButton
+            label="Droite"
+            active={cellAttrs?.textAlign === "right"}
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("right")}
+            icon={<AlignRight size={19} />}
+          />
         </div>
         <span className="ef-rtp-design-label">Vertical</span>
         <div className="ef-rtp-design-icon-row">
-          <DesignTextButton label="Haut" active={(cellAttrs?.verticalAlign ?? null) === "top"} disabled={!isActive} onClick={() => onVerticalAlignChange("top")} />
-          <DesignTextButton label="Milieu" active={(cellAttrs?.verticalAlign ?? null) === "middle"} disabled={!isActive} onClick={() => onVerticalAlignChange("middle")} />
-          <DesignTextButton label="Bas" active={(cellAttrs?.verticalAlign ?? null) === "bottom"} disabled={!isActive} onClick={() => onVerticalAlignChange("bottom")} />
+          <DesignTextButton
+            label="Haut"
+            active={(cellAttrs?.verticalAlign ?? null) === "top"}
+            disabled={!isActive}
+            onClick={() => onVerticalAlignChange("top")}
+          />
+          <DesignTextButton
+            label="Milieu"
+            active={(cellAttrs?.verticalAlign ?? null) === "middle"}
+            disabled={!isActive}
+            onClick={() => onVerticalAlignChange("middle")}
+          />
+          <DesignTextButton
+            label="Bas"
+            active={(cellAttrs?.verticalAlign ?? null) === "bottom"}
+            disabled={!isActive}
+            onClick={() => onVerticalAlignChange("bottom")}
+          />
         </div>
-        <PlainTextField label="Padding cellule" value={pixelTextValue(cellAttrs?.cellPadding)} onChange={onCellPaddingChange} disabled={!isActive} placeholder="8" suffix="px" />
+        <PlainTextField
+          label="Padding cellule"
+          value={pixelTextValue(cellAttrs?.cellPadding)}
+          onChange={onCellPaddingChange}
+          disabled={!isActive}
+          placeholder="8"
+          suffix="px"
+        />
       </DesignSection>
 
       <DesignSection number={4} title="Style d’en-tête">
-        <DesignSwitch label="Première ligne = en-tête" checked={true} disabled={!isActive} onClick={onToggleHeaderRow} />
-        <DesignColorSelect label="Fond" value={headerBackground} disabled={!isActive} allowNone onChange={onHeaderBackgroundChange} />
-        <DesignColorSelect label="Texte" value={headerTextColor} disabled={!isActive} onChange={(color) => color && onHeaderTextColorChange(color)} />
-        <PlainTextField label="Bordure inférieure" value={pixelTextValue(tableAttrs?.borderWidth ?? "2px")} onChange={onBorderWidthChange} disabled={!isActive} suffix="px" />
+        <DesignSwitch
+          label="Première ligne = en-tête"
+          checked={true}
+          disabled={!isActive}
+          onClick={onToggleHeaderRow}
+        />
+        <DesignColorSelect
+          label="Fond"
+          value={headerBackground}
+          disabled={!isActive}
+          allowNone
+          onChange={onHeaderBackgroundChange}
+        />
+        <DesignColorSelect
+          label="Texte"
+          value={headerTextColor}
+          disabled={!isActive}
+          onChange={(color) => color && onHeaderTextColorChange(color)}
+        />
+        <PlainTextField
+          label="Bordure inférieure"
+          value={pixelTextValue(tableAttrs?.borderWidth ?? "2px")}
+          onChange={onBorderWidthChange}
+          disabled={!isActive}
+          suffix="px"
+        />
       </DesignSection>
 
       <DesignSection number={5} title="Style 1ère colonne">
-        <DesignSwitch label="Première colonne" checked={!!tableAttrs?.firstColumn} disabled={!isActive} onClick={onFirstColumnToggle} />
-        <DesignColorSelect label="Fond" value={firstColumnBackground} disabled={!isActive} allowNone onChange={onFirstColumnBackgroundChange} />
-        <DesignColorSelect label="Texte" value={firstColumnTextColor} disabled={!isActive} onChange={(color) => color && onFirstColumnTextColorChange(color)} />
+        <DesignSwitch
+          label="Première colonne"
+          checked={!!tableAttrs?.firstColumn}
+          disabled={!isActive}
+          onClick={onFirstColumnToggle}
+        />
+        <DesignColorSelect
+          label="Fond"
+          value={firstColumnBackground}
+          disabled={!isActive}
+          allowNone
+          onChange={onFirstColumnBackgroundChange}
+        />
+        <DesignColorSelect
+          label="Texte"
+          value={firstColumnTextColor}
+          disabled={!isActive}
+          onChange={(color) => color && onFirstColumnTextColorChange(color)}
+        />
         <div className="ef-rtp-design-icon-row">
-          <DesignIconButton label="Gauche" disabled={!isActive} onClick={() => onCellTextAlignChange("left")} icon={<AlignLeft size={18} />} />
-          <DesignIconButton label="Centre" disabled={!isActive} onClick={() => onCellTextAlignChange("center")} icon={<AlignCenter size={18} />} />
-          <DesignIconButton label="Droite" disabled={!isActive} onClick={() => onCellTextAlignChange("right")} icon={<AlignRight size={18} />} />
+          <DesignIconButton
+            label="Gauche"
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("left")}
+            icon={<AlignLeft size={18} />}
+          />
+          <DesignIconButton
+            label="Centre"
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("center")}
+            icon={<AlignCenter size={18} />}
+          />
+          <DesignIconButton
+            label="Droite"
+            disabled={!isActive}
+            onClick={() => onCellTextAlignChange("right")}
+            icon={<AlignRight size={18} />}
+          />
         </div>
       </DesignSection>
 
       <DesignSection number={6} title="Lignes alternées">
-        <DesignSwitch label="Lignes alternées" checked={!!tableAttrs?.striped} disabled={!isActive} onClick={onToggleStriped} />
-        <DesignColorSelect label="Couleur ligne paire" value={stripedEvenColor} disabled={!isActive} allowNone onChange={onStripedEvenColorChange} />
-        <DesignColorSelect label="Couleur ligne impaire" value={stripedOddColor} disabled={!isActive} allowNone onChange={onStripedOddColorChange} />
-        <div className="ef-rtp-design-intensity"><span>Intensité</span><i /><strong>60 %</strong></div>
+        <DesignSwitch
+          label="Lignes alternées"
+          checked={!!tableAttrs?.striped}
+          disabled={!isActive}
+          onClick={onToggleStriped}
+        />
+        <DesignColorSelect
+          label="Couleur ligne paire"
+          value={stripedEvenColor}
+          disabled={!isActive}
+          allowNone
+          onChange={onStripedEvenColorChange}
+        />
+        <DesignColorSelect
+          label="Couleur ligne impaire"
+          value={stripedOddColor}
+          disabled={!isActive}
+          allowNone
+          onChange={onStripedOddColorChange}
+        />
+        <div className="ef-rtp-design-intensity">
+          <span>Intensité</span>
+          <i />
+          <strong>60 %</strong>
+        </div>
       </DesignSection>
 
       <DesignSection number={7} title="Styles de tableau">
@@ -227,11 +368,25 @@ export function RichTextTableInspector({
               onClick={() => {
                 onBorderPresetChange("all");
                 onBorderColorChange(preset.border);
-                onCellBackgroundChange(preset.color === "#2563eb" || preset.color === "#0f172a" ? "#ffffff" : preset.color);
+                onCellBackgroundChange(
+                  preset.color === "#2563eb" || preset.color === "#0f172a"
+                    ? "#ffffff"
+                    : preset.color,
+                );
                 if (preset.label === "Corporate") onHeaderBackgroundChange("#dbeafe");
               }}
             >
-              <i aria-hidden style={{ backgroundColor: preset.label === "Premium" ? "#0f172a" : preset.label === "Accent bleu" ? "#2563eb" : preset.color }} />
+              <i
+                aria-hidden
+                style={{
+                  backgroundColor:
+                    preset.label === "Premium"
+                      ? "#0f172a"
+                      : preset.label === "Accent bleu"
+                        ? "#2563eb"
+                        : preset.color,
+                }}
+              />
               <span>{preset.label}</span>
             </button>
           ))}
@@ -240,9 +395,30 @@ export function RichTextTableInspector({
 
       <DesignSection number={8} title="Mesures">
         <div className="ef-rtp-design-inline-fields">
-          <PlainTextField label="Largeur tableau" value={pixelTextValue(tableAttrs?.tableWidth)} onChange={onTableWidthChange} disabled={!isActive} placeholder="Auto" suffix="px" />
-          <PlainTextField label="Largeur colonne" value={pixelTextValue(columnWidth)} onChange={onColumnWidthChange} disabled={!isActive} placeholder="Auto" suffix="px" />
-          <PlainTextField label="Hauteur ligne" value={pixelTextValue(rowAttrs?.rowHeight)} onChange={onRowHeightChange} disabled={!isActive} placeholder="Auto" suffix="px" />
+          <PlainTextField
+            label="Largeur tableau"
+            value={pixelTextValue(tableAttrs?.tableWidth)}
+            onChange={onTableWidthChange}
+            disabled={!isActive}
+            placeholder="Auto"
+            suffix="px"
+          />
+          <PlainTextField
+            label="Largeur colonne"
+            value={pixelTextValue(columnWidth)}
+            onChange={onColumnWidthChange}
+            disabled={!isActive}
+            placeholder="Auto"
+            suffix="px"
+          />
+          <PlainTextField
+            label="Hauteur ligne"
+            value={pixelTextValue(rowAttrs?.rowHeight)}
+            onChange={onRowHeightChange}
+            disabled={!isActive}
+            placeholder="Auto"
+            suffix="px"
+          />
         </div>
       </DesignSection>
     </aside>
@@ -261,13 +437,25 @@ function InspectorTab({
   onTabChange: (tab: RichTextTableInspectorTab) => void;
 }) {
   return (
-    <button type="button" className={activeTab === value ? "is-active" : ""} onClick={() => onTabChange(value)}>
+    <button
+      type="button"
+      className={activeTab === value ? "is-active" : ""}
+      onClick={() => onTabChange(value)}
+    >
       {label}
     </button>
   );
 }
 
-function DesignSection({ number, title, children }: { number: number; title: string; children: ReactNode }) {
+function DesignSection({
+  number,
+  title,
+  children,
+}: {
+  number: number;
+  title: string;
+  children: ReactNode;
+}) {
   return (
     <section className="ef-rtp-design-section">
       <div className="ef-rtp-design-section-title">
@@ -379,7 +567,15 @@ function DesignColorSelect({
   );
 }
 
-function InspectorSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+function InspectorSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="ef-rtp-table-inspector-section">
       <div className="ef-rtp-table-inspector-section-title">
@@ -409,7 +605,13 @@ function InspectorAction({
   return (
     <button
       type="button"
-      className={["ef-rtp-table-inspector-action", active ? "is-active" : "", danger ? "is-danger" : ""].filter(Boolean).join(" ")}
+      className={[
+        "ef-rtp-table-inspector-action",
+        active ? "is-active" : "",
+        danger ? "is-danger" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       disabled={disabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
@@ -460,6 +662,7 @@ function normalizeColor(value: string): string {
 
 function pixelTextValue(value: string | number | null | undefined): string {
   if (value === null || typeof value === "undefined") return "";
-  if (typeof value === "number") return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : "";
+  if (typeof value === "number")
+    return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : "";
   return value.replace(/px$/i, "").trim();
 }

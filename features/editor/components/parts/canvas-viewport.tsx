@@ -1,87 +1,94 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, ComponentType, DragEvent, ReactNode, RefObject } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
-  ChevronLeft,
   ArrowLeftRight,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Crosshair,
   Eye,
   Grid3X3,
   GripVertical,
   Hand,
+  Magnet,
   Pentagon,
-  Square,
   Plus,
   Ruler,
   Settings2,
-  Magnet,
+  Square,
   X,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import type { ComponentType, CSSProperties, DragEvent, ReactNode, RefObject } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ColorPickerPanel } from "@/components/ui/color-picker-control";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { buildVariableDragOperationLog } from "@/features/data-mapping/lib/variable-display";
 
-import { isCanvasShortcutEditableTarget, resolveCanvasShortcutAction } from "@/features/editor/components/parts/canvas-shortcuts";
+import {
+  isCanvasShortcutEditableTarget,
+  resolveCanvasShortcutAction,
+} from "@/features/editor/components/parts/canvas-shortcuts";
 import { CanvasWorkspaceSettingsDialog } from "@/features/editor/components/parts/canvas-workspace-settings-dialog";
 import {
-  resolveEditorColorButtonStyle,
   normalizeEditorColorValue,
+  resolveEditorColorButtonStyle,
 } from "@/features/editor/components/parts/editor-color-controls";
 import { EditorRenderTreePreview } from "@/features/editor/renderers/editor-render-tree-preview";
+import { insertVariableTokenIntoRichTextHtml } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
 import {
-  isArcToolId,
-  resolveArcGeometryDraft,
   type CanvasToolDraft,
   type CanvasToolId,
+  isArcToolId,
+  resolveArcGeometryDraft,
 } from "@/features/editor/schema/canvas-insertion";
+import {
+  isCanvasObjectStyleSupportedElement,
+  resolveCanvasObjectStyleCapabilities,
+  resolveCanvasObjectStylePreview,
+} from "@/features/editor/schema/canvas-mutation";
 import {
   CANVAS_ARC_PRESETS,
   CANVAS_SHAPE_PRESETS,
-  createCanvasArcPresetToolPayload,
-  createCanvasShapePresetPayload,
   type CanvasArcPreset,
   type CanvasPresetIcon,
   type CanvasPresetIconElement,
   type CanvasShapePreset,
+  createCanvasArcPresetToolPayload,
+  createCanvasShapePresetPayload,
 } from "@/features/editor/schema/canvas-presets";
-import {
-  resolveCanvasObjectStyleCapabilities,
-  isCanvasObjectStyleSupportedElement,
-  resolveCanvasObjectStylePreview,
-} from "@/features/editor/schema/canvas-mutation";
+import type { TemplateElement } from "@/features/editor/schema/template-schema";
 import {
   buildActiveWorkspaceLayout,
   convertClientPointToWorkspacePoint,
   convertWorkspacePointToPagePoint,
+  type EditorWorkspaceSettings,
   findWorkspacePageAtPoint,
   findWorkspacePageAtPointStrict,
   projectRulerTickToViewportPosition,
   projectWorkspacePositionToViewport,
+  type RulerTick,
   resolveEffectiveRulerMode,
   resolveEffectiveWorkspaceMode,
   resolveWorkspaceRulerTicks,
-  resolveWorkspaceVisualAids,
   resolveWorkspaceViewportPreset,
+  resolveWorkspaceVisualAids,
   snapWorkspaceFrame,
   snapWorkspacePoint,
-  type EditorWorkspaceSettings,
-  type RulerTick,
   type WorkspacePageLayout,
   type WorkspaceViewport,
 } from "@/features/editor/schema/workspace-layout";
-import { buildVariableDragOperationLog } from "@/features/data-mapping/lib/variable-display";
-import { insertVariableTokenIntoRichTextHtml } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
-import type { TemplateElement } from "@/features/editor/schema/template-schema";
-import { EDITOR_VIEWPORT_MAX_ZOOM, EDITOR_VIEWPORT_MIN_ZOOM, useEditorStore } from "@/features/editor/stores/editor-store";
+import {
+  EDITOR_VIEWPORT_MAX_ZOOM,
+  EDITOR_VIEWPORT_MIN_ZOOM,
+  useEditorStore,
+} from "@/features/editor/stores/editor-store";
+import { cn } from "@/lib/utils";
 
 type PaletteOrientation = "vertical" | "horizontal";
 
@@ -418,7 +425,9 @@ export function CanvasViewport() {
   const setViewportPan = useEditorStore((state) => state.setViewportPan);
   const addTemplatePage = useEditorStore((state) => state.addTemplatePage);
   const insertCanvasDropPayload = useEditorStore((state) => state.insertCanvasDropPayload);
-  const updateRichTextElementContent = useEditorStore((state) => state.updateRichTextElementContent);
+  const updateRichTextElementContent = useEditorStore(
+    (state) => state.updateRichTextElementContent,
+  );
   const appendOperationLogs = useEditorStore((state) => state.appendOperationLogs);
   const clearDragTraceContext = useEditorStore((state) => state.clearDragTraceContext);
   const insertCanvasToolPayload = useEditorStore((state) => state.insertCanvasToolPayload);
@@ -428,9 +437,19 @@ export function CanvasViewport() {
   const undo = useEditorStore((state) => state.undo);
   const redo = useEditorStore((state) => state.redo);
   const setSelectedElementIds = useEditorStore((state) => state.setSelectedElementIds);
-  const activePage = useMemo(() => workingTemplate.pages.find((page) => page.id === activePageId) ?? workingTemplate.pages[0] ?? null, [activePageId, workingTemplate.pages]);
-  const activePageMargin = activePage?.margin ?? workingTemplate.pages[0]?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 };
-  const activePageIndex = useMemo(() => workingTemplate.pages.findIndex((page) => page.id === activePageId), [activePageId, workingTemplate.pages]);
+  const activePage = useMemo(
+    () =>
+      workingTemplate.pages.find((page) => page.id === activePageId) ??
+      workingTemplate.pages[0] ??
+      null,
+    [activePageId, workingTemplate.pages],
+  );
+  const activePageMargin = activePage?.margin ??
+    workingTemplate.pages[0]?.margin ?? { top: 0, right: 0, bottom: 0, left: 0 };
+  const activePageIndex = useMemo(
+    () => workingTemplate.pages.findIndex((page) => page.id === activePageId),
+    [activePageId, workingTemplate.pages],
+  );
   const isArcPointTool = activeCanvasTool === "arc2point" || activeCanvasTool === "arc3point";
   const effectiveWorkspaceMode = resolveEffectiveWorkspaceMode(workspaceSettings.workspaceMode);
   const autoCenterOnLoad = workspaceSettings.autoCenterOnLoad ?? true;
@@ -451,10 +470,20 @@ export function CanvasViewport() {
           pagePadding: workspaceSettings.pagePadding,
         },
       ),
-    [activePage?.id, activePageId, workingTemplate.pages, workspaceSettings.pageGap, workspaceSettings.pagePadding],
+    [
+      activePage?.id,
+      activePageId,
+      workingTemplate.pages,
+      workspaceSettings.pageGap,
+      workspaceSettings.pagePadding,
+    ],
   );
-  const workspacePageById = useMemo(() => new Map(workspaceLayout.pages.map((page) => [page.id, page] as const)), [workspaceLayout.pages]);
-  const activePageRulerTarget = workspacePageById.get(activePageId ?? "") ?? workspaceLayout.pages[0] ?? null;
+  const workspacePageById = useMemo(
+    () => new Map(workspaceLayout.pages.map((page) => [page.id, page] as const)),
+    [workspaceLayout.pages],
+  );
+  const activePageRulerTarget =
+    workspacePageById.get(activePageId ?? "") ?? workspaceLayout.pages[0] ?? null;
   const effectiveRulerMode = resolveEffectiveRulerMode(workspaceSettings);
   const rulerMajorStep = workspaceSettings.rulerMajorStep;
   const rulerMinorStep = workspaceSettings.rulerMinorStep;
@@ -479,13 +508,21 @@ export function CanvasViewport() {
       workspaceLayout,
     ],
   );
-  const [canvasViewportSize, setCanvasViewportSize] = useState<{ width: number; height: number } | null>(null);
+  const [canvasViewportSize, setCanvasViewportSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const canvasSurfaceSize = useMemo(
     () => ({
       width: Math.max(workspaceLayout.width, canvasViewportSize?.width ?? 0),
       height: Math.max(workspaceLayout.height, canvasViewportSize?.height ?? 0),
     }),
-    [canvasViewportSize?.height, canvasViewportSize?.width, workspaceLayout.height, workspaceLayout.width],
+    [
+      canvasViewportSize?.height,
+      canvasViewportSize?.width,
+      workspaceLayout.height,
+      workspaceLayout.width,
+    ],
   );
   const [isDropActive, setIsDropActive] = useState(false);
   const [isWorkspaceSettingsOpen, setIsWorkspaceSettingsOpen] = useState(false);
@@ -561,17 +598,13 @@ export function CanvasViewport() {
       return;
     }
 
-    const preset = resolveWorkspaceViewportPreset(
-      workspaceLayout,
-      canvasViewportSize,
-        {
-          mode: effectiveWorkspaceMode,
-          autoCenterOnLoad,
-          currentViewport: viewport,
-          minZoom: EDITOR_VIEWPORT_MIN_ZOOM,
-          maxZoom: EDITOR_VIEWPORT_MAX_ZOOM,
-        },
-    );
+    const preset = resolveWorkspaceViewportPreset(workspaceLayout, canvasViewportSize, {
+      mode: effectiveWorkspaceMode,
+      autoCenterOnLoad,
+      currentViewport: viewport,
+      minZoom: EDITOR_VIEWPORT_MIN_ZOOM,
+      maxZoom: EDITOR_VIEWPORT_MAX_ZOOM,
+    });
 
     if (!preset) {
       workspacePresetKeyRef.current = null;
@@ -598,7 +631,10 @@ export function CanvasViewport() {
       setZoom(preset.zoom);
     }
 
-    if (Math.abs(preset.panX - viewport.panX) > 0.5 || Math.abs(preset.panY - viewport.panY) > 0.5) {
+    if (
+      Math.abs(preset.panX - viewport.panX) > 0.5 ||
+      Math.abs(preset.panY - viewport.panY) > 0.5
+    ) {
       setViewportPan({ panX: preset.panX, panY: preset.panY });
     }
   }, [
@@ -624,7 +660,14 @@ export function CanvasViewport() {
         payload: unknown;
       } | null,
       input: {
-        action: "dragstart" | "dragenter" | "dragover" | "dragleave" | "drop" | "dragend" | "drop-reject";
+        action:
+          | "dragstart"
+          | "dragenter"
+          | "dragover"
+          | "dragleave"
+          | "drop"
+          | "dragend"
+          | "drop-reject";
         pageId: string;
         target: string;
         outcome?: string;
@@ -635,7 +678,14 @@ export function CanvasViewport() {
         return;
       }
 
-      const logKey = [dragContext.sessionId, input.action, input.pageId, input.target, input.outcome ?? "", input.reason ?? ""].join("|");
+      const logKey = [
+        dragContext.sessionId,
+        input.action,
+        input.pageId,
+        input.target,
+        input.outcome ?? "",
+        input.reason ?? "",
+      ].join("|");
       if (dragTraceLoggedKeysRef.current.has(logKey)) {
         return;
       }
@@ -664,18 +714,21 @@ export function CanvasViewport() {
     dragTraceOverSessionRef.current = null;
   }, [dragTraceContext]);
 
-  const clearCanvasInteractions = useCallback((target?: HTMLDivElement | null, pointerId?: number) => {
-    if (target && typeof pointerId === "number" && target.hasPointerCapture(pointerId)) {
-      target.releasePointerCapture(pointerId);
-    }
+  const clearCanvasInteractions = useCallback(
+    (target?: HTMLDivElement | null, pointerId?: number) => {
+      if (target && typeof pointerId === "number" && target.hasPointerCapture(pointerId)) {
+        target.releasePointerCapture(pointerId);
+      }
 
-    frameDraftRef.current = null;
-    arcDraftRef.current = null;
-    lineDraftRef.current = null;
-    pointDraftRef.current = null;
-    panDraftRef.current = null;
-    setDraftCanvasCreation(null);
-  }, []);
+      frameDraftRef.current = null;
+      arcDraftRef.current = null;
+      lineDraftRef.current = null;
+      pointDraftRef.current = null;
+      panDraftRef.current = null;
+      setDraftCanvasCreation(null);
+    },
+    [],
+  );
 
   const commitArcDraft = useCallback(
     (target?: HTMLDivElement | null, pointerId?: number) => {
@@ -724,7 +777,13 @@ export function CanvasViewport() {
 
       clearCanvasInteractions(target, pointerId);
     },
-    [clearCanvasInteractions, insertCanvasToolPayload, setActiveCanvasTool, setSelectedElementIds, workspaceLayout.pages],
+    [
+      clearCanvasInteractions,
+      insertCanvasToolPayload,
+      setActiveCanvasTool,
+      setSelectedElementIds,
+      workspaceLayout.pages,
+    ],
   );
 
   const commitLineDraft = useCallback(
@@ -771,7 +830,14 @@ export function CanvasViewport() {
 
       clearCanvasInteractions(target, pointerId);
     },
-    [clearCanvasInteractions, insertCanvasToolPayload, setActiveCanvasTool, setSelectedElementIds, workspaceLayout.pages, workspaceSettings],
+    [
+      clearCanvasInteractions,
+      insertCanvasToolPayload,
+      setActiveCanvasTool,
+      setSelectedElementIds,
+      workspaceLayout.pages,
+      workspaceSettings,
+    ],
   );
 
   const commitFrameDraft = useCallback(
@@ -823,7 +889,14 @@ export function CanvasViewport() {
 
       clearCanvasInteractions(target, pointerId);
     },
-    [clearCanvasInteractions, insertCanvasToolPayload, setActiveCanvasTool, setSelectedElementIds, workspaceLayout.pages, workspaceSettings],
+    [
+      clearCanvasInteractions,
+      insertCanvasToolPayload,
+      setActiveCanvasTool,
+      setSelectedElementIds,
+      workspaceLayout.pages,
+      workspaceSettings,
+    ],
   );
 
   const commitPointDraft = useCallback(
@@ -869,7 +942,14 @@ export function CanvasViewport() {
 
       clearCanvasInteractions(target, pointerId);
     },
-    [clearCanvasInteractions, insertCanvasToolPayload, setActiveCanvasTool, setSelectedElementIds, workspaceLayout.pages, workspaceSettings],
+    [
+      clearCanvasInteractions,
+      insertCanvasToolPayload,
+      setActiveCanvasTool,
+      setSelectedElementIds,
+      workspaceLayout.pages,
+      workspaceSettings,
+    ],
   );
 
   useEffect(
@@ -882,12 +962,21 @@ export function CanvasViewport() {
   useEffect(() => {
     const handleWindowKeyDown = (event: KeyboardEvent) => {
       const activeElement = typeof document !== "undefined" ? document.activeElement : null;
-      if (isCanvasShortcutEditableTarget(event.target) || isCanvasShortcutEditableTarget(activeElement)) {
+      if (
+        isCanvasShortcutEditableTarget(event.target) ||
+        isCanvasShortcutEditableTarget(activeElement)
+      ) {
         return;
       }
 
       const isSpaceKey = event.code === "Space" || event.key === " ";
-      if (isSpaceKey && !event.metaKey && !event.ctrlKey && !event.altKey && (activeCanvasTool === "pointer" || activeCanvasTool === "selection")) {
+      if (
+        isSpaceKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        (activeCanvasTool === "pointer" || activeCanvasTool === "selection")
+      ) {
         event.preventDefault();
         if (!event.repeat) {
           setIsSpacePanActive(true);
@@ -936,7 +1025,13 @@ export function CanvasViewport() {
         return;
       }
 
-      const hasActiveDraft = Boolean(frameDraftRef.current || arcDraftRef.current || lineDraftRef.current || pointDraftRef.current || panDraftRef.current);
+      const hasActiveDraft = Boolean(
+        frameDraftRef.current ||
+          arcDraftRef.current ||
+          lineDraftRef.current ||
+          pointDraftRef.current ||
+          panDraftRef.current,
+      );
       if (event.key === "Escape") {
         if (hasActiveDraft) {
           clearCanvasInteractions();
@@ -1015,7 +1110,9 @@ export function CanvasViewport() {
           start: draft.points[0],
           current: draft.current,
           points: draft.points,
-          frame: resolveArcGeometryDraft(draft.toolId, draft.points, null, draft.current)?.frame ?? makeDraftFrame(draft.points[0], draft.current),
+          frame:
+            resolveArcGeometryDraft(draft.toolId, draft.points, null, draft.current)?.frame ??
+            makeDraftFrame(draft.points[0], draft.current),
         });
         return;
       }
@@ -1266,7 +1363,11 @@ export function CanvasViewport() {
       return;
     }
 
-    const point = snapWorkspacePoint(convertWorkspacePointToPagePoint(workspacePoint, targetPage), targetPage, workspaceSettings);
+    const point = snapWorkspacePoint(
+      convertWorkspacePointToPagePoint(workspacePoint, targetPage),
+      targetPage,
+      workspaceSettings,
+    );
     const result = insertCanvasDropPayload({
       pageId: targetPage.id,
       point,
@@ -1323,7 +1424,9 @@ export function CanvasViewport() {
       }
 
       const clientPoint =
-        Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && (event.clientX !== 0 || event.clientY !== 0)
+        Number.isFinite(event.clientX) &&
+        Number.isFinite(event.clientY) &&
+        (event.clientX !== 0 || event.clientY !== 0)
           ? { x: event.clientX, y: event.clientY }
           : lastVariableDragPointRef.current;
 
@@ -1343,17 +1446,28 @@ export function CanvasViewport() {
       }
 
       const directTarget = document.elementFromPoint(clientPoint.x, clientPoint.y);
-      const richTextBlock = directTarget instanceof Element ? directTarget.closest(".ef-rich-text-canvas-block") : null;
+      const richTextBlock =
+        directTarget instanceof Element ? directTarget.closest(".ef-rich-text-canvas-block") : null;
       const richTextBlockId = richTextBlock?.getAttribute("data-rich-text-block-id");
       if (richTextBlockId) {
-        const richTextElement = workingTemplate.elements.find((element) => element.id === richTextBlockId) ?? null;
+        const richTextElement =
+          workingTemplate.elements.find((element) => element.id === richTextBlockId) ?? null;
         if (richTextElement?.type === "rich-text") {
-          const html = typeof richTextElement.props?.html === "string" ? richTextElement.props.html : "<p></p>";
-          const nextHtml = insertVariableTokenIntoRichTextHtml(html, payload as Parameters<typeof insertVariableTokenIntoRichTextHtml>[1]);
+          const html =
+            typeof richTextElement.props?.html === "string"
+              ? richTextElement.props.html
+              : "<p></p>";
+          const nextHtml = insertVariableTokenIntoRichTextHtml(
+            html,
+            payload as Parameters<typeof insertVariableTokenIntoRichTextHtml>[1],
+          );
           const result = updateRichTextElementContent({
             elementId: richTextElement.id,
             html: nextHtml,
-            displayMode: typeof richTextElement.props?.richTextDisplayMode === "string" ? (richTextElement.props.richTextDisplayMode as "label" | "technical" | "value") : "label",
+            displayMode:
+              typeof richTextElement.props?.richTextDisplayMode === "string"
+                ? (richTextElement.props.richTextDisplayMode as "label" | "technical" | "value")
+                : "label",
           });
 
           if (result.updated) {
@@ -1435,7 +1549,11 @@ export function CanvasViewport() {
         return;
       }
 
-      const point = snapWorkspacePoint(convertWorkspacePointToPagePoint(workspacePoint, targetPage), targetPage, workspaceSettings);
+      const point = snapWorkspacePoint(
+        convertWorkspacePointToPagePoint(workspacePoint, targetPage),
+        targetPage,
+        workspaceSettings,
+      );
       const result = insertCanvasDropPayload({
         pageId: targetPage.id,
         point,
@@ -1598,7 +1716,13 @@ export function CanvasViewport() {
       document.removeEventListener("drop", handleDocumentDrop, true);
       document.removeEventListener("dragend", handleDocumentDragEnd, true);
     };
-  }, [handleVariableDragEndFallback, handleWorkspaceDragEnter, handleWorkspaceDragLeave, handleWorkspaceDragOver, handleWorkspaceDrop]);
+  }, [
+    handleVariableDragEndFallback,
+    handleWorkspaceDragEnter,
+    handleWorkspaceDragLeave,
+    handleWorkspaceDragOver,
+    handleWorkspaceDrop,
+  ]);
 
   const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     const toolId = activeCanvasTool;
@@ -1621,17 +1745,29 @@ export function CanvasViewport() {
       return;
     }
 
-    const workspacePoint = resolveWorkspacePointer(event, viewport, stageRef.current ?? event.currentTarget);
+    const workspacePoint = resolveWorkspacePointer(
+      event,
+      viewport,
+      stageRef.current ?? event.currentTarget,
+    );
     if (!workspacePoint) {
       return;
     }
 
-    const targetPage = findWorkspacePageAtPoint(workspaceLayout, workspacePoint, activePage?.id ?? null);
+    const targetPage = findWorkspacePageAtPoint(
+      workspaceLayout,
+      workspacePoint,
+      activePage?.id ?? null,
+    );
     if (!targetPage) {
       return;
     }
 
-    const pagePoint = snapWorkspacePoint(convertWorkspacePointToPagePoint(workspacePoint, targetPage), targetPage, workspaceSettings);
+    const pagePoint = snapWorkspacePoint(
+      convertWorkspacePointToPagePoint(workspacePoint, targetPage),
+      targetPage,
+      workspaceSettings,
+    );
 
     if (isArcToolId(toolId)) {
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -1746,21 +1882,21 @@ export function CanvasViewport() {
     }
 
     event.currentTarget.setPointerCapture(event.pointerId);
-      frameDraftRef.current = {
-        pointerId: event.pointerId,
-        toolId,
-        pageId: targetPage.id,
-        start: pagePoint,
-        current: pagePoint,
-      };
-      setDraftCanvasCreation({
-        toolId,
-        pageId: targetPage.id,
-        start: pagePoint,
-        current: pagePoint,
-        frame: makeDraftFrame(pagePoint, pagePoint),
-      });
+    frameDraftRef.current = {
+      pointerId: event.pointerId,
+      toolId,
+      pageId: targetPage.id,
+      start: pagePoint,
+      current: pagePoint,
     };
+    setDraftCanvasCreation({
+      toolId,
+      pageId: targetPage.id,
+      start: pagePoint,
+      current: pagePoint,
+      frame: makeDraftFrame(pagePoint, pagePoint),
+    });
+  };
 
   const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const panDraft = panDraftRef.current;
@@ -1782,18 +1918,27 @@ export function CanvasViewport() {
       return;
     }
 
-    const workspacePoint = resolveWorkspacePointer(event, viewport, stageRef.current ?? event.currentTarget);
+    const workspacePoint = resolveWorkspacePointer(
+      event,
+      viewport,
+      stageRef.current ?? event.currentTarget,
+    );
     if (!workspacePoint) {
       return;
     }
 
     const activeDraft = arcDraft ?? frameDraft ?? lineDraft ?? pointDraft;
-    const pageLayout = workspaceLayout.pages.find((page) => page.id === activeDraft?.pageId) ?? null;
+    const pageLayout =
+      workspaceLayout.pages.find((page) => page.id === activeDraft?.pageId) ?? null;
     if (!pageLayout) {
       return;
     }
 
-    const point = snapWorkspacePoint(convertWorkspacePointToPagePoint(workspacePoint, pageLayout), pageLayout, workspaceSettings);
+    const point = snapWorkspacePoint(
+      convertWorkspacePointToPagePoint(workspacePoint, pageLayout),
+      pageLayout,
+      workspaceSettings,
+    );
 
     if (arcDraft) {
       arcDraft.current = point;
@@ -1890,10 +2035,24 @@ export function CanvasViewport() {
       return;
     }
 
-    const workspacePoint = resolveWorkspacePointer(event, viewport, stageRef.current ?? event.currentTarget);
-    const point = workspacePoint ? snapWorkspacePoint(convertWorkspacePointToPagePoint(workspacePoint, pageLayout), pageLayout, workspaceSettings) : frameDraft.start;
+    const workspacePoint = resolveWorkspacePointer(
+      event,
+      viewport,
+      stageRef.current ?? event.currentTarget,
+    );
+    const point = workspacePoint
+      ? snapWorkspacePoint(
+          convertWorkspacePointToPagePoint(workspacePoint, pageLayout),
+          pageLayout,
+          workspaceSettings,
+        )
+      : frameDraft.start;
     frameDraft.current = point;
-    const frame = snapWorkspaceFrame(makeDraftFrame(frameDraft.start, point), pageLayout, workspaceSettings);
+    const frame = snapWorkspaceFrame(
+      makeDraftFrame(frameDraft.start, point),
+      pageLayout,
+      workspaceSettings,
+    );
     if (Math.max(frame.width, frame.height) < 8) {
       clearCanvasInteractions(event.currentTarget, event.pointerId);
       return;
@@ -1932,7 +2091,10 @@ export function CanvasViewport() {
         return;
       }
 
-      const pageLayout = workspaceLayout.pages.find((page) => page.id === activePage?.id) ?? workspaceLayout.pages[0] ?? null;
+      const pageLayout =
+        workspaceLayout.pages.find((page) => page.id === activePage?.id) ??
+        workspaceLayout.pages[0] ??
+        null;
       if (!pageLayout) {
         console.warn("[editor] no active page available for image insertion");
         return;
@@ -1974,7 +2136,13 @@ export function CanvasViewport() {
         console.warn("[editor] unable to read selected image", error);
       }
     },
-    [activePage?.id, insertCanvasDropPayload, setActiveCanvasTool, workspaceLayout.pages, workspaceSettings],
+    [
+      activePage?.id,
+      insertCanvasDropPayload,
+      setActiveCanvasTool,
+      workspaceLayout.pages,
+      workspaceSettings,
+    ],
   );
 
   const goToPageByOffset = useCallback(
@@ -2032,10 +2200,21 @@ export function CanvasViewport() {
       setZoom(preset.zoom);
     }
 
-    if (Math.abs(preset.panX - viewport.panX) > 0.5 || Math.abs(preset.panY - viewport.panY) > 0.5) {
+    if (
+      Math.abs(preset.panX - viewport.panX) > 0.5 ||
+      Math.abs(preset.panY - viewport.panY) > 0.5
+    ) {
       setViewportPan({ panX: preset.panX, panY: preset.panY });
     }
-  }, [canvasViewportSize, setViewportPan, setZoom, viewport.panX, viewport.panY, viewport.zoom, workspaceLayout]);
+  }, [
+    canvasViewportSize,
+    setViewportPan,
+    setZoom,
+    viewport.panX,
+    viewport.panY,
+    viewport.zoom,
+    workspaceLayout,
+  ]);
 
   return (
     <section
@@ -2072,10 +2251,31 @@ export function CanvasViewport() {
         </div>
 
         <div className="ef-pagebar-tools">
-          <TogglePill icon={Ruler} label="Regles" active={workspaceSettings.rulersVisible} onClick={() => setWorkspaceSettings({ rulersVisible: !workspaceSettings.rulersVisible })} />
-          <TogglePill icon={Eye} label="Marges" active={workspaceSettings.marginsVisible} onClick={() => setWorkspaceSettings({ marginsVisible: !workspaceSettings.marginsVisible })} />
-          <TogglePill icon={Magnet} label="Magnetisme" active={workspaceSettings.snapEnabled} onClick={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })} />
-          <span className="ef-toggle-pill is-active">Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {workingTemplate.pages.length}</span>
+          <TogglePill
+            icon={Ruler}
+            label="Regles"
+            active={workspaceSettings.rulersVisible}
+            onClick={() =>
+              setWorkspaceSettings({ rulersVisible: !workspaceSettings.rulersVisible })
+            }
+          />
+          <TogglePill
+            icon={Eye}
+            label="Marges"
+            active={workspaceSettings.marginsVisible}
+            onClick={() =>
+              setWorkspaceSettings({ marginsVisible: !workspaceSettings.marginsVisible })
+            }
+          />
+          <TogglePill
+            icon={Magnet}
+            label="Magnetisme"
+            active={workspaceSettings.snapEnabled}
+            onClick={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })}
+          />
+          <span className="ef-toggle-pill is-active">
+            Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {workingTemplate.pages.length}
+          </span>
         </div>
       </div>
 
@@ -2113,9 +2313,17 @@ export function CanvasViewport() {
             visible={visualAids.rulersVisible}
           />
           <div
-            className={["ef-canvas-stage", isDropActive ? "is-drop-active" : "", isArcPointTool ? "is-pencil-tool" : "", activeCanvasTool === "hand" || isSpacePanActive ? "is-pan-tool" : ""].join(" ")}
+            className={[
+              "ef-canvas-stage",
+              isDropActive ? "is-drop-active" : "",
+              isArcPointTool ? "is-pencil-tool" : "",
+              activeCanvasTool === "hand" || isSpacePanActive ? "is-pan-tool" : "",
+            ].join(" ")}
             ref={stageRef}
-            style={{ width: `${canvasSurfaceSize.width}px`, height: `${canvasSurfaceSize.height}px` }}
+            style={{
+              width: `${canvasSurfaceSize.width}px`,
+              height: `${canvasSurfaceSize.height}px`,
+            }}
             onPointerDown={handleCanvasPointerDown}
             onPointerMove={handleCanvasPointerMove}
             onPointerUp={handleCanvasPointerUp}
@@ -2142,9 +2350,13 @@ export function CanvasViewport() {
         onNextPage={() => goToPageByOffset(1)}
         onPreviousPage={() => goToPageByOffset(-1)}
         onToggleGrid={() => setWorkspaceSettings({ gridEnabled: !workspaceSettings.gridEnabled })}
-        onToggleGuides={() => setWorkspaceSettings({ guidesVisible: !workspaceSettings.guidesVisible })}
+        onToggleGuides={() =>
+          setWorkspaceSettings({ guidesVisible: !workspaceSettings.guidesVisible })
+        }
         onTogglePan={() => setActiveCanvasTool(activeCanvasTool === "hand" ? "pointer" : "hand")}
-        onToggleRulers={() => setWorkspaceSettings({ rulersVisible: !workspaceSettings.rulersVisible })}
+        onToggleRulers={() =>
+          setWorkspaceSettings({ rulersVisible: !workspaceSettings.rulersVisible })
+        }
         onToggleSnap={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })}
         onOpenWorkspaceSettings={() => setIsWorkspaceSettingsOpen(true)}
         onFitWorkspace={handleFitWorkspace}
@@ -2157,10 +2369,7 @@ export function CanvasViewport() {
         zoom={viewport.zoom}
       />
       <div className="ef-tool-palette-layer">
-        <CanvasFloatingPalette
-          boundaryRef={shellRef}
-          onImportImage={openImagePicker}
-        />
+        <CanvasFloatingPalette boundaryRef={shellRef} onImportImage={openImagePicker} />
       </div>
 
       <CanvasWorkspaceSettingsDialog
@@ -2173,19 +2382,36 @@ export function CanvasViewport() {
       />
 
       <div className="ef-canvas-footer">
-        <button className="ef-adjust-button" onClick={() => setIsWorkspaceSettingsOpen(true)} type="button">
+        <button
+          className="ef-adjust-button"
+          onClick={() => setIsWorkspaceSettingsOpen(true)}
+          type="button"
+        >
           <Settings2 size={13} aria-hidden="true" />
           Ajuster
           <ChevronDown size={12} aria-hidden="true" />
         </button>
         <div className="ef-footer-toggles">
-          <CheckboxPill label="Afficher les marges" active={workspaceSettings.marginsVisible} onClick={() => setWorkspaceSettings({ marginsVisible: !workspaceSettings.marginsVisible })} />
-          <CheckboxPill label="Magnétisme" active={workspaceSettings.snapEnabled} onClick={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })} />
+          <CheckboxPill
+            label="Afficher les marges"
+            active={workspaceSettings.marginsVisible}
+            onClick={() =>
+              setWorkspaceSettings({ marginsVisible: !workspaceSettings.marginsVisible })
+            }
+          />
+          <CheckboxPill
+            label="Magnétisme"
+            active={workspaceSettings.snapEnabled}
+            onClick={() => setWorkspaceSettings({ snapEnabled: !workspaceSettings.snapEnabled })}
+          />
         </div>
         <button className="ef-format-button">
-          {activePage ? `${activePage.width} x ${activePage.height} px` : "Format"} <ChevronDown size={12} aria-hidden="true" />
+          {activePage ? `${activePage.width} x ${activePage.height} px` : "Format"}{" "}
+          <ChevronDown size={12} aria-hidden="true" />
         </button>
-        <span className="ef-footer-page">Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {workingTemplate.pages.length}</span>
+        <span className="ef-footer-page">
+          Page {activePageIndex >= 0 ? activePageIndex + 1 : 1} / {workingTemplate.pages.length}
+        </span>
       </div>
     </section>
   );
@@ -2243,32 +2469,85 @@ function CanvasNavigationPalette({
   return (
     <div className="ef-navigation-palette" aria-label="Navigation canvas">
       <div className="ef-navigation-group" aria-label="Zoom">
-        <NavigationPaletteButton icon={ZoomOut} label="Zoom -" onClick={onZoomOut} disabled={zoom <= EDITOR_VIEWPORT_MIN_ZOOM} />
+        <NavigationPaletteButton
+          icon={ZoomOut}
+          label="Zoom -"
+          onClick={onZoomOut}
+          disabled={zoom <= EDITOR_VIEWPORT_MIN_ZOOM}
+        />
         <span className="ef-navigation-zoom-value" aria-label="Zoom actuel">
           {zoomPercent}%
         </span>
-        <NavigationPaletteButton icon={ZoomIn} label="Zoom +" onClick={onZoomIn} disabled={zoom >= EDITOR_VIEWPORT_MAX_ZOOM} />
-        <NavigationPaletteButton icon={Crosshair} label="Fit to workspace" onClick={onFitWorkspace} />
+        <NavigationPaletteButton
+          icon={ZoomIn}
+          label="Zoom +"
+          onClick={onZoomIn}
+          disabled={zoom >= EDITOR_VIEWPORT_MAX_ZOOM}
+        />
+        <NavigationPaletteButton
+          icon={Crosshair}
+          label="Fit to workspace"
+          onClick={onFitWorkspace}
+        />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Pan">
-        <NavigationPaletteButton icon={Hand} label="Mode Pan" onClick={onTogglePan} active={isPanActive || isSpacePanActive} />
-        <NavigationPaletteButton icon={Settings2} label="Réglages du workspace" onClick={onOpenWorkspaceSettings} />
+        <NavigationPaletteButton
+          icon={Hand}
+          label="Mode Pan"
+          onClick={onTogglePan}
+          active={isPanActive || isSpacePanActive}
+        />
+        <NavigationPaletteButton
+          icon={Settings2}
+          label="Réglages du workspace"
+          onClick={onOpenWorkspaceSettings}
+        />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Aides au placement">
-        <NavigationPaletteButton icon={Ruler} label="Règles" onClick={onToggleRulers} active={rulersVisible} />
-        <NavigationPaletteButton icon={Crosshair} label="Guides" onClick={onToggleGuides} active={guidesVisible} />
-        <NavigationPaletteButton icon={Magnet} label="Magnétisme" onClick={onToggleSnap} active={snapEnabled} />
-        <NavigationPaletteButton icon={Grid3X3} label="Grille" onClick={onToggleGrid} active={gridEnabled} />
+        <NavigationPaletteButton
+          icon={Ruler}
+          label="Règles"
+          onClick={onToggleRulers}
+          active={rulersVisible}
+        />
+        <NavigationPaletteButton
+          icon={Crosshair}
+          label="Guides"
+          onClick={onToggleGuides}
+          active={guidesVisible}
+        />
+        <NavigationPaletteButton
+          icon={Magnet}
+          label="Magnétisme"
+          onClick={onToggleSnap}
+          active={snapEnabled}
+        />
+        <NavigationPaletteButton
+          icon={Grid3X3}
+          label="Grille"
+          onClick={onToggleGrid}
+          active={gridEnabled}
+        />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
       <div className="ef-navigation-group" aria-label="Pages">
-        <NavigationPaletteButton icon={ChevronLeft} label="Page précédente" onClick={onPreviousPage} disabled={isFirstPage} />
+        <NavigationPaletteButton
+          icon={ChevronLeft}
+          label="Page précédente"
+          onClick={onPreviousPage}
+          disabled={isFirstPage}
+        />
         <span className="ef-navigation-page-indicator" aria-label="Page courante">
           {Math.min(activePageIndex + 1, pageCount)} / {pageCount}
         </span>
-        <NavigationPaletteButton icon={ChevronRight} label="Page suivante" onClick={onNextPage} disabled={isLastPage} />
+        <NavigationPaletteButton
+          icon={ChevronRight}
+          label="Page suivante"
+          onClick={onNextPage}
+          disabled={isLastPage}
+        />
         <NavigationPaletteButton icon={Plus} label="Ajouter une page" onClick={onAddPage} />
       </div>
       <span className="ef-navigation-separator" aria-hidden="true" />
@@ -2290,7 +2569,14 @@ function NavigationPaletteButton({
   onClick: () => void;
 }) {
   return (
-    <button className={["ef-navigation-button", active ? "is-active" : ""].join(" ")} type="button" onClick={onClick} disabled={disabled} aria-label={label} title={label}>
+    <button
+      className={["ef-navigation-button", active ? "is-active" : ""].join(" ")}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+    >
       <Icon size={18} aria-hidden="true" />
     </button>
   );
@@ -2328,18 +2614,23 @@ function HorizontalRuler({
         <span
           key={`h-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-h"
-          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x"), height: tick.isMajor ? 11 : tick.isMinor ? 7 : 4 }}
+          style={{
+            left: projectRulerTickToViewportPosition(tick, viewport, "x"),
+            height: tick.isMajor ? 11 : tick.isMinor ? 7 : 4,
+          }}
         />
       ))}
-      {ticks.filter((tick) => tick.label).map((tick) => (
-        <span
-          key={`h-label-${tick.workspacePosition}`}
-          className="ef-ruler-label-h"
-          style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x") }}
-        >
-          {tick.label}
-        </span>
-      ))}
+      {ticks
+        .filter((tick) => tick.label)
+        .map((tick) => (
+          <span
+            key={`h-label-${tick.workspacePosition}`}
+            className="ef-ruler-label-h"
+            style={{ left: projectRulerTickToViewportPosition(tick, viewport, "x") }}
+          >
+            {tick.label}
+          </span>
+        ))}
     </div>
   );
 }
@@ -2368,18 +2659,23 @@ function VerticalRuler({
         <span
           key={`v-tick-${tick.workspacePosition}`}
           className="ef-ruler-tick-v"
-          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y"), width: tick.isMajor ? 11 : tick.isMinor ? 7 : 4 }}
+          style={{
+            top: projectRulerTickToViewportPosition(tick, viewport, "y"),
+            width: tick.isMajor ? 11 : tick.isMinor ? 7 : 4,
+          }}
         />
       ))}
-      {ticks.filter((tick) => tick.label).map((tick) => (
-        <span
-          key={`v-label-${tick.workspacePosition}`}
-          className="ef-ruler-label-v"
-          style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y") }}
-        >
-          {tick.label}
-        </span>
-      ))}
+      {ticks
+        .filter((tick) => tick.label)
+        .map((tick) => (
+          <span
+            key={`v-label-${tick.workspacePosition}`}
+            className="ef-ruler-label-v"
+            style={{ top: projectRulerTickToViewportPosition(tick, viewport, "y") }}
+          >
+            {tick.label}
+          </span>
+        ))}
     </div>
   );
 }
@@ -2394,7 +2690,8 @@ function RulerMarginBands({
   viewport: WorkspaceViewport;
 }) {
   const marginStart = axis === "x" ? page.margin.left : page.margin.top;
-  const marginEnd = axis === "x" ? page.width - page.margin.right : page.height - page.margin.bottom;
+  const marginEnd =
+    axis === "x" ? page.width - page.margin.right : page.height - page.margin.bottom;
   const pageStart = axis === "x" ? page.x : page.y;
   const pageEnd = axis === "x" ? page.x + page.width : page.y + page.height;
   const usefulStart = projectWorkspacePositionToViewport(pageStart + marginStart, viewport, axis);
@@ -2412,7 +2709,11 @@ function RulerMarginBands({
     <div className="ef-ruler-band-layer" aria-hidden="true">
       {start < usefulStart ? (
         <span
-          className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-outside"].join(" ")}
+          className={[
+            "ef-ruler-band",
+            axis === "x" ? "is-horizontal" : "is-vertical",
+            "is-outside",
+          ].join(" ")}
           style={
             axis === "x"
               ? { left: start, width: usefulStart - start, height: bandThickness }
@@ -2421,7 +2722,11 @@ function RulerMarginBands({
         />
       ) : null}
       <span
-        className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-useful"].join(" ")}
+        className={[
+          "ef-ruler-band",
+          axis === "x" ? "is-horizontal" : "is-vertical",
+          "is-useful",
+        ].join(" ")}
         style={
           axis === "x"
             ? { left: usefulStart, width: usefulEnd - usefulStart, height: bandThickness }
@@ -2430,7 +2735,11 @@ function RulerMarginBands({
       />
       {usefulEnd < end ? (
         <span
-          className={["ef-ruler-band", axis === "x" ? "is-horizontal" : "is-vertical", "is-outside"].join(" ")}
+          className={[
+            "ef-ruler-band",
+            axis === "x" ? "is-horizontal" : "is-vertical",
+            "is-outside",
+          ].join(" ")}
           style={
             axis === "x"
               ? { left: usefulEnd, width: end - usefulEnd, height: bandThickness }
@@ -2450,7 +2759,12 @@ function CanvasFloatingPalette({
   onImportImage: () => void;
 }) {
   const paletteRef = useRef<HTMLDivElement | null>(null);
-  const dragStartRef = useRef<{ left: number; pointerX: number; pointerY: number; top: number } | null>(null);
+  const dragStartRef = useRef<{
+    left: number;
+    pointerX: number;
+    pointerY: number;
+    top: number;
+  } | null>(null);
   const [position, setPosition] = useState({ left: 20, top: 56 });
   const [orientation, setOrientation] = useState<PaletteOrientation>("vertical");
   const [collapsed, setCollapsed] = useState(false);
@@ -2470,33 +2784,42 @@ function CanvasFloatingPalette({
   const defaultStrokeColor = useEditorStore((state) => state.defaultStrokeColor);
   const setDefaultFillColor = useEditorStore((state) => state.setDefaultFillColor);
   const setDefaultStrokeColor = useEditorStore((state) => state.setDefaultStrokeColor);
-  const activePage = useMemo(() => workingTemplate.pages.find((page) => page.id === activePageId) ?? workingTemplate.pages[0] ?? null, [activePageId, workingTemplate.pages]);
-
-  const activeTool = useMemo(
-    () => {
-      const tools = floatingPaletteGroups.flatMap((group) => group.items);
-      if (activeToolId === "freehand") {
-        return {
-          id: "freehand",
-          label: "Forme libre",
-          icon: PaletteFreehandIcon,
-        } as PaletteTool;
-      }
-
-      if (isArcToolId(activeToolId)) {
-        return tools.find((tool) => tool.id === "arc") ?? tools[0];
-      }
-
-      return tools.find((tool) => tool.id === activeToolId) ?? tools[0];
-    },
-    [activeToolId],
+  const activePage = useMemo(
+    () =>
+      workingTemplate.pages.find((page) => page.id === activePageId) ??
+      workingTemplate.pages[0] ??
+      null,
+    [activePageId, workingTemplate.pages],
   );
+
+  const activeTool = useMemo(() => {
+    const tools = floatingPaletteGroups.flatMap((group) => group.items);
+    if (activeToolId === "freehand") {
+      return {
+        id: "freehand",
+        label: "Forme libre",
+        icon: PaletteFreehandIcon,
+      } as PaletteTool;
+    }
+
+    if (isArcToolId(activeToolId)) {
+      return tools.find((tool) => tool.id === "arc") ?? tools[0];
+    }
+
+    return tools.find((tool) => tool.id === activeToolId) ?? tools[0];
+  }, [activeToolId]);
 
   const selectedStyleableElements = useMemo(
     () =>
       selectedElementIds
-        .map((elementId) => workingTemplate.elements.find((element) => element.id === elementId) ?? null)
-        .filter((element): element is (typeof workingTemplate.elements)[number] => element !== null && isCanvasObjectStyleSupportedElement(element)),
+        .map(
+          (elementId) =>
+            workingTemplate.elements.find((element) => element.id === elementId) ?? null,
+        )
+        .filter(
+          (element): element is (typeof workingTemplate.elements)[number] =>
+            element !== null && isCanvasObjectStyleSupportedElement(element),
+        ),
     [selectedElementIds, workingTemplate],
   );
 
@@ -2516,7 +2839,13 @@ function CanvasFloatingPalette({
       setPosition((position) => {
         const containerRect = boundaryRef.current?.getBoundingClientRect();
         const paletteRect = paletteRef.current?.getBoundingClientRect();
-        return clampPalettePosition(position.left, position.top, nextOrientation, containerRect, paletteRect);
+        return clampPalettePosition(
+          position.left,
+          position.top,
+          nextOrientation,
+          containerRect,
+          paletteRect,
+        );
       });
       return nextOrientation;
     });
@@ -2527,7 +2856,13 @@ function CanvasFloatingPalette({
       setPosition((current) => {
         const containerRect = boundaryRef.current?.getBoundingClientRect();
         const paletteRect = paletteRef.current?.getBoundingClientRect();
-        return clampPalettePosition(current.left, current.top, orientation, containerRect, paletteRect);
+        return clampPalettePosition(
+          current.left,
+          current.top,
+          orientation,
+          containerRect,
+          paletteRect,
+        );
       });
     };
 
@@ -2575,7 +2910,8 @@ function CanvasFloatingPalette({
 
   const applyPaletteColor = useCallback(
     (kind: PaletteColorKind, color: string) => {
-      const targetIds = (kind === "fill" ? paletteFillState : paletteStrokeState).compatibleElementIds;
+      const targetIds = (kind === "fill" ? paletteFillState : paletteStrokeState)
+        .compatibleElementIds;
       if (targetIds.length > 0) {
         const result = commitCanvasObjectStyle({
           patches: targetIds.map((elementId) => ({
@@ -2598,7 +2934,13 @@ function CanvasFloatingPalette({
 
       setDefaultStrokeColor(color);
     },
-    [commitCanvasObjectStyle, paletteFillState, paletteStrokeState, setDefaultFillColor, setDefaultStrokeColor],
+    [
+      commitCanvasObjectStyle,
+      paletteFillState,
+      paletteStrokeState,
+      setDefaultFillColor,
+      setDefaultStrokeColor,
+    ],
   );
 
   const insertPresetShape = useCallback(
@@ -2694,7 +3036,12 @@ function CanvasFloatingPalette({
               <Icon size={16} strokeWidth={1.8} aria-hidden={true} />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" side={orientation === "vertical" ? "right" : "bottom"} sideOffset={10} className="ef-shape-popover-panel">
+          <PopoverContent
+            align="start"
+            side={orientation === "vertical" ? "right" : "bottom"}
+            sideOffset={10}
+            className="ef-shape-popover-panel"
+          >
             <ShapePopoverContent
               onClose={() => setFormsOpen(false)}
               onSelect={(shapePreset) => {
@@ -2788,7 +3135,11 @@ function CanvasFloatingPalette({
 
   if (collapsed) {
     return (
-      <div ref={paletteRef} className="ef-tool-palette is-collapsed" style={{ left: position.left, top: position.top }}>
+      <div
+        ref={paletteRef}
+        className="ef-tool-palette is-collapsed"
+        style={{ left: position.left, top: position.top }}
+      >
         <button
           className="ef-tool-mini"
           type="button"
@@ -2805,10 +3156,17 @@ function CanvasFloatingPalette({
   return (
     <div
       ref={paletteRef}
-      className={["ef-tool-palette", orientation === "vertical" ? "is-vertical" : "is-horizontal"].join(" ")}
+      className={[
+        "ef-tool-palette",
+        orientation === "vertical" ? "is-vertical" : "is-horizontal",
+      ].join(" ")}
       style={{ left: position.left, top: position.top }}
     >
-      <div className={["ef-tool-palette-bar", orientation === "horizontal" ? "is-left-rail" : ""].join(" ")}>
+      <div
+        className={["ef-tool-palette-bar", orientation === "horizontal" ? "is-left-rail" : ""].join(
+          " ",
+        )}
+      >
         <button
           className="ef-tool-palette-grip"
           type="button"
@@ -2846,7 +3204,11 @@ function CanvasFloatingPalette({
             event.currentTarget.releasePointerCapture(event.pointerId);
           }}
         >
-        {orientation === "vertical" ? <PaletteGripIcon /> : <GripVertical size={14} strokeWidth={2} aria-hidden="true" />}
+          {orientation === "vertical" ? (
+            <PaletteGripIcon />
+          ) : (
+            <GripVertical size={14} strokeWidth={2} aria-hidden="true" />
+          )}
         </button>
       </div>
 
@@ -2862,10 +3224,22 @@ function CanvasFloatingPalette({
               ))}
             </div>
             <div className="ef-tool-footer ef-tool-footer--vertical">
-              <button className="ef-tool-footer-button" type="button" aria-label="Réduire" title="Réduire" onClick={() => setCollapsed(true)}>
+              <button
+                className="ef-tool-footer-button"
+                type="button"
+                aria-label="Réduire"
+                title="Réduire"
+                onClick={() => setCollapsed(true)}
+              >
                 <Square size={14} aria-hidden="true" />
               </button>
-              <button className="ef-tool-footer-button" type="button" aria-label="Replier / Déplier" title="Replier / Déplier" onClick={toggleOrientation}>
+              <button
+                className="ef-tool-footer-button"
+                type="button"
+                aria-label="Replier / Déplier"
+                title="Replier / Déplier"
+                onClick={toggleOrientation}
+              >
                 <ArrowLeftRight size={14} aria-hidden="true" />
               </button>
             </div>
@@ -2877,14 +3251,28 @@ function CanvasFloatingPalette({
                 {group.items.map((tool) => {
                   return renderTool(tool);
                 })}
-                {index < floatingPaletteGroups.length - 1 ? <span className="ef-tool-strip-separator" /> : null}
+                {index < floatingPaletteGroups.length - 1 ? (
+                  <span className="ef-tool-strip-separator" />
+                ) : null}
               </Fragment>
             ))}
             <div className="ef-tool-footer">
-              <button className="ef-tool-footer-button" type="button" aria-label="Réduire" title="Réduire" onClick={() => setCollapsed(true)}>
+              <button
+                className="ef-tool-footer-button"
+                type="button"
+                aria-label="Réduire"
+                title="Réduire"
+                onClick={() => setCollapsed(true)}
+              >
                 <Square size={14} aria-hidden="true" />
               </button>
-              <button className="ef-tool-footer-button" type="button" aria-label="Replier / Déplier" title="Replier / Déplier" onClick={toggleOrientation}>
+              <button
+                className="ef-tool-footer-button"
+                type="button"
+                aria-label="Replier / Déplier"
+                title="Replier / Déplier"
+                onClick={toggleOrientation}
+              >
                 <ArrowLeftRight size={14} aria-hidden="true" />
               </button>
             </div>
@@ -2916,7 +3304,15 @@ function ShapePopoverContent({
     <div className="ef-shape-popover-shell" role="menu" aria-label="Formes">
       <div className="ef-shape-popover-header">
         <span>Formes</span>
-        <Button className="ef-shape-popover-close" type="button" variant="ghost" size="icon-sm" aria-label="Fermer" title="Fermer" onClick={onClose}>
+        <Button
+          className="ef-shape-popover-close"
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Fermer"
+          title="Fermer"
+          onClick={onClose}
+        >
           <X size={12} aria-hidden="true" />
         </Button>
       </div>
@@ -2936,12 +3332,19 @@ function ShapePopoverContent({
                   aria-label={item.label}
                   onClick={() => onSelect(item)}
                 >
-                  <CanvasPresetIconView icon={item.icon} size={15} strokeWidth={1.9} aria-hidden={true} />
+                  <CanvasPresetIconView
+                    icon={item.icon}
+                    size={15}
+                    strokeWidth={1.9}
+                    aria-hidden={true}
+                  />
                 </Button>
               );
             })}
           </div>
-          {sectionIndex < shapePopoverSections.length - 1 ? <div className="ef-shape-section-divider" /> : null}
+          {sectionIndex < shapePopoverSections.length - 1 ? (
+            <div className="ef-shape-section-divider" />
+          ) : null}
         </div>
       ))}
     </div>
@@ -2963,7 +3366,15 @@ function ArcPopover({
     <div className="ef-shape-popover" role="dialog" aria-label="Outils d'arc">
       <div className="ef-shape-popover-header">
         <span>Arc</span>
-        <Button className="ef-shape-popover-close" type="button" variant="ghost" size="icon-sm" aria-label="Fermer" title="Fermer" onClick={onClose}>
+        <Button
+          className="ef-shape-popover-close"
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Fermer"
+          title="Fermer"
+          onClick={onClose}
+        >
           <X size={12} aria-hidden="true" />
         </Button>
       </div>
@@ -2977,7 +3388,12 @@ function ArcPopover({
             aria-label={variant.label}
             onClick={() => onSelect(variant)}
           >
-            <CanvasPresetIconView icon={variant.icon} size={15} strokeWidth={1.9} aria-hidden={true} />
+            <CanvasPresetIconView
+              icon={variant.icon}
+              size={15}
+              strokeWidth={1.9}
+              aria-hidden={true}
+            />
           </button>
         ))}
       </div>
@@ -2985,7 +3401,11 @@ function ArcPopover({
   );
 }
 
-function resolvePaletteColorState(selectedElements: TemplateElement[], kind: PaletteColorKind, defaultValue: string): PaletteColorState {
+function resolvePaletteColorState(
+  selectedElements: TemplateElement[],
+  kind: PaletteColorKind,
+  defaultValue: string,
+): PaletteColorState {
   const compatibleElementIds: string[] = [];
   const values: string[] = [];
 
@@ -3033,16 +3453,32 @@ function TogglePill({
   onClick?: () => void;
 }) {
   return (
-    <button className={["ef-toggle-pill", active ? "is-active" : ""].join(" ")} type="button" onClick={onClick}>
+    <button
+      className={["ef-toggle-pill", active ? "is-active" : ""].join(" ")}
+      type="button"
+      onClick={onClick}
+    >
       <Icon size={12} aria-hidden />
       {label}
     </button>
   );
 }
 
-function CheckboxPill({ label, active, onClick }: { label: string; active?: boolean; onClick?: () => void }) {
+function CheckboxPill({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <button className={["ef-checkbox-pill", active ? "is-active" : ""].join(" ")} type="button" onClick={onClick}>
+    <button
+      className={["ef-checkbox-pill", active ? "is-active" : ""].join(" ")}
+      type="button"
+      onClick={onClick}
+    >
       <span className="ef-checkbox-icon">
         <Check size={11} strokeWidth={3} aria-hidden="true" />
       </span>
@@ -3061,11 +3497,16 @@ function isSupportedCanvasDrop(
 
 function isRichTextCanvasOverlayTarget(target: EventTarget | null) {
   if (target instanceof Element) {
-    return Boolean(target.closest(".ef-rich-text-canvas-layer") || target.closest(".ef-rich-text-canvas-block"));
+    return Boolean(
+      target.closest(".ef-rich-text-canvas-layer") || target.closest(".ef-rich-text-canvas-block"),
+    );
   }
 
   if (target instanceof Node) {
-    return Boolean(target.parentElement?.closest(".ef-rich-text-canvas-layer") || target.parentElement?.closest(".ef-rich-text-canvas-block"));
+    return Boolean(
+      target.parentElement?.closest(".ef-rich-text-canvas-layer") ||
+        target.parentElement?.closest(".ef-rich-text-canvas-block"),
+    );
   }
 
   return false;
@@ -3096,7 +3537,9 @@ function resolveCanvasDropPayload(
   return null;
 }
 
-function parseCanvasDropPayload(raw: string): { type: string; payload: unknown; sourcePanel?: string } | null {
+function parseCanvasDropPayload(
+  raw: string,
+): { type: string; payload: unknown; sourcePanel?: string } | null {
   if (!raw.trim()) {
     return null;
   }
@@ -3128,8 +3571,13 @@ function resolveWorkspacePointer(
   viewport: WorkspaceViewport,
   targetElement?: { getBoundingClientRect: () => DOMRect } | null,
 ) {
-  const rect = targetElement?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
-  const workspacePoint = convertClientPointToWorkspacePoint({ x: event.clientX, y: event.clientY }, rect, viewport);
+  const rect =
+    targetElement?.getBoundingClientRect() ?? event.currentTarget.getBoundingClientRect();
+  const workspacePoint = convertClientPointToWorkspacePoint(
+    { x: event.clientX, y: event.clientY },
+    rect,
+    viewport,
+  );
 
   if (!Number.isFinite(workspacePoint.x) || !Number.isFinite(workspacePoint.y)) {
     return null;
@@ -3146,7 +3594,10 @@ function makeDraftFrame(start: { x: number; y: number }, current: { x: number; y
   return { x, y, width, height };
 }
 
-function buildPointDraftFrame(points: { x: number; y: number }[], current: { x: number; y: number }) {
+function buildPointDraftFrame(
+  points: { x: number; y: number }[],
+  current: { x: number; y: number },
+) {
   return boundsFromPoints([...points.flatMap((point) => [point.x, point.y]), current.x, current.y]);
 }
 
@@ -3187,10 +3638,19 @@ function buildCommittedFrame(input: {
   workspaceSettings: EditorWorkspaceSettings;
   allowDefaultSize?: boolean;
 }) {
-  const draftFrame = snapWorkspaceFrame(makeDraftFrame(input.start, input.current), input.pageLayout, input.workspaceSettings);
+  const draftFrame = snapWorkspaceFrame(
+    makeDraftFrame(input.start, input.current),
+    input.pageLayout,
+    input.workspaceSettings,
+  );
 
   if (input.allowDefaultSize && Math.max(draftFrame.width, draftFrame.height) < 8) {
-    return buildDefaultToolFrame(input.toolId, input.start, input.pageLayout, input.workspaceSettings);
+    return buildDefaultToolFrame(
+      input.toolId,
+      input.start,
+      input.pageLayout,
+      input.workspaceSettings,
+    );
   }
 
   if (!input.allowDefaultSize && Math.max(draftFrame.width, draftFrame.height) < 8) {
@@ -3212,7 +3672,11 @@ function buildDefaultToolFrame(
 
   const x = point.x - defaultSize.width / 2;
   const y = point.y - defaultSize.height / 2;
-  const frame = snapWorkspaceFrame({ x, y, width: defaultSize.width, height: defaultSize.height }, pageLayout, workspaceSettings);
+  const frame = snapWorkspaceFrame(
+    { x, y, width: defaultSize.width, height: defaultSize.height },
+    pageLayout,
+    workspaceSettings,
+  );
   return frame;
 }
 
@@ -3225,7 +3689,9 @@ function isFrameCanvasTool(toolId: CanvasToolId) {
 }
 
 function isPointCanvasTool(toolId: CanvasToolId) {
-  return toolId === "polygon" || toolId === "freehand" || toolId === "curves" || toolId === "segments";
+  return (
+    toolId === "polygon" || toolId === "freehand" || toolId === "curves" || toolId === "segments"
+  );
 }
 
 function isLineCanvasTool(toolId: CanvasToolId) {
@@ -3246,12 +3712,7 @@ function buildLineDraftPoints(
   current: { x: number; y: number },
   frame: { x: number; y: number; width: number; height: number },
 ) {
-  return [
-    start.x - frame.x,
-    start.y - frame.y,
-    current.x - frame.x,
-    current.y - frame.y,
-  ];
+  return [start.x - frame.x, start.y - frame.y, current.x - frame.x, current.y - frame.y];
 }
 
 function clampPalettePosition(
@@ -3277,7 +3738,12 @@ function clampPalettePosition(
 }
 
 function isCanvasToolCreationMode(toolId: CanvasToolId) {
-  return isArcToolId(toolId) || isFrameCanvasTool(toolId) || isLineCanvasTool(toolId) || isPointCanvasTool(toolId);
+  return (
+    isArcToolId(toolId) ||
+    isFrameCanvasTool(toolId) ||
+    isLineCanvasTool(toolId) ||
+    isPointCanvasTool(toolId)
+  );
 }
 
 function readFileAsDataUrl(file: File) {
@@ -3310,4 +3776,13 @@ function readImageNaturalSize(src: string) {
   });
 }
 
-const CANVAS_INSERTABLE_TYPES = new Set(["variable", "image", "shape", "icon", "emoji", "text-block", "preset", "dynamic-preset"]);
+const CANVAS_INSERTABLE_TYPES = new Set([
+  "variable",
+  "image",
+  "shape",
+  "icon",
+  "emoji",
+  "text-block",
+  "preset",
+  "dynamic-preset",
+]);

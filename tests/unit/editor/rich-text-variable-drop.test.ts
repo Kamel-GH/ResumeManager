@@ -1,10 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-
+import { buildVariableDragEnvelope } from "@/features/data-mapping/lib/variable-display";
 import {
   insertVariableTokenIntoRichTextEditor,
   insertVariableTokenIntoRichTextHtml,
 } from "@/features/editor/renderers/konva-renderer/rich-text-drop-utils";
-import { buildVariableDragEnvelope } from "@/features/data-mapping/lib/variable-display";
 
 const variablePayload = buildVariableDragEnvelope({
   id: "variable-1",
@@ -18,7 +17,9 @@ const variablePayload = buildVariableDragEnvelope({
 
 describe("rich text variable drop", () => {
   it("appends a variable token to an empty rich text block", () => {
-    expect(insertVariableTokenIntoRichTextHtml("", variablePayload)).toContain('data-variable="true"');
+    expect(insertVariableTokenIntoRichTextHtml("", variablePayload)).toContain(
+      'data-variable="true"',
+    );
   });
 
   it("preserves the existing rich text structure when appending a variable token", () => {
@@ -39,7 +40,10 @@ describe("rich text variable drop", () => {
   });
 
   it("replaces the empty placeholder text with the dropped variable token", () => {
-    const nextHtml = insertVariableTokenIntoRichTextHtml("<p>Double-cliquez pour éditer</p>", variablePayload);
+    const nextHtml = insertVariableTokenIntoRichTextHtml(
+      "<p>Double-cliquez pour éditer</p>",
+      variablePayload,
+    );
 
     expect(nextHtml).toContain('data-variable="true"');
   });
@@ -66,7 +70,10 @@ describe("rich text variable drop", () => {
 
     expect(result.inserted).toBe(true);
     expect(result.range).toEqual({ from: 4, to: 4 });
-    expect(insertContentAt).toHaveBeenCalledWith({ from: 4, to: 4 }, { type: "variable", attrs: expect.objectContaining({ key: "candidate.firstName" }) });
+    expect(insertContentAt).toHaveBeenCalledWith(
+      { from: 4, to: 4 },
+      { type: "variable", attrs: expect.objectContaining({ key: "candidate.firstName" }) },
+    );
     expect(focus).toHaveBeenCalledTimes(1);
   });
 });

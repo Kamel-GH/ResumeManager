@@ -8,7 +8,16 @@ import {
   createCanvasShapePresetPayload,
 } from "@/features/editor/schema/canvas-presets";
 
-const forbiddenPaletteToolTypes = new Set(["rectangle", "rect", "ellipse", "circle", "line", "text", "image", "table"]);
+const forbiddenPaletteToolTypes = new Set([
+  "rectangle",
+  "rect",
+  "ellipse",
+  "circle",
+  "line",
+  "text",
+  "image",
+  "table",
+]);
 
 describe("canvas presets", () => {
   it("defines reliable shape presets with unique ids, labels, icons and canonical payloads", () => {
@@ -103,7 +112,12 @@ describe("canvas presets", () => {
       return;
     }
 
-    const frame = { x: 40, y: 60, width: preset.defaultFrame.width, height: preset.defaultFrame.height };
+    const frame = {
+      x: 40,
+      y: 60,
+      width: preset.defaultFrame.width,
+      height: preset.defaultFrame.height,
+    };
     const result = createCanvasInsertionElement({
       source: {
         type: "canvas-tool",
@@ -133,7 +147,9 @@ describe("canvas presets", () => {
   });
 });
 
-function createInsertionContext(overrides?: { frame?: { x: number; y: number; width: number; height: number } }) {
+function createInsertionContext(overrides?: {
+  frame?: { x: number; y: number; width: number; height: number };
+}) {
   return {
     elementId: "element-preset",
     pageId: "page-1",

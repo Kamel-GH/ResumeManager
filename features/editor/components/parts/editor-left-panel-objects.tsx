@@ -2,16 +2,12 @@
 
 import { Eye, EyeOff, Lock, LockOpen } from "lucide-react";
 import { useMemo } from "react";
-
-import {
-  filterEditorObjectsView,
-  type EditorObjectView,
-} from "@/features/editor/selectors";
 import {
   Badge,
   IconGlyph,
   NoResult,
 } from "@/features/editor/components/parts/editor-left-panel-common";
+import { type EditorObjectView, filterEditorObjectsView } from "@/features/editor/selectors";
 
 const DEFAULT_OBJECT_TYPE_COLOR = {
   bg: "rgba(148, 163, 184, 0.16)",
@@ -94,8 +90,16 @@ export function EditorLeftObjectsPanel({
           </span>
 
           <span className="ef-object-state" aria-hidden="true">
-            {object.visible ? <IconGlyph icon={Eye} size={14} /> : <IconGlyph icon={EyeOff} size={14} />}
-            {object.locked ? <IconGlyph icon={Lock} size={14} /> : <IconGlyph icon={LockOpen} size={14} />}
+            {object.visible ? (
+              <IconGlyph icon={Eye} size={14} />
+            ) : (
+              <IconGlyph icon={EyeOff} size={14} />
+            )}
+            {object.locked ? (
+              <IconGlyph icon={Lock} size={14} />
+            ) : (
+              <IconGlyph icon={LockOpen} size={14} />
+            )}
           </span>
         </button>
       ))}

@@ -1,22 +1,57 @@
 import { describe, expect, it } from "vitest";
 
-import { isCanvasShortcutEditableTarget, resolveCanvasShortcutAction } from "@/features/editor/components/parts/canvas-shortcuts";
+import {
+  isCanvasShortcutEditableTarget,
+  resolveCanvasShortcutAction,
+} from "@/features/editor/components/parts/canvas-shortcuts";
 
 describe("canvas shortcuts", () => {
   it("resolves copy and paste shortcuts from common modifier keys", () => {
-    expect(resolveCanvasShortcutAction({ key: "c", metaKey: true, ctrlKey: false, altKey: false })).toBe("copy");
-    expect(resolveCanvasShortcutAction({ key: "C", metaKey: false, ctrlKey: true, altKey: false })).toBe("copy");
-    expect(resolveCanvasShortcutAction({ key: "v", metaKey: true, ctrlKey: false, altKey: false })).toBe("paste");
-    expect(resolveCanvasShortcutAction({ key: "x", metaKey: true, ctrlKey: false, altKey: false })).toBeNull();
-    expect(resolveCanvasShortcutAction({ key: "v", metaKey: false, ctrlKey: false, altKey: false })).toBeNull();
+    expect(
+      resolveCanvasShortcutAction({ key: "c", metaKey: true, ctrlKey: false, altKey: false }),
+    ).toBe("copy");
+    expect(
+      resolveCanvasShortcutAction({ key: "C", metaKey: false, ctrlKey: true, altKey: false }),
+    ).toBe("copy");
+    expect(
+      resolveCanvasShortcutAction({ key: "v", metaKey: true, ctrlKey: false, altKey: false }),
+    ).toBe("paste");
+    expect(
+      resolveCanvasShortcutAction({ key: "x", metaKey: true, ctrlKey: false, altKey: false }),
+    ).toBeNull();
+    expect(
+      resolveCanvasShortcutAction({ key: "v", metaKey: false, ctrlKey: false, altKey: false }),
+    ).toBeNull();
   });
 
   it("resolves undo and redo shortcuts while rejecting alt-modified combinations", () => {
-    expect(resolveCanvasShortcutAction({ key: "z", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false })).toBe("undo");
-    expect(resolveCanvasShortcutAction({ key: "z", metaKey: true, ctrlKey: false, altKey: false, shiftKey: true })).toBe("redo");
-    expect(resolveCanvasShortcutAction({ key: "y", metaKey: false, ctrlKey: true, altKey: false })).toBe("redo");
-    expect(resolveCanvasShortcutAction({ key: "c", metaKey: true, ctrlKey: false, altKey: true })).toBeNull();
-    expect(resolveCanvasShortcutAction({ key: "z", metaKey: false, ctrlKey: true, altKey: true })).toBeNull();
+    expect(
+      resolveCanvasShortcutAction({
+        key: "z",
+        metaKey: true,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: false,
+      }),
+    ).toBe("undo");
+    expect(
+      resolveCanvasShortcutAction({
+        key: "z",
+        metaKey: true,
+        ctrlKey: false,
+        altKey: false,
+        shiftKey: true,
+      }),
+    ).toBe("redo");
+    expect(
+      resolveCanvasShortcutAction({ key: "y", metaKey: false, ctrlKey: true, altKey: false }),
+    ).toBe("redo");
+    expect(
+      resolveCanvasShortcutAction({ key: "c", metaKey: true, ctrlKey: false, altKey: true }),
+    ).toBeNull();
+    expect(
+      resolveCanvasShortcutAction({ key: "z", metaKey: false, ctrlKey: true, altKey: true }),
+    ).toBeNull();
   });
 
   it("ignores shortcut targets that should keep native text editing behavior", () => {

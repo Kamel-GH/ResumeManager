@@ -1,9 +1,13 @@
-import type { TemplateElement, TemplateElementStyle, TemplateSchema } from "@/features/editor/schema/template-schema";
-import type { Rect } from "@/features/editor/types";
 import {
   compareCanvasElementsByPresentationOrder,
   groupCanvasElementsByPageAndLayer,
 } from "@/features/editor/schema/canvas-layer-model";
+import type {
+  TemplateElement,
+  TemplateElementStyle,
+  TemplateSchema,
+} from "@/features/editor/schema/template-schema";
+import type { Rect } from "@/features/editor/types";
 
 export const DEFAULT_CANVAS_FILL_COLOR = "#d9b86f";
 export const DEFAULT_CANVAS_STROKE_COLOR = "#0f172a";
@@ -39,7 +43,11 @@ export type CanvasObjectStyleCapabilities = {
   cornerRadius: boolean;
 };
 
-export type CanvasObjectOrderAction = "bring-to-front" | "bring-forward" | "send-backward" | "send-to-back";
+export type CanvasObjectOrderAction =
+  | "bring-to-front"
+  | "bring-forward"
+  | "send-backward"
+  | "send-to-back";
 
 export type CanvasObjectAlignmentAction =
   | "align-left"
@@ -51,7 +59,10 @@ export type CanvasObjectAlignmentAction =
 
 export type CanvasObjectFlipAxis = "horizontal" | "vertical";
 
-export function applyCanvasObjectGeometry(template: TemplateSchema, patches: CanvasObjectGeometryPatch[]) {
+export function applyCanvasObjectGeometry(
+  template: TemplateSchema,
+  patches: CanvasObjectGeometryPatch[],
+) {
   if (patches.length === 0) {
     return template;
   }
@@ -87,7 +98,10 @@ export function applyCanvasObjectGeometry(template: TemplateSchema, patches: Can
   };
 }
 
-export function applyCanvasObjectStyle(template: TemplateSchema, patches: CanvasObjectStylePatch[]) {
+export function applyCanvasObjectStyle(
+  template: TemplateSchema,
+  patches: CanvasObjectStylePatch[],
+) {
   if (patches.length === 0) {
     return template;
   }
@@ -145,7 +159,9 @@ export function duplicateTemplateCanvasElements(
   }
 
   const offset = input.offset ?? { x: 12, y: 12 };
-  const sourceElements = template.elements.filter((element) => selectedIds.has(element.id) && !element.locked);
+  const sourceElements = template.elements.filter(
+    (element) => selectedIds.has(element.id) && !element.locked,
+  );
   if (sourceElements.length === 0) {
     return {
       template,
@@ -180,7 +196,8 @@ export function duplicateTemplateCanvasElementsFromElements(
   const delta = offset ?? { x: 12, y: 12 };
   const pageById = new Map(template.pages.map((page) => [page.id, page] as const));
   const nextTemplate = structuredClone(template);
-  let nextZIndex = nextTemplate.elements.reduce((max, element) => Math.max(max, element.zIndex), 0) + 1;
+  let nextZIndex =
+    nextTemplate.elements.reduce((max, element) => Math.max(max, element.zIndex), 0) + 1;
   const duplicatedElements: TemplateElement[] = [];
 
   editableElements
@@ -228,7 +245,9 @@ export function deleteTemplateCanvasElements(
     };
   }
 
-  const deletedIds = template.elements.filter((element) => idsToDelete.has(element.id) && !element.locked).map((element) => element.id);
+  const deletedIds = template.elements
+    .filter((element) => idsToDelete.has(element.id) && !element.locked)
+    .map((element) => element.id);
   if (deletedIds.length === 0) {
     return {
       template,
@@ -263,21 +282,37 @@ export function reorderTemplateCanvasElements(
   }
 
   const groups = groupCanvasElementsByPageAndLayer(template);
-  const nextElementsById = new Map(template.elements.map((element) => [element.id, structuredClone(element)] as const));
+  const nextElementsById = new Map(
+    template.elements.map((element) => [element.id, structuredClone(element)] as const),
+  );
   const changedIds = new Set<string>();
 
   groups.forEach((group) => {
-    const editableSelected = group.elements.filter((element) => selectedIds.has(element.id) && !element.locked);
+    const editableSelected = group.elements.filter(
+      (element) => selectedIds.has(element.id) && !element.locked,
+    );
     if (editableSelected.length === 0) {
       return;
     }
 
-    const reorderedIds = reorderCanvasElementGroup(group.elements, editableSelected.map((element) => element.id), input.action);
-    if (areStringArraysEqual(group.elements.map((element) => element.id), reorderedIds)) {
+    const reorderedIds = reorderCanvasElementGroup(
+      group.elements,
+      editableSelected.map((element) => element.id),
+      input.action,
+    );
+    if (
+      areStringArraysEqual(
+        group.elements.map((element) => element.id),
+        reorderedIds,
+      )
+    ) {
       return;
     }
 
-    const baseZIndex = group.elements.reduce((min, element) => Math.min(min, element.zIndex), group.elements[0]?.zIndex ?? 0);
+    const baseZIndex = group.elements.reduce(
+      (min, element) => Math.min(min, element.zIndex),
+      group.elements[0]?.zIndex ?? 0,
+    );
     reorderedIds.forEach((elementId, index) => {
       const element = nextElementsById.get(elementId);
       if (!element) {
@@ -349,7 +384,11 @@ export function alignTemplateCanvasElements(
 
     const selectionBounds = computeElementBounds(elements);
     elements.forEach((element) => {
-      const nextFrame = clampFrameToPage(resolveAlignedFrame(element.frame, selectionBounds, input.alignment), page.width, page.height);
+      const nextFrame = clampFrameToPage(
+        resolveAlignedFrame(element.frame, selectionBounds, input.alignment),
+        page.width,
+        page.height,
+      );
 
       if (areRectsEqual(element.frame, nextFrame)) {
         return;
@@ -404,7 +443,9 @@ export function flipTemplateCanvasElements(
 
     const nextProps = {
       ...(element.props ?? {}),
-      ...(input.axis === "horizontal" ? { flipX: !Boolean(element.props?.flipX) } : { flipY: !Boolean(element.props?.flipY) }),
+      ...(input.axis === "horizontal"
+        ? { flipX: !element.props?.flipX }
+        : { flipY: !element.props?.flipY }),
     };
 
     changedIds.push(element.id);
@@ -422,10 +463,19 @@ export function flipTemplateCanvasElements(
 
 export function isCanvasObjectStyleSupportedElement(element: TemplateElement) {
   const capabilities = resolveCanvasObjectStyleCapabilities(element);
-  return capabilities.fill || capabilities.stroke || capabilities.strokeWidth || capabilities.opacity || capabilities.dash || capabilities.cornerRadius;
+  return (
+    capabilities.fill ||
+    capabilities.stroke ||
+    capabilities.strokeWidth ||
+    capabilities.opacity ||
+    capabilities.dash ||
+    capabilities.cornerRadius
+  );
 }
 
-export function resolveCanvasObjectStyleCapabilities(element: TemplateElement): CanvasObjectStyleCapabilities {
+export function resolveCanvasObjectStyleCapabilities(
+  element: TemplateElement,
+): CanvasObjectStyleCapabilities {
   if (element.type === "image") {
     return {
       fill: false,
@@ -517,7 +567,9 @@ export function resolveCanvasObjectStylePreview(element: TemplateElement): Canva
   };
 }
 
-export function resolveCanvasObjectStyleDefaults(element: TemplateElement): CanvasObjectStyleValues {
+export function resolveCanvasObjectStyleDefaults(
+  element: TemplateElement,
+): CanvasObjectStyleValues {
   if (element.type === "image") {
     return {
       opacity: 1,
@@ -583,7 +635,10 @@ export function resolveCanvasObjectStyleDefaults(element: TemplateElement): Canv
   };
 }
 
-function filterCanvasObjectStylePatch(element: TemplateElement, stylePatch: Partial<CanvasObjectStyleValues>): Partial<CanvasObjectStyleValues> | null {
+function filterCanvasObjectStylePatch(
+  element: TemplateElement,
+  stylePatch: Partial<CanvasObjectStyleValues>,
+): Partial<CanvasObjectStyleValues> | null {
   const capabilities = resolveCanvasObjectStyleCapabilities(element);
   const nextStyle: Partial<CanvasObjectStyleValues> = {};
 
@@ -614,11 +669,21 @@ function filterCanvasObjectStylePatch(element: TemplateElement, stylePatch: Part
   return Object.keys(nextStyle).length > 0 ? nextStyle : null;
 }
 
-function areTemplateElementStylesEqual(a: TemplateElementStyle | undefined, b: TemplateElementStyle | undefined) {
+function areTemplateElementStylesEqual(
+  a: TemplateElementStyle | undefined,
+  b: TemplateElementStyle | undefined,
+) {
   const left = a ?? {};
   const right = b ?? {};
 
-  return left.fill === right.fill && left.stroke === right.stroke && left.strokeWidth === right.strokeWidth && left.opacity === right.opacity && areNumberArraysEqual(left.dash, right.dash) && left.cornerRadius === right.cornerRadius;
+  return (
+    left.fill === right.fill &&
+    left.stroke === right.stroke &&
+    left.strokeWidth === right.strokeWidth &&
+    left.opacity === right.opacity &&
+    areNumberArraysEqual(left.dash, right.dash) &&
+    left.cornerRadius === right.cornerRadius
+  );
 }
 
 function areNumberArraysEqual(a: number[] | undefined, b: number[] | undefined) {
@@ -665,7 +730,11 @@ function areStringArraysEqual(a: string[], b: string[]) {
   return a.every((value, index) => value === b[index]);
 }
 
-function reorderCanvasElementGroup(elements: TemplateElement[], selectedIds: string[], action: CanvasObjectOrderAction) {
+function reorderCanvasElementGroup(
+  elements: TemplateElement[],
+  selectedIds: string[],
+  action: CanvasObjectOrderAction,
+) {
   const selectedSet = new Set(selectedIds);
   const ordered = [...elements].sort((a, b) => a.zIndex - b.zIndex);
   const lockedSlots = ordered.reduce<number[]>((slots, element, index) => {
@@ -677,20 +746,30 @@ function reorderCanvasElementGroup(elements: TemplateElement[], selectedIds: str
   }, []);
 
   if (lockedSlots.length === 0) {
-    return reorderUnlockedCanvasElementGroup(ordered, selectedSet, action).map((element) => element.id);
+    return reorderUnlockedCanvasElementGroup(ordered, selectedSet, action).map(
+      (element) => element.id,
+    );
   }
 
   const next = [...ordered];
   const segments = splitCanvasElementsByLockedAnchors(ordered);
 
   segments.forEach((segment) => {
-    const movableSelectedIds = segment.elements.filter((element) => selectedSet.has(element.id) && !element.locked).map((element) => element.id);
+    const movableSelectedIds = segment.elements
+      .filter((element) => selectedSet.has(element.id) && !element.locked)
+      .map((element) => element.id);
     if (movableSelectedIds.length === 0) {
       return;
     }
 
-    const reorderedIds = reorderUnlockedCanvasElementGroup(segment.elements, new Set(movableSelectedIds), action).map((element) => element.id);
-    const reorderedElementsById = new Map(reorderedIds.map((id) => [id, ordered.find((element) => element.id === id)] as const));
+    const reorderedIds = reorderUnlockedCanvasElementGroup(
+      segment.elements,
+      new Set(movableSelectedIds),
+      action,
+    ).map((element) => element.id);
+    const reorderedElementsById = new Map(
+      reorderedIds.map((id) => [id, ordered.find((element) => element.id === id)] as const),
+    );
 
     segment.elements.forEach((element, index) => {
       if (element.locked) {
@@ -710,7 +789,11 @@ function reorderCanvasElementGroup(elements: TemplateElement[], selectedIds: str
   return next.map((element) => element.id);
 }
 
-function reorderUnlockedCanvasElementGroup(elements: TemplateElement[], selectedSet: Set<string>, action: CanvasObjectOrderAction) {
+function reorderUnlockedCanvasElementGroup(
+  elements: TemplateElement[],
+  selectedSet: Set<string>,
+  action: CanvasObjectOrderAction,
+) {
   const ordered = [...elements].sort((a, b) => a.zIndex - b.zIndex);
 
   switch (action) {
@@ -837,7 +920,12 @@ function resolveAlignedFrame(frame: Rect, reference: Rect, alignment: CanvasObje
         height: frame.height,
       };
     case "align-right":
-      return { x: reference.x + reference.width - frame.width, y: frame.y, width: frame.width, height: frame.height };
+      return {
+        x: reference.x + reference.width - frame.width,
+        y: frame.y,
+        width: frame.width,
+        height: frame.height,
+      };
     case "align-top":
       return { x: frame.x, y: reference.y, width: frame.width, height: frame.height };
     case "align-center-vertical":
@@ -848,7 +936,12 @@ function resolveAlignedFrame(frame: Rect, reference: Rect, alignment: CanvasObje
         height: frame.height,
       };
     case "align-bottom":
-      return { x: frame.x, y: reference.y + reference.height - frame.height, width: frame.width, height: frame.height };
+      return {
+        x: frame.x,
+        y: reference.y + reference.height - frame.height,
+        width: frame.width,
+        height: frame.height,
+      };
   }
 }
 
