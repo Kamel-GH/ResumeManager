@@ -15,8 +15,6 @@ import {
   Type,
 } from "lucide-react";
 import { type ReactNode, useCallback, useMemo } from "react";
-
-import { Button } from "@/components/ui/button";
 import { ColorPickerControl } from "@/components/ui/color-picker-control";
 import {
   type CanvasObjectStyleValues,
@@ -501,7 +499,7 @@ function ImageInspector({ element, onEdit }: { element: TemplateElement; onEdit:
       </div>
       <button type="button" className="ef-inspector-edit-button" onClick={onEdit}>
         <ImageIcon size={12} aria-hidden="true" />
-        Éditer l'image
+        Éditer l&apos;image
       </button>
     </>
   );

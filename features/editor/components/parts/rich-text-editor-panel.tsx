@@ -21,32 +21,22 @@ import {
   Bold,
   Braces,
   ChevronDown,
-  Code,
   Code2,
-  Columns3,
   Eraser,
   Eye,
   Grid2x2,
-  Heading1,
-  Heading2,
-  Heading3,
   Italic,
-  LayoutList,
   List,
   ListOrdered,
-  Minus,
-  Pilcrow,
   Plus,
-  Quote,
-  Rows3,
   Search,
+  Settings2,
   Strikethrough,
   Table2,
   TableCellsMerge,
   TableCellsSplit,
   Tag,
   Trash2,
-  Type,
   Underline as UnderlineIcon,
   X,
 } from "lucide-react";
@@ -81,6 +71,14 @@ import type {
 } from "@/features/editor/components/rich-text/rich-text-table-model";
 import { RichTextTextInspector } from "@/features/editor/components/rich-text/rich-text-text-inspector";
 import { RichTextVariableInspector } from "@/features/editor/components/rich-text/rich-text-variable-inspector";
+import { HorizontalRuler } from "@/features/editor/components/rich-text/ruler";
+import { ParagraphStyle } from "@/features/editor/extensions/rich-text/paragraph-style";
+import { TabNode } from "@/features/editor/extensions/rich-text/tab-node";
+import {
+  convertMeasurementValue,
+  formatMeasurementValue,
+  type MeasurementUnit,
+} from "@/features/editor/lib/measurement";
 import {
   createRichTextVariableRegistry,
   parseRichTextHtmlToJson,
@@ -352,12 +350,25 @@ export function RichTextEditorPanel({
 
   // ── Floating window (drag + resize) ────────────────────────────────────────
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const [size, setSize] = useState({ w: 1120, h: 720 });
+  const [pos, setPos] = useState(() => {
+    const W = Math.round(Math.min(window.innerWidth - 48, 1180));
+    const H = Math.round(Math.min(window.innerHeight - 48, 760));
+    return {
+      x: Math.max(16, Math.round((window.innerWidth - W) / 2)),
+      y: Math.max(0, Math.round((window.innerHeight - H) / 2)),
+    };
+  });
+  const [size, setSize] = useState(() => {
+    const W = Math.round(Math.min(window.innerWidth - 48, 1180));
+    const H = Math.round(Math.min(window.innerHeight - 48, 760));
+    return { w: W, h: H };
+  });
   const posRef = useRef(pos);
   const sizeRef = useRef(size);
-  posRef.current = pos; // kept in sync every render (no stale-closure in stable effects)
-  sizeRef.current = size;
+  useLayoutEffect(() => {
+    posRef.current = pos;
+    sizeRef.current = size;
+  }, [pos, size]);
 
   const dragRef = useRef<{ sx: number; sy: number; ix: number; iy: number } | null>(null);
   const resizeRef = useRef<{
@@ -369,18 +380,6 @@ export function RichTextEditorPanel({
     iw: number;
     ih: number;
   } | null>(null);
-
-  // Position near the center on first mount (synchronous -> no flash)
-  useLayoutEffect(() => {
-    const W = Math.round(Math.min(window.innerWidth - 48, 1180));
-    const H = Math.round(Math.min(window.innerHeight - 48, 760));
-    const x = Math.max(16, Math.round((window.innerWidth - W) / 2));
-    const y = Math.max(0, Math.round((window.innerHeight - H) / 2));
-    posRef.current = { x, y };
-    sizeRef.current = { w: W, h: H };
-    setPos({ x, y });
-    setSize({ w: W, h: H });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stable global handlers — read values from refs only
   useEffect(() => {
@@ -469,6 +468,7 @@ export function RichTextEditorPanel({
       iw: sizeRef.current.w,
       ih: sizeRef.current.h,
     };
+    // eslint-disable-next-line react-hooks/immutability -- temporary global style override during resize interaction
     document.body.style.userSelect = "none";
     const cursorMap: Record<string, string> = {
       n: "ns-resize",
@@ -480,6 +480,7 @@ export function RichTextEditorPanel({
       se: "se-resize",
       sw: "sw-resize",
     };
+    // eslint-disable-next-line react-hooks/immutability
     document.body.style.cursor = cursorMap[dir] ?? "se-resize";
   }
 
@@ -491,6 +492,9 @@ export function RichTextEditorPanel({
   const updateRichTextElementContent = useEditorStore((s) => s.updateRichTextElementContent);
   const updateRichTextContainerProps = useEditorStore((s) => s.updateRichTextContainerProps);
   const commitCanvasObjectStyle = useEditorStore((s) => s.commitCanvasObjectStyle);
+  const measurementUnit = useEditorStore((s) => s.workspaceSettings.measurementUnit);
+  const workspaceSettings = useEditorStore((s) => s.workspaceSettings);
+  const setWorkspaceSettings = useEditorStore((s) => s.setWorkspaceSettings);
 
   // Live element
   const element = useMemo(
@@ -526,6 +530,7 @@ export function RichTextEditorPanel({
   const [tableSelectedTarget, setTableSelectedTarget] = useState<RichTextTableSelectedTarget>(null);
   const [tableResizeGuide, setTableResizeGuide] = useState<RichTextTableResizeGuide | null>(null);
   const [tableInsertOpen, setTableInsertOpen] = useState(false);
+  const [showRulerMarginZones, setShowRulerMarginZones] = useState(true);
 
   // Initial content — captured once at open
   const initialContent = useMemo<JSONContent>(() => {
@@ -540,6 +545,8 @@ export function RichTextEditorPanel({
     extensions: [
       StarterKit,
       Underline,
+      ParagraphStyle,
+      TabNode,
       TextStyleKit.configure({
         backgroundColor: { types: ["textStyle"] },
         color: { types: ["textStyle"] },
@@ -643,11 +650,13 @@ export function RichTextEditorPanel({
     };
   }, [editor]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- auto-open table panel when cursor enters a table */
   useEffect(() => {
     if (inTableCtx) {
       setTablePanelOpen(true);
     }
   }, [inTableCtx]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const syncTableOverlay = useCallback(
     (targetTable?: HTMLTableElement | null) => {
@@ -1098,9 +1107,10 @@ export function RichTextEditorPanel({
             </header>
 
             {/* ── Tabs ── */}
-            <nav className="ef-rtp-tabs" aria-label="Onglets d'édition">
+            <nav className="ef-rtp-tabs" aria-label="Onglets d'édition" role="tablist">
               <button
                 type="button"
+                role="tab"
                 className={["ef-rtp-tab", activeTab === "content" ? "is-active" : ""]
                   .filter(Boolean)
                   .join(" ")}
@@ -1111,6 +1121,7 @@ export function RichTextEditorPanel({
               </button>
               <button
                 type="button"
+                role="tab"
                 className={["ef-rtp-tab", activeTab === "properties" ? "is-active" : ""]
                   .filter(Boolean)
                   .join(" ")}
@@ -1134,6 +1145,16 @@ export function RichTextEditorPanel({
                   setVarSearch={setVarSearch}
                   filteredVars={filteredVars}
                   variableRegistry={variableRegistry}
+                  rulerUnit={measurementUnit}
+                  rulerMajorStepPx={workspaceSettings.rulerMajorStep}
+                  rulerMinorStepPx={workspaceSettings.rulerMinorStep}
+                  rulerFineStepPx={workspaceSettings.rulerFineStep}
+                  onRulerUnitChange={(nextUnit) =>
+                    setWorkspaceSettings({ measurementUnit: nextUnit })
+                  }
+                  onRulerStepChange={setWorkspaceSettings}
+                  showRulerMarginZones={showRulerMarginZones}
+                  onShowRulerMarginZonesChange={setShowRulerMarginZones}
                   onOpenTableDialog={() => setTableInsertOpen(true)}
                   onInsertVariable={(entry) => {
                     runOnSelection((te) => {
@@ -1198,7 +1219,27 @@ export function RichTextEditorPanel({
                       editor.commands.focus();
                     }}
                   >
-                    <EditorContent editor={editor} />
+                    <HorizontalRuler
+                      editor={editor}
+                      scrollContainerRef={editorSurfaceRef}
+                      unit={measurementUnit}
+                      showMarginZones={showRulerMarginZones}
+                      majorStepPx={workspaceSettings.rulerMajorStep}
+                      minorStepPx={workspaceSettings.rulerMinorStep}
+                      fineStepPx={workspaceSettings.rulerFineStep}
+                    />
+                    <div
+                      className="ef-rtp-editor-document-shell"
+                      data-show-ruler-margins={showRulerMarginZones ? "true" : "false"}
+                    >
+                      {showRulerMarginZones ? (
+                        <>
+                          <span className="ef-rtp-editor-margin-zone is-left" />
+                          <span className="ef-rtp-editor-margin-zone is-right" />
+                        </>
+                      ) : null}
+                      <EditorContent editor={editor} />
+                    </div>
                     {tableOverlay && editor ? (
                       <RichTextTableSelectionOverlay
                         overlay={tableOverlay}
@@ -1646,7 +1687,7 @@ function getTableCtxByDocumentIndex(
   return found;
 }
 
-function setColumnWidthByTableIndex(
+function _setColumnWidthByTableIndex(
   view: RichTextEditorView,
   tableIndex: number,
   columnIndex: number,
@@ -2079,6 +2120,14 @@ function RichTextTopToolbar({
   setVarSearch,
   filteredVars,
   variableRegistry,
+  rulerUnit,
+  rulerMajorStepPx,
+  rulerMinorStepPx,
+  rulerFineStepPx,
+  onRulerUnitChange,
+  onRulerStepChange,
+  showRulerMarginZones,
+  onShowRulerMarginZonesChange,
   onOpenTableDialog,
   onInsertVariable,
 }: {
@@ -2091,10 +2140,30 @@ function RichTextTopToolbar({
   setVarSearch: (value: string) => void;
   filteredVars: RichTextVariableEntry[];
   variableRegistry: RichTextVariableRegistry;
+  rulerUnit: MeasurementUnit;
+  rulerMajorStepPx: number;
+  rulerMinorStepPx: number;
+  rulerFineStepPx: number;
+  onRulerUnitChange: (unit: MeasurementUnit) => void;
+  onRulerStepChange: (patch: {
+    rulerMajorStep?: number;
+    rulerMinorStep?: number;
+    rulerFineStep?: number;
+  }) => void;
+  showRulerMarginZones: boolean;
+  onShowRulerMarginZonesChange: (visible: boolean) => void;
   onOpenTableDialog: () => void;
   onInsertVariable: (entry: RichTextVariableEntry) => void;
 }) {
   const textAttrs = editor?.getAttributes("textStyle") ?? {};
+  const paragraphAttrs = editor?.getAttributes("paragraph") ?? {};
+  const marginLeftPx =
+    typeof paragraphAttrs.marginLeft === "number" ? paragraphAttrs.marginLeft : 0;
+  const marginRightPx =
+    typeof paragraphAttrs.marginRight === "number" ? paragraphAttrs.marginRight : 0;
+  const updateParagraphRulerAttrs = (patch: Record<string, number>) => {
+    editor?.chain().focus().updateAttributes("paragraph", patch).run();
+  };
 
   return (
     <div className="ef-rtp-toolbar" role="toolbar" aria-label="Barre de mise en forme">
@@ -2203,9 +2272,11 @@ function RichTextTopToolbar({
           }
           onChange={(color) => {
             if (!color) return;
-            selectedVarAttrs
-              ? applyVarStyle({ color })
-              : runOnSelection((te) => te.chain().setColor(color).run());
+            if (selectedVarAttrs) {
+              applyVarStyle({ color });
+            } else {
+              runOnSelection((te) => te.chain().setColor(color).run());
+            }
           }}
         />
       </div>
@@ -2314,7 +2385,171 @@ function RichTextTopToolbar({
         onClick={() => editor?.chain().focus().unsetAllMarks().clearNodes().run()}
         icon={<Eraser size={15} />}
       />
+
+      <RichTextRulerSettingsDialog
+        unit={rulerUnit}
+        majorStepPx={rulerMajorStepPx}
+        minorStepPx={rulerMinorStepPx}
+        fineStepPx={rulerFineStepPx}
+        marginLeftPx={marginLeftPx}
+        marginRightPx={marginRightPx}
+        showMarginZones={showRulerMarginZones}
+        onUnitChange={onRulerUnitChange}
+        onStepChange={onRulerStepChange}
+        onMarginChange={updateParagraphRulerAttrs}
+        onShowMarginZonesChange={onShowRulerMarginZonesChange}
+      />
     </div>
+  );
+}
+
+function RichTextRulerSettingsDialog({
+  unit,
+  majorStepPx,
+  minorStepPx,
+  fineStepPx,
+  marginLeftPx,
+  marginRightPx,
+  showMarginZones,
+  onUnitChange,
+  onStepChange,
+  onMarginChange,
+  onShowMarginZonesChange,
+}: {
+  unit: MeasurementUnit;
+  majorStepPx: number;
+  minorStepPx: number;
+  fineStepPx: number;
+  marginLeftPx: number;
+  marginRightPx: number;
+  showMarginZones: boolean;
+  onUnitChange: (unit: MeasurementUnit) => void;
+  onStepChange: (patch: {
+    rulerMajorStep?: number;
+    rulerMinorStep?: number;
+    rulerFineStep?: number;
+  }) => void;
+  onMarginChange: (patch: Record<string, number>) => void;
+  onShowMarginZonesChange: (visible: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const safeUnit = unit === "mm" || unit === "cm" ? unit : "px";
+  const suffix = safeUnit;
+  const toDisplay = (valuePx: number) =>
+    formatMeasurementValue(valuePx, safeUnit, safeUnit === "px" ? 0 : 2);
+  const toPx = (value: string) =>
+    convertMeasurementValue(Number.parseFloat(value), safeUnit, "px") || 0;
+
+  return (
+    <div className="ef-rtp-ruler-dialog-wrap">
+      <button
+        type="button"
+        className="ef-rtp-toolbar-icon"
+        aria-label="Réglages de la règle"
+        title="Réglages de la règle"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <Settings2 size={15} />
+      </button>
+      {open ? (
+        <div className="ef-rtp-ruler-dialog" role="dialog" aria-label="Paramétrage règle">
+          <header>
+            <strong>Paramétrage règle</strong>
+            <button type="button" onClick={() => setOpen(false)} aria-label="Fermer">
+              ×
+            </button>
+          </header>
+          <label>
+            Unité
+            <select
+              value={safeUnit}
+              onChange={(event) => onUnitChange(event.target.value as MeasurementUnit)}
+            >
+              <option value="px">px</option>
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+            </select>
+          </label>
+          <RulerDialogNumber
+            label="Pas principal"
+            value={toDisplay(majorStepPx)}
+            suffix={suffix}
+            onChange={(value) => onStepChange({ rulerMajorStep: toPx(value) })}
+          />
+          <RulerDialogNumber
+            label="Pas secondaire"
+            value={toDisplay(minorStepPx)}
+            suffix={suffix}
+            onChange={(value) => onStepChange({ rulerMinorStep: toPx(value) })}
+          />
+          <RulerDialogNumber
+            label="Pas fin"
+            value={toDisplay(fineStepPx)}
+            suffix={suffix}
+            onChange={(value) => onStepChange({ rulerFineStep: toPx(value) })}
+          />
+          <RulerDialogNumber
+            label="Marge gauche"
+            value={toDisplay(marginLeftPx)}
+            suffix={suffix}
+            onChange={(value) => onMarginChange({ marginLeft: toPx(value) })}
+          />
+          <RulerDialogNumber
+            label="Marge droite"
+            value={toDisplay(marginRightPx)}
+            suffix={suffix}
+            onChange={(value) => onMarginChange({ marginRight: toPx(value) })}
+          />
+          <label className="ef-rtp-ruler-dialog-check">
+            <input
+              type="checkbox"
+              checked={showMarginZones}
+              onChange={(event) => onShowMarginZonesChange(event.target.checked)}
+            />
+            Marges grisées dans zone de travail
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function RulerDialogNumber({
+  label,
+  value,
+  suffix,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  suffix: string;
+  onChange: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  /* eslint-disable react-hooks/set-state-in-effect -- draft input needs to reset when external value changes */
+  useEffect(() => setDraft(value), [value]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+  return (
+    <label>
+      {label}
+      <span className="ef-rtp-ruler-dialog-number">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => onChange(draft)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              onChange(draft);
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        <small>{suffix}</small>
+      </span>
+    </label>
   );
 }
 

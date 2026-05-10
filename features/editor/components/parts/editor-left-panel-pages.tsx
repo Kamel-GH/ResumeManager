@@ -62,7 +62,7 @@ export function EditorLeftPagesPanel({
 }
 
 function matchesFilter<T>(
-  item: T,
+  _item: T,
   filter: string,
   candidates: Array<string | number | undefined | null>,
 ) {

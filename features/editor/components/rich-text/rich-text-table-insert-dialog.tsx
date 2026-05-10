@@ -94,7 +94,7 @@ export function RichTextTableInsertDialog({
             checked={withHeaderRow}
             onChange={(event) => setWithHeaderRow(event.target.checked)}
           />
-          <span>Créer une ligne d'en-tête</span>
+          <span>Créer une ligne d&apos;en-tête</span>
         </label>
 
         <footer className="ef-rtp-table-dialog-footer">

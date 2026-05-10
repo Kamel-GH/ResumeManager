@@ -145,4 +145,42 @@ describe("rich text variable node", () => {
         : false,
     ).toBe(false);
   });
+
+  it("preserves paragraph ruler attributes and tab nodes in rich text html", () => {
+    const rulerContent: JSONContent = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          attrs: {
+            marginLeft: 24,
+            marginRight: 32,
+            tabs: [96, 144],
+          },
+          content: [
+            { type: "text", text: "Avant" },
+            { type: "tab", attrs: { width: 48 } },
+            { type: "text", text: "Après" },
+          ],
+        },
+      ],
+    };
+
+    const html = serializeRichTextJsonToHtml(rulerContent, { registry });
+    const parsed = parseRichTextHtmlToJson(html, registry);
+    const paragraph = parsed.content?.[0];
+
+    expect(html).toContain('data-margin-left="24"');
+    expect(html).toContain('data-margin-right="32"');
+    expect(html).toContain('data-tabs="[96,144]"');
+    expect(html).toContain("data-rich-text-tab");
+    expect(paragraph?.attrs).toEqual(
+      expect.objectContaining({
+        marginLeft: 24,
+        marginRight: 32,
+        tabs: [96, 144],
+      }),
+    );
+    expect(paragraph?.content?.some((child) => child.type === "tab")).toBe(true);
+  });
 });

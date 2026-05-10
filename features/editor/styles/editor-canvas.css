@@ -3117,6 +3117,10 @@
   stroke-width: 2;
 }
 
+.ef-rtp-toolbar > .ef-rtp-toolbar-btn:last-child {
+  margin-left: auto;
+}
+
 /* ── Left styles panel ── */
 
 .ef-rtp-styles-sidebar {
@@ -3232,11 +3236,278 @@
   min-height: 0;
 }
 
+.ef-rtp-ruler-shell {
+  position: sticky;
+  top: -28px;
+  z-index: 20;
+  max-width: 100%;
+  margin: -14px auto 10px;
+  padding-top: 8px;
+  background: linear-gradient(180deg, rgb(249 250 251 / 96%), rgb(249 250 251 / 74%));
+  backdrop-filter: blur(8px);
+}
+
+.ef-rtp-ruler {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dbe3ee;
+  border-radius: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 8px 24px rgb(15 23 42 / 6%);
+  color: #64748b;
+  font-family: "Inter", system-ui, sans-serif;
+  user-select: none;
+}
+
+.ef-rtp-ruler-margin-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  background: rgb(15 23 42 / 8%);
+  pointer-events: none;
+}
+
+.ef-rtp-ruler-track {
+  position: absolute;
+  inset: 0 auto 0 0;
+  will-change: transform;
+}
+
+.ef-rtp-ruler-useful-zone {
+  position: absolute;
+  z-index: 2;
+  top: 18px;
+  bottom: 0;
+  border-left: 1px solid rgb(37 99 235 / 18%);
+  border-right: 1px solid rgb(37 99 235 / 18%);
+  background: rgb(37 99 235 / 5%);
+  pointer-events: none;
+}
+
+.ef-rtp-ruler-tick {
+  position: absolute;
+  z-index: 3;
+  bottom: 0;
+  width: 1px;
+  background: #cbd5e1;
+  pointer-events: none;
+}
+
+.ef-rtp-ruler-tick.is-major {
+  background: #94a3b8;
+}
+
+.ef-rtp-ruler-tick.is-fine {
+  background: #e2e8f0;
+}
+
+.ef-rtp-ruler-label {
+  position: absolute;
+  bottom: 15px;
+  left: 3px;
+  color: #475569;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ef-rtp-ruler-margin-handle,
+.ef-rtp-ruler-tab {
+  position: absolute;
+  z-index: 4;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+}
+
+.ef-rtp-ruler-margin-handle {
+  top: 3px;
+  width: 12px;
+  height: 28px;
+  transform: translateX(-6px);
+}
+
+.ef-rtp-ruler-margin-handle::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  width: 4px;
+  height: 10px;
+  border-radius: 1px;
+  background: #2563eb;
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 14%);
+}
+
+.ef-rtp-ruler-margin-handle::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  bottom: 2px;
+  width: 0;
+  height: 0;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+
+.ef-rtp-ruler-margin-handle.is-left::after {
+  border-bottom: 7px solid #2563eb;
+}
+
+.ef-rtp-ruler-margin-handle.is-right::after {
+  border-top: 7px solid #2563eb;
+}
+
+.ef-rtp-ruler-margin-handle:hover::before,
+.ef-rtp-ruler-margin-handle:focus-visible::before,
+.ef-rtp-ruler-tab:hover::before,
+.ef-rtp-ruler-tab:focus-visible::before {
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 18%);
+}
+
+.ef-rtp-ruler-tab {
+  top: 5px;
+  width: 14px;
+  height: 24px;
+  transform: translateX(-7px);
+  cursor: grab;
+}
+
+.ef-rtp-ruler-tab:active {
+  cursor: grabbing;
+}
+
+.ef-rtp-ruler-tab::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #2563eb;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: #ffffff;
+}
+
+.ef-rtp-ruler-tab::after {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 7px;
+  width: 2px;
+  height: 12px;
+  background: #2563eb;
+}
+
+.ef-rtp-ruler-guide {
+  position: absolute;
+  top: 0;
+  bottom: -720px;
+  width: 1px;
+  background: rgb(37 99 235 / 48%);
+  pointer-events: none;
+}
+
+.ef-rtp-ruler-tooltip {
+  position: absolute;
+  top: 2px;
+  z-index: 5;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ef-rtp-ruler-unit {
+  position: absolute;
+  top: 4px;
+  right: 34px;
+  border-radius: 999px;
+  background: rgb(15 23 42 / 5%);
+  color: #64748b;
+  padding: 2px 5px;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ef-rtp-ruler-settings {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  z-index: 8;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #dbe3ee;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ef-rtp-ruler-settings:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.ef-rtp-ruler-settings-popover {
+  position: absolute;
+  top: 30px;
+  right: 4px;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: 190px;
+  padding: 10px;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgb(15 23 42 / 14%);
+  color: #111827;
+  font-size: 11px;
+}
+
+.ef-rtp-ruler-settings-popover label {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.ef-rtp-ruler-settings-popover select {
+  height: 26px;
+  border: 1px solid #dbe3ee;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 0 6px;
+  font: inherit;
+}
+
+.ef-rtp-ruler-settings-popover small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .ef-rtp-editor-content {
-  width: min(100%, 720px);
+  width: 100%;
   min-height: 560px;
-  margin: 0 auto;
-  padding: 48px 58px;
+  margin: 0;
+  padding: 48px 0;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   background: #ffffff;
@@ -3250,12 +3521,152 @@
   color: #111827;
 }
 
+.ef-rtp-editor-document-shell {
+  position: relative;
+  width: min(100%, 720px);
+  margin: 0 auto;
+}
+
+.ef-rtp-editor-document-shell .ef-rtp-editor-content {
+  position: relative;
+  z-index: 2;
+}
+
+.ef-rtp-editor-margin-zone {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  z-index: 1;
+  background: rgb(15 23 42 / 7%);
+  pointer-events: none;
+}
+
+.ef-rtp-editor-margin-zone.is-left {
+  left: 1px;
+  width: var(--rtp-margin-left, 38px);
+}
+
+.ef-rtp-editor-margin-zone.is-right {
+  right: 1px;
+  width: var(--rtp-margin-right, 38px);
+}
+
+.ef-rtp-ruler-dialog-wrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.ef-rtp-ruler-dialog {
+  position: absolute;
+  top: 34px;
+  right: 0;
+  z-index: 80;
+  display: grid;
+  gap: 10px;
+  width: 286px;
+  padding: 12px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgb(15 23 42 / 16%);
+  color: #111827;
+  font-family: "Inter", system-ui, sans-serif;
+}
+
+.ef-rtp-ruler-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.ef-rtp-ruler-dialog header strong {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ef-rtp-ruler-dialog header button {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ef-rtp-ruler-dialog label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: center;
+  gap: 10px;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.ef-rtp-ruler-dialog select,
+.ef-rtp-ruler-dialog input[type="text"] {
+  width: 100%;
+  height: 30px;
+  border: 1px solid #dbe3ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  padding: 0 8px;
+  font: inherit;
+  outline: none;
+}
+
+.ef-rtp-ruler-dialog select:focus,
+.ef-rtp-ruler-dialog input[type="text"]:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgb(37 99 235 / 12%);
+}
+
+.ef-rtp-ruler-dialog-number {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 4px;
+}
+
+.ef-rtp-ruler-dialog-number small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.ef-rtp-ruler-dialog-check {
+  grid-template-columns: 18px minmax(0, 1fr) !important;
+  justify-items: start;
+  padding-top: 4px;
+  border-top: 1px solid #edf2f7;
+}
+
 .ef-rtp-editor-content p {
   margin: 0 0 8px;
 }
 
 .ef-rtp-editor-content p:last-child {
   margin-bottom: 0;
+}
+
+.ef-rich-text-tab-node {
+  display: inline-block;
+  height: 1em;
+  vertical-align: baseline;
+  white-space: pre;
+}
+
+.ef-rtp-editor-content .ef-rich-text-tab-node {
+  border-bottom: 1px dotted rgb(37 99 235 / 22%);
 }
 
 .ef-rtp-editor-content h1 {

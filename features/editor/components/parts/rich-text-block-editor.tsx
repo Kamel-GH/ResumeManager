@@ -65,6 +65,8 @@ import {
   RichTextVariableDisplayModeContext,
   RichTextVariableRegistryContext,
 } from "@/features/editor/components/parts/rich-text-variable-node-view";
+import { ParagraphStyle } from "@/features/editor/extensions/rich-text/paragraph-style";
+import { TabNode } from "@/features/editor/extensions/rich-text/tab-node";
 import {
   createRichTextVariableRegistry,
   parseRichTextHtmlToJson,
@@ -224,6 +226,8 @@ export function RichTextBlockEditor({
     extensions: [
       StarterKit,
       Underline,
+      ParagraphStyle,
+      TabNode,
       TextStyleKit.configure({
         backgroundColor: {
           types: ["textStyle"],
@@ -984,9 +988,11 @@ export function RichTextBlockEditor({
                         }
                         onChange={(color) => {
                           if (!color) return;
-                          selectedVarAttrs
-                            ? applyVariableStyle({ color })
-                            : runOnTextSelection((te) => te.chain().setColor(color).run());
+                          if (selectedVarAttrs) {
+                            applyVariableStyle({ color });
+                          } else {
+                            runOnTextSelection((te) => te.chain().setColor(color).run());
+                          }
                         }}
                       />
                     </div>

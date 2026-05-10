@@ -33,7 +33,7 @@ export function RichTextVariableInspector({
 
       <section className="ef-rtp-text-inspector-section">
         <div className="ef-rtp-text-section-title">
-          <strong>Modes d'affichage</strong>
+          <strong>Modes d&apos;affichage</strong>
           <span>Un même contenu, trois modes de lecture.</span>
         </div>
         <div className="ef-rtp-variable-modes">

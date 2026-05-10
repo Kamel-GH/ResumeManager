@@ -538,7 +538,7 @@ export function KonvaCanvasRenderer({
     },
     [deleteCanvasElements],
   );
-  const handleSaveRichTextContent = useCallback(
+  const _handleSaveRichTextContent = useCallback(
     (
       elementId: string,
       html: string,

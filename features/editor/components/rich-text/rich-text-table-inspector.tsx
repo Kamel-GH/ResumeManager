@@ -76,10 +76,10 @@ export function RichTextTableInspector({
   rowAttrs,
   columnWidth,
   onClose,
-  onAddRowAfter,
-  onAddColumnAfter,
+  onAddRowAfter: _onAddRowAfter,
+  onAddColumnAfter: _onAddColumnAfter,
   onToggleHeaderRow,
-  onToggleHeaderColumn,
+  onToggleHeaderColumn: _onToggleHeaderColumn,
   onToggleStriped,
   onFirstColumnToggle,
   onBorderPresetChange,
@@ -425,7 +425,7 @@ export function RichTextTableInspector({
   );
 }
 
-function InspectorTab({
+function _InspectorTab({
   label,
   value,
   activeTab,
@@ -567,7 +567,7 @@ function DesignColorSelect({
   );
 }
 
-function InspectorSection({
+function _InspectorSection({
   title,
   description,
   children,
@@ -587,7 +587,7 @@ function InspectorSection({
   );
 }
 
-function InspectorAction({
+function _InspectorAction({
   label,
   icon,
   active,

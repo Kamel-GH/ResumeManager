@@ -50,6 +50,22 @@ export function convertMeasurementValue(
   return valueInPx / toPixelsPerUnit;
 }
 
+export function pxToMm(valuePx: number): number {
+  return convertMeasurementValue(valuePx, "px", "mm");
+}
+
+export function pxToCm(valuePx: number): number {
+  return convertMeasurementValue(valuePx, "px", "cm");
+}
+
+export function mmToPx(valueMm: number): number {
+  return convertMeasurementValue(valueMm, "mm", "px");
+}
+
+export function cmToPx(valueCm: number): number {
+  return convertMeasurementValue(valueCm, "cm", "px");
+}
+
 export function formatMeasurementValue(
   valuePx: number,
   unit: MeasurementUnit,

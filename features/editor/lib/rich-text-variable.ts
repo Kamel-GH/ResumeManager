@@ -25,6 +25,8 @@ import {
   type VariableDisplayKind,
 } from "@/features/data-mapping/lib/variable-display";
 import type { MappingVariable } from "@/features/data-mapping/types";
+import { ParagraphStyle } from "@/features/editor/extensions/rich-text/paragraph-style";
+import { TabNode } from "@/features/editor/extensions/rich-text/tab-node";
 
 export type RichTextVariableDisplayMode = "label" | "technical" | "value";
 
@@ -219,14 +221,20 @@ export function parseRichTextHtmlToJson(
 ): JSONContent {
   const normalizedHtml = normalizeRichTextVariableHtml(html, registry);
   if (typeof DOMParser === "undefined" || typeof document === "undefined") {
-    return fallbackParseRichTextHtmlToJson(normalizedHtml, registry ?? EMPTY_VARIABLE_REGISTRY);
+    return restoreParagraphRulerAttrsFromHtml(
+      fallbackParseRichTextHtmlToJson(normalizedHtml, registry ?? EMPTY_VARIABLE_REGISTRY),
+      normalizedHtml,
+    );
   }
 
   const json = generateJSON(
     normalizedHtml,
     buildRichTextBaseExtensions("label", registry ?? EMPTY_VARIABLE_REGISTRY),
   );
-  return normalizeRichTextJsonWithVariables(json, registry);
+  return normalizeRichTextJsonWithVariables(
+    restoreParagraphRulerAttrsFromHtml(json, normalizedHtml),
+    registry,
+  );
 }
 
 export function serializeRichTextJsonToHtml(
@@ -462,6 +470,8 @@ function buildRichTextBaseExtensions(
   return [
     StarterKit,
     Underline,
+    ParagraphStyle,
+    TabNode,
     TextStyleKit.configure({
       backgroundColor: {
         types: ["textStyle"],
@@ -700,17 +710,29 @@ function replaceVariableTokensInHtmlFallback(html: string, registry: RichTextVar
   }
 
   return html
-    .replace(new RegExp(VARIABLE_TOKEN_REGEX.source, "g"), (match, token) => {
-      const attrs = buildRichTextVariableNodeAttrsFromSource({ token: `{{${token}}}` }, registry);
-      return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
+    .split(/(<[^>]+>)/g)
+    .map((part) => {
+      if (!part || part.startsWith("<")) {
+        return part;
+      }
+
+      return part
+        .replace(new RegExp(VARIABLE_TOKEN_REGEX.source, "g"), (match, token) => {
+          const attrs = buildRichTextVariableNodeAttrsFromSource(
+            { token: `{{${token}}}` },
+            registry,
+          );
+          return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
+        })
+        .replace(new RegExp(VARIABLE_LABEL_REGEX.source, "g"), (match, label) => {
+          const attrs = buildRichTextVariableNodeAttrsFromSource(
+            { label: `[${label}]`, token: `[${label}]` },
+            registry,
+          );
+          return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
+        });
     })
-    .replace(new RegExp(VARIABLE_LABEL_REGEX.source, "g"), (match, label) => {
-      const attrs = buildRichTextVariableNodeAttrsFromSource(
-        { label: `[${label}]`, token: `[${label}]` },
-        registry,
-      );
-      return attrs ? buildRichTextVariableSpanMarkup(attrs, "label") : match;
-    });
+    .join("");
 }
 
 function resolveRichTextVariableRegistryEntry(
@@ -872,6 +894,14 @@ function fallbackParseRichTextHtmlToJson(
         continue;
       }
 
+      if (parsedTag.tagName === "span" && "data-rich-text-tab" in parsedTag.attrs) {
+        appendFallbackNode(stack[stack.length - 1], {
+          type: "tab",
+          attrs: { width: normalizeFallbackNumber(parsedTag.attrs["data-width"]) || 48 },
+        });
+        continue;
+      }
+
       if (parsedTag.tagName === "span" && parsedTag.attrs["data-variable"] === "true") {
         stack.push({
           kind: "variable",
@@ -938,6 +968,74 @@ function fallbackParseRichTextHtmlToJson(
     type: "doc",
     content: root.content,
   };
+}
+
+function restoreParagraphRulerAttrsFromHtml(content: JSONContent, html: string): JSONContent {
+  const paragraphAttrs = collectParagraphRulerAttrsFromHtml(html);
+  if (paragraphAttrs.length === 0) {
+    return content;
+  }
+
+  let paragraphIndex = 0;
+  const restoreNode = (node: JSONContent): JSONContent => {
+    const restoredChildren = Array.isArray(node.content)
+      ? node.content.map((child) => restoreNode(child))
+      : undefined;
+
+    if (node.type !== "paragraph") {
+      return {
+        ...node,
+        ...(restoredChildren ? { content: restoredChildren } : {}),
+      };
+    }
+
+    const attrs = paragraphAttrs[paragraphIndex] ?? {};
+    paragraphIndex += 1;
+    return {
+      ...node,
+      attrs: {
+        ...(node.attrs ?? {}),
+        ...attrs,
+      },
+      ...(restoredChildren ? { content: restoredChildren } : {}),
+    };
+  };
+
+  return restoreNode(content);
+}
+
+function collectParagraphRulerAttrsFromHtml(html: string) {
+  const result: Array<Record<string, number | number[]>> = [];
+  const tokenRegex = /<(p|div)\b([^>]*)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = tokenRegex.exec(html))) {
+    const rawAttrs = match[2] ?? "";
+    const attrs: Record<string, number | number[]> = {
+      ...readNumericHtmlAttr(rawAttrs, "data-margin-left", "marginLeft"),
+      ...readNumericHtmlAttr(rawAttrs, "data-margin-right", "marginRight"),
+    };
+    const tabsAttr = readTabsHtmlAttr(rawAttrs);
+    if (tabsAttr.tabs) {
+      attrs.tabs = tabsAttr.tabs;
+    }
+    result.push(attrs);
+  }
+
+  return result;
+}
+
+function readNumericHtmlAttr(rawAttrs: string, dataAttr: string, key: string) {
+  const pattern = new RegExp(`${dataAttr}=(?:"([^"]*)"|'([^']*)')`, "i");
+  const value = pattern.exec(rawAttrs)?.[1] ?? pattern.exec(rawAttrs)?.[2] ?? "";
+  const normalized = normalizeFallbackNumber(value);
+  return normalized > 0 ? { [key]: normalized } : {};
+}
+
+function readTabsHtmlAttr(rawAttrs: string) {
+  const match = /data-tabs=(?:"([^"]*)"|'([^']*)')/i.exec(rawAttrs);
+  const rawTabs = match?.[1] ?? match?.[2];
+  const tabs = readFallbackTabs(rawTabs ? decodeHtmlEntities(rawTabs) : undefined);
+  return tabs.length > 0 ? ({ tabs } satisfies Record<string, number[]>) : {};
 }
 
 function closeFallbackFrame(stack: FallbackFrame[], tagName: string) {
@@ -1047,7 +1145,7 @@ function resolveFallbackMarkFromTag(tag: { tagName: string; attrs: Record<string
 
 function resolveFallbackBlockFromTag(tag: { tagName: string; attrs: Record<string, string> }) {
   if (tag.tagName === "p" || tag.tagName === "div") {
-    return { type: "paragraph" };
+    return { type: "paragraph", attrs: fallbackParagraphAttrsFromTag(tag.attrs) };
   }
 
   if (tag.tagName === "blockquote") {
@@ -1091,6 +1189,36 @@ function resolveFallbackBlockFromTag(tag: { tagName: string; attrs: Record<strin
   }
 
   return null;
+}
+
+function fallbackParagraphAttrsFromTag(attrs: Record<string, string>) {
+  const marginLeft = normalizeFallbackNumber(attrs["data-margin-left"]);
+  const marginRight = normalizeFallbackNumber(attrs["data-margin-right"]);
+  const tabs = readFallbackTabs(attrs["data-tabs"]);
+  return {
+    ...(marginLeft > 0 ? { marginLeft } : {}),
+    ...(marginRight > 0 ? { marginRight } : {}),
+    ...(tabs.length > 0 ? { tabs } : {}),
+  };
+}
+
+function readFallbackTabs(value: string | undefined) {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed
+          .map((item) => normalizeFallbackNumber(item))
+          .filter((item) => item > 0)
+          .sort((a, b) => a - b)
+      : [];
+  } catch {
+    return value
+      .split(",")
+      .map((item) => normalizeFallbackNumber(item))
+      .filter((item) => item > 0)
+      .sort((a, b) => a - b);
+  }
 }
 
 function fallbackVariableAttrsFromTag(
@@ -1213,11 +1341,16 @@ function serializeFallbackNode(
     return "<br />";
   }
 
+  if (node.type === "tab") {
+    const width = normalizeFallbackNumber(node.attrs?.width);
+    return `<span data-rich-text-tab="true" class="ef-rich-text-tab-node" style="display:inline-block;width:${width || 48}px"></span>`;
+  }
+
   const children = serializeFallbackFragment(node.content ?? [], options);
 
   switch (node.type) {
     case "paragraph":
-      return `<p>${children}</p>`;
+      return `<p${buildFallbackParagraphAttrs(node.attrs)}>${children}</p>`;
     case "blockquote":
       return `<blockquote>${children}</blockquote>`;
     case "heading": {
@@ -1242,6 +1375,36 @@ function serializeFallbackNode(
     default:
       return children;
   }
+}
+
+function buildFallbackParagraphAttrs(attrs: JSONContent["attrs"]) {
+  if (!attrs || typeof attrs !== "object") return "";
+
+  const marginLeft = normalizeFallbackNumber(attrs.marginLeft);
+  const marginRight = normalizeFallbackNumber(attrs.marginRight);
+  const tabs = Array.isArray(attrs.tabs)
+    ? attrs.tabs
+        .map((value) => normalizeFallbackNumber(value))
+        .filter((value) => value > 0)
+        .sort((a, b) => a - b)
+    : [];
+  const style = [
+    marginLeft > 0 ? `margin-left:${marginLeft}px` : "",
+    marginRight > 0 ? `margin-right:${marginRight}px` : "",
+  ]
+    .filter(Boolean)
+    .join(";");
+  return [
+    marginLeft > 0 ? ` data-margin-left="${marginLeft}"` : "",
+    marginRight > 0 ? ` data-margin-right="${marginRight}"` : "",
+    tabs.length > 0 ? ` data-tabs="${escapeHtml(JSON.stringify(tabs))}"` : "",
+    style ? ` style="${escapeHtml(style)}"` : "",
+  ].join("");
+}
+
+function normalizeFallbackNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
+  return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed * 100) / 100) : 0;
 }
 
 function serializeFallbackFragment(

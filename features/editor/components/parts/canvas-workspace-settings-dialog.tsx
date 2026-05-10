@@ -500,9 +500,11 @@ function LabeledMeasurementField({
   const measurementUnitSuffix = getMeasurementUnitSuffix(measurementUnit);
   const [draft, setDraft] = useState(() => formatMeasurementValue(valuePx, measurementUnit, 2));
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync draft measurement input when unit or value changes externally */
   useEffect(() => {
     setDraft(formatMeasurementValue(valuePx, measurementUnit, 2));
   }, [measurementUnit, valuePx]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const commit = () => {
     const parsed = parseDecimalValue(draft);

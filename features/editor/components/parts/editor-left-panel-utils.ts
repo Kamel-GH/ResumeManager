@@ -5,7 +5,7 @@ import type { EditorLayerView, EditorObjectView } from "@/features/editor/select
 export type SortDir = "asc" | "desc" | null;
 
 export function matchesFilter<T>(
-  item: T,
+  _item: T,
   filter: string,
   candidates: Array<string | number | undefined | null>,
 ) {

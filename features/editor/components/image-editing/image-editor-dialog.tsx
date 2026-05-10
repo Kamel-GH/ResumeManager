@@ -134,10 +134,12 @@ export function ImageEditorDialog({ node, onApply, onCancel }: ImageEditorDialog
     setActiveTab("crop");
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- reset local editing state when target node changes */
   useEffect(() => {
     setDraft(initialEditing);
     setActiveTab("crop");
   }, [node.id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

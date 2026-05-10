@@ -46,17 +46,13 @@ import type {
   PageMargin,
   TemplateElement,
   TemplateElementProps,
-  TemplateElementType,
   TemplateSchema,
 } from "@/features/editor/schema/template-schema";
 import {
   defaultWorkspaceSettings,
   type EditorWorkspaceSettings,
 } from "@/features/editor/schema/workspace-layout";
-import {
-  clampEditorViewportZoom,
-  resolveStableLayerNumber,
-} from "@/features/editor/stores/editor-store-helpers";
+import { clampEditorViewportZoom } from "@/features/editor/stores/editor-store-helpers";
 import { modernResumeTemplate } from "@/features/editor/templates/modern-resume-template";
 
 export type EditorPanelId = "pages" | "layers" | "assets" | "data" | "inspector";
@@ -2197,11 +2193,11 @@ function insertCanvasSource(
   return outcome;
 }
 
-function resolveEditorPage(template: TemplateSchema, activePageId?: string | null) {
+function _resolveEditorPage(template: TemplateSchema, activePageId?: string | null) {
   return template.pages.find((page) => page.id === activePageId) ?? template.pages[0] ?? null;
 }
 
-function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
+function _resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
   const pageElements = template.elements.filter((element) => element.pageId === pageId);
   if (pageElements.length === 0) {
     return null;
@@ -2224,7 +2220,7 @@ function resolveSingleLayerIdForPage(template: TemplateSchema, pageId: string) {
   return pageLayers.length === 1 ? pageLayers[0].id : null;
 }
 
-function resolveElementLayerIdentity(
+function _resolveElementLayerIdentity(
   element: TemplateElement,
   fallbackLayerId: string | null,
 ): {
@@ -2250,7 +2246,7 @@ function resolveElementLayerIdentity(
   };
 }
 
-function resolveElementLabel(element: TemplateElement) {
+function _resolveElementLabel(element: TemplateElement) {
   const explicitLabel =
     readElementPropString(element, "label") ??
     readElementPropString(element, "name") ??

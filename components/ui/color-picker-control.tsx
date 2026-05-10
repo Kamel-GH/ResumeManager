@@ -171,10 +171,12 @@ export function ColorPickerPanel({
   const hueColor = hsvToHex(hsv.h, 100, 100);
   const [hexDraft, setHexDraft] = useState(displayColor.hex.slice(1).toUpperCase());
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync draft inputs with parsed color state */
   useEffect(() => {
     setHexDraft(parsed.hex.slice(1).toUpperCase());
     setVisualColor({ hex: parsed.hex, alpha: parsed.alpha, transparent: parsed.transparent });
   }, [parsed.alpha, parsed.hex, parsed.transparent]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const applyVisualColor = (nextColor: { hex: string; alpha: number; transparent?: boolean }) => {
     setVisualColor({
